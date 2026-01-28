@@ -1,0 +1,290 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+:root {
+  --background: #E6E6E6; /* Main background color */
+  --foreground: #0D3A25; /* Text color */
+   --font-montserrat: 'Montserrat', sans-serif;
+}
+
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  
+  }
+}
+
+body {
+   background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-montserrat), sans-serif;
+}
+
+
+/* Purana code waisa hi rehne dein aur neeche yeh add karein */
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #invoice-section, #invoice-section * {
+    visibility: visible;
+  }
+  #invoice-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+    font-size: 9pt; /* Font size aur chota karein */
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+@page {
+  size: A4;
+  margin: 10mm; /* Margins aur kam karein */
+}
+
+
+
+.loader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loader-container {
+  text-align: center;
+}
+
+.logo-animation {
+  animation: bounce 2s infinite ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-30px);
+  }
+  60% {
+    transform: translateY(-15px);
+  }
+}
+
+.typing-text {
+  margin-top: 20px;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #0D3A25;
+  font-family: monospace;
+  overflow: hidden;
+  border-right: .15em solid #0D3A25;
+  white-space: nowrap;
+  letter-spacing: .1em;
+  animation:
+    typing 2.5s steps(30, end) infinite,
+    blink-caret .75s step-end infinite;
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent }
+  50% { border-color: #0D3A25; }
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* For Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
+.loader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(230, 230, 230, 0.8); /* Matches your site's bg color */
+  backdrop-filter: blur(5px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loader-container {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.pulse-container {
+  position: relative;
+  width: 150px; /* Adjust size if needed */
+  height: 150px; /* Adjust size if needed */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pulse-ring {
+  position: absolute;
+  width: 80px; /* Should match logo width */
+  height: 80px; /* Should match logo height */
+  border: 4px solid #0D3A25; /* Your theme color */
+  border-radius: 50%;
+  animation: pulse 2s ease-out infinite;
+  opacity: 0;
+}
+
+/* Delay for each ring to create a ripple effect */
+.pulse-ring:nth-child(2) {
+  animation-delay: 0.5s;
+}
+.pulse-ring:nth-child(3) {
+  animation-delay: 1s;
+}
+.pulse-ring:nth-child(4) {
+  animation-delay: 1.5s;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.loader-text {
+  margin-top: 20px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #0D3A25; 
+  letter-spacing: .05em;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+
+.loader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(230, 230, 230, 0.9); /* Matches site's bg color */
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loader-container {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loader-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 74px; /* Grid ki width adjust karein */
+}
+
+.loader-square {
+  width: 20px;
+  height: 20px;
+  background-color: #0D3A25; /* Aapka theme color */
+  border-radius: 4px;
+  animation: wave 1.4s ease-in-out infinite;
+}
+
+/* Har square ko alag alag delay dein taake lehar jaisa effect aaye */
+.loader-square:nth-child(1) { animation-delay: 0s; }
+.loader-square:nth-child(2) { animation-delay: 0.1s; }
+.loader-square:nth-child(3) { animation-delay: 0.2s; }
+.loader-square:nth-child(4) { animation-delay: 0.1s; }
+.loader-square:nth-child(5) { animation-delay: 0.2s; }
+.loader-square:nth-child(6) { animation-delay: 0.3s; }
+.loader-square:nth-child(7) { animation-delay: 0.2s; }
+.loader-square:nth-child(8) { animation-delay: 0.3s; }
+.loader-square:nth-child(9) { animation-delay: 0.4s; }
+
+@keyframes wave {
+  0%, 100% {
+    transform: scale(0.5);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.loader-text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #0D3A25; /* Aapka theme color */
+  letter-spacing: .05em;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+
+/* Purana code waisa hi rehne dein aur neeche yeh add karein */
+
+.profile-avatar {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  min-height: 48px !important;
+}
