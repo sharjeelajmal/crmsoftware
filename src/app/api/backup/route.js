@@ -3,7 +3,7 @@ import clientPromise from '../../../lib/mongodb';
 import { Parser } from 'json2csv';
 import { startOfDay, endOfDay, subDays, startOfYear } from 'date-fns';
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 
 export async function GET(request) {
     try {

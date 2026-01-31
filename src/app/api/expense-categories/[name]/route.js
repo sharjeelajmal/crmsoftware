@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import clientPromise from '../../../../lib/mongodb';
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 const COLLECTION_NAME = "expense_categories";
 
 // API to DELETE an expense category by name

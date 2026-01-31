@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import clientPromise from '../../../../lib/mongodb';
 import { ObjectId } from 'mongodb';
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 
 // 1. GET Single Sale (View ke liye) - Yeh waisa hi rahega
 export async function GET(request, { params }) {

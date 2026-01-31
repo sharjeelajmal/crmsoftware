@@ -5,7 +5,7 @@ import clientPromise from '../../../lib/mongodb';
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs'; // Import bcrypt
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 const COLLECTION_NAME = "users";
 
 // Helper function to get the single user profile

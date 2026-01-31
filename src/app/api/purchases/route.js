@@ -4,7 +4,7 @@ import { ObjectId } from 'mongodb';
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 
 // Sabhi purchases ka data get karne ke liye (Updated with Filters)
 export async function GET(request) {

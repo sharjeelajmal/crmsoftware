@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 import clientPromise from '../../../lib/mongodb';
 import { startOfDay, endOfDay, subDays, startOfYear, getYear, differenceInDays, addDays, format } from 'date-fns';
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 
 export async function GET(request) {
     try {

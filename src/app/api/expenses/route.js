@@ -3,7 +3,7 @@ import clientPromise from '../../../lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 const COLLECTION_NAME = "expenses";
 
 // API to GET all expenses, with date filtering

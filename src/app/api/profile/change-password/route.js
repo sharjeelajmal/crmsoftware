@@ -3,7 +3,7 @@ import clientPromise from '../../../../lib/mongodb';
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcryptjs';
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 const COLLECTION_NAME = "users";
 
 export async function POST(request) {

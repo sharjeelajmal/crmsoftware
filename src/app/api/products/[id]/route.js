@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import clientPromise from '../../../../lib/mongodb'; // Path theek kar diya hai
 import { ObjectId } from 'mongodb';
 
-const DB_NAME = "crm_db";
+const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
 
 export async function PUT(request, { params }) {
     try {
