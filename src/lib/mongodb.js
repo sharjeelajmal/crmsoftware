@@ -21,4 +21,6 @@ if (process.env.NODE_ENV === 'development') {
   clientPromise = client.connect()
 }
 
+// Ye line add karein taake db name asani se mil sake
+export const dbName = process.env.MONGODB_DB || "bakery_db";
 export default clientPromise
