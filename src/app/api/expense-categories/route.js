@@ -1,45 +1,23 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../lib/mongodb';
+import { getDb } from "@/lib/mongodb";
+import { route, ok, created, parseBody, conflict } from "@/lib/api";
+import { expenseCategorySchema } from "@/lib/validation";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
-const COLLECTION_NAME = "expense_categories";
+const COLLECTION = "expense_categories";
 
-// API to GET all expense categories (sorted by name)
-export async function GET() {
-    try {
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const categories = await db.collection(COLLECTION_NAME).find({}).sort({ name: 1 }).toArray();
-        return NextResponse.json(categories);
-    } catch (e) {
-        console.error("Error fetching expense categories:", e);
-        return NextResponse.json({ error: 'Error fetching expense categories' }, { status: 500 });
-    }
-}
+export const GET = route(async () => {
+  const db = await getDb();
+  const categories = await db.collection(COLLECTION).find({}).sort({ name: 1 }).toArray();
+  return ok(categories);
+});
 
-// API to POST a new expense category
-export async function POST(request) {
-    try {
-        const { name } = await request.json();
-        if (!name) {
-            return NextResponse.json({ error: 'Category name is required' }, { status: 400 });
-        }
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        
-        // Check for duplicates
-        const existing = await db.collection(COLLECTION_NAME).findOne({ name: name.trim() });
-        if (existing) {
-             return NextResponse.json({ error: 'Category already exists' }, { status: 409 });
-        }
-        
-        const result = await db.collection(COLLECTION_NAME).insertOne({ 
-            name: name.trim(), 
-            createdAt: new Date() 
-        });
-        return NextResponse.json(result);
-    } catch (e) {
-        console.error("Error adding expense category:", e);
-        return NextResponse.json({ error: 'Error adding expense category' }, { status: 500 });
-    }
-}
+export const POST = route(async (request) => {
+  const { name } = await parseBody(request, expenseCategorySchema);
+  const db = await getDb();
+  const categories = db.collection(COLLECTION);
+
+  if (await categories.findOne({ name })) throw conflict("Category already exists");
+
+  const doc = { name, createdAt: new Date() };
+  const { insertedId } = await categories.insertOne(doc);
+  return created({ _id: insertedId, ...doc });
+});

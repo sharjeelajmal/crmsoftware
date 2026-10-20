@@ -1,69 +1,40 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../lib/mongodb';
+import { getDb, withTransaction } from "@/lib/mongodb";
+import { route, ok, created, parseBody, parseQuery, escapeRegex } from "@/lib/api";
+import { saleSchema, salesQuerySchema, cleanSaleItems } from "@/lib/validation";
+import { deductStock } from "@/lib/inventory";
+import { invoiceNumberExists, nextInvoiceNumber } from "@/lib/sales";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
+/** GET /api/sales?customerName=&salesmanId=  (newest first) */
+export const GET = route(async (request) => {
+  const { customerName, salesmanId } = parseQuery(request, salesQuerySchema);
+  const query = {};
+  if (customerName) query.customerName = { $regex: `^${escapeRegex(customerName)}$`, $options: "i" };
+  if (salesmanId) query.salesmanId = salesmanId;
 
-export async function GET(request) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const customerName = searchParams.get('customerName');
-        const salesmanId = searchParams.get('salesmanId');
+  const db = await getDb();
+  const sales = await db.collection("sales").find(query).sort({ invoiceDate: -1 }).toArray();
+  return ok(sales);
+});
 
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
+/**
+ * Creates a sale and deducts stock in one transaction.
+ * If the client-side invoice number is already taken (two cashiers at once),
+ * the next free number is assigned and returned in the response.
+ */
+export const POST = route(async (request) => {
+  const input = await parseBody(request, saleSchema);
+  const items = cleanSaleItems(input.items);
 
-        let query = {};
-        if (customerName) {
-            query.customerName = { $regex: `^${customerName.trim()}$`, $options: 'i' };
-        }
-        if (salesmanId) {
-            query.salesmanId = salesmanId;
-        }
+  const sale = await withTransaction(async (db, session) => {
+    const invoiceNumber = (await invoiceNumberExists(db, input.invoiceNumber, session))
+      ? await nextInvoiceNumber(db, session)
+      : input.invoiceNumber;
 
-        const sales = await db.collection('sales').find(query).sort({ invoiceDate: -1 }).toArray();
+    const doc = { ...input, invoiceNumber, items, createdAt: new Date() };
+    const { insertedId } = await db.collection("sales").insertOne(doc, { session });
+    await deductStock(db, items, session);
+    return { _id: insertedId, ...doc };
+  });
 
-        return NextResponse.json(sales);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error fetching sales' }, { status: 500 });
-    }
-}
-
-// --- POST FUNCTION (FINAL UPDATE) ---
-export async function POST(request) {
-    try {
-        const sale = await request.json();
-        // Date ko string se Date object mein convert karein
-        sale.invoiceDate = new Date(sale.invoiceDate);
-
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-
-        // 1. Sale ko database mein save karein
-        const result = await db.collection('sales').insertOne(sale);
-
-        // 2. Inventory ko alag se update karein, taake sale save hone mein masla na ho
-        if (result.insertedId && sale.items && sale.items.length > 0) {
-            try {
-                const productUpdates = sale.items
-                    .filter(item => item.desc && parseInt(item.qty, 10) > 0) // Sirf valid items ko process karein
-                    .map(item => {
-                        return db.collection('products').updateOne(
-                            { name: item.desc },
-                            { $inc: { remaining: -parseInt(item.qty, 10) } }
-                        );
-                    });
-                
-                await Promise.all(productUpdates);
-            } catch (inventoryError) {
-                // Agar inventory update mein koi masla aaye, to usko console par log kar dein
-                // Sale pehle hi save ho chuki hai
-                console.error("Inventory update failed, but sale was saved:", inventoryError);
-            }
-        }
-
-        return NextResponse.json(result);
-    } catch (e) {
-        console.error("Error adding sale:", e);
-        return NextResponse.json({ error: 'Error adding sale' }, { status: 500 });
-    }
-}
+  return created(sale);
+});

@@ -1,39 +1,330 @@
 @import "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
-
-:root {
-  --background: #E6E6E6; /* Main background color */
-  --foreground: #0D3A25; /* Text color */
-   --font-montserrat: 'Montserrat', sans-serif;
-}
-
+/* =============================================================================
+   AJ GARMENTS CRM — DESIGN TOKENS
+   -----------------------------------------------------------------------------
+   Yeh file project ka SINGLE source of truth hai for colors, shadows aur fonts.
+   - Tailwind v4 `@theme inline` block har token ko `:root` par CSS variable ke
+     taur par emit karta hai (e.g. `var(--color-primary)`) AUR utility classes
+     banata hai (e.g. `bg-primary`, `text-primary`, `ring-primary`, `bg-primary/10`).
+   - Kisi bhi .js file mein raw hex / rgba likhna mana hai. Naya color chahiye
+     to yahan token add karein (dekhein Rules.md §3).
+   ============================================================================= */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ---- Brand ------------------------------------------------------------- */
+  --color-primary: #0037a6; /* AJ Garments blue (logo background) */
+  --color-primary-hover: #002b85; /* Darker blue: hover / active */
+  --color-primary-light: #2d8cff; /* Logo wave light blue: accents / gradients */
+  --color-primary-soft: #e8eefa; /* Light tint: selected rows, calendar bg */
+  --color-primary-glow: rgba(0, 55, 166, 0.4); /* Translucent blue for glows */
+
+  /* ---- Surfaces ---------------------------------------------------------- */
+  --color-background: #ecf0f8; /* App page background */
+  --color-surface: #ffffff; /* Cards, sidebar, inputs */
+  --color-surface-muted: #f4f6fa; /* Invoice header/footer, soft panels */
+  --color-surface-glass: rgba(255, 255, 255, 0.8); /* Chart tooltips, overlays */
+
+  /* ---- Text -------------------------------------------------------------- */
+  --color-text-primary: #111827;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #bbbbbb; /* Placeholders */
+
+  /* ---- Borders ----------------------------------------------------------- */
+  --color-border: #e5e7eb;
+  --color-border-strong: #000000; /* Invoice total dividers */
+
+  /* ---- Semantic states --------------------------------------------------- */
+  --color-success: #16a34a;
+  --color-success-light: #22c55e;
+  --color-success-soft: #ecfdf5;
+  --color-success-border: #a7f3d0;
+
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-danger-border: #fecaca;
+
+  --color-warning: #f59e0b;
+
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* ---- Shadows (named so they don't override Tailwind's shadow-sm/md/lg) -- */
+  --shadow-soft: 0 4px 15px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 15px 25px -5px rgba(0, 0, 0, 0.1);
+  --shadow-overlay: 0 10px 30px rgba(0, 0, 0, 0.3);
+  --shadow-brand: 0 10px 25px -5px var(--color-primary-glow);
+
+  /* ---- Fonts (loaded via next/font in src/app/layout.js) ----------------- */
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
+  --font-urdu: var(--font-noto-nastaliq-urdu), serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  
+/* =============================================================================
+   BASE
+   ============================================================================= */
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-primary);
+  font-family: var(--font-sans);
+}
+
+/* ---- Custom scrollbar (thin, rounded, brand-tinted) --------------------- */
+/* Chrome / Edge / Safari */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 60%, transparent);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+/* Firefox (no ::-webkit-scrollbar support) */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--color-primary) 35%, transparent) transparent;
+  }
+}
+/* Scrollable but without a visible bar (sidebar on short screens) */
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Number inputs: spinner hide karein */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Header avatar ka fixed size (next/image override) */
+.profile-avatar {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  min-height: 48px !important;
+}
+
+/* =============================================================================
+   LOADER (src/components/Loader.js)
+   ============================================================================= */
+
+/* =============================================================================
+   Z-INDEX LAYERS — keep every overlay on this ladder
+   dropdowns/tooltips: 10–30 (Tailwind z-10/z-20/z-30)
+   modals/popups:      50   (z-50)
+   loader overlay:     9000
+   toasts:             10000 (always on top)
+   ============================================================================= */
+
+.toast-viewport {
+  z-index: 10000;
+}
+
+/* Full-screen frosted overlay */
+.loader-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: color-mix(in srgb, var(--color-background) 80%, transparent);
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9000;
+  animation: loader-fade-in 0.2s ease-out;
+}
+
+.loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+/* Logo sits inside a spinning gradient ring with a soft glowing halo behind it */
+.loader-ring {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+}
+
+.loader-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: conic-gradient(from 0deg, transparent 0 60%, var(--color-primary-light) 80%, var(--color-primary) 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 5px), var(--color-black) calc(100% - 4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 5px), var(--color-black) calc(100% - 4px));
+  animation: loader-spin 1.1s linear infinite;
+}
+
+.loader-ring::after {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  border-radius: 9999px;
+  background: var(--color-primary-glow);
+  filter: blur(14px);
+  animation: loader-breathe 1.8s ease-in-out infinite;
+  z-index: -1;
+}
+
+.loader-logo {
+  border-radius: 9999px;
+  box-shadow: var(--shadow-card-hover);
+}
+
+.loader-text {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Three bouncing dots after the text */
+.loader-dots {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 2px;
+}
+.loader-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  animation: loader-dot 1.2s ease-in-out infinite;
+}
+.loader-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.loader-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* Compact variant for use inside cards/tables */
+.loader-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2.5rem 0;
+}
+.loader-inline .loader-ring {
+  width: 64px;
+  height: 64px;
+}
+.loader-inline .loader-ring::after {
+  inset: 8px;
+}
+.loader-inline .loader-text {
+  font-size: 0.75rem;
+}
+
+@keyframes loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes loader-breathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.1);
+  }
+}
+@keyframes loader-dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+@keyframes loader-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
-body {
-   background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-montserrat), sans-serif;
+/* =============================================================================
+   DATE PICKER (react-day-picker v9) — theme once here, not per page.
+   Components still `import "react-day-picker/dist/style.css"` for the base layout.
+   ============================================================================= */
+
+.rdp-root {
+  --rdp-accent-color: var(--color-primary);
+  --rdp-accent-background-color: var(--color-primary-soft);
+  --rdp-day-width: 44px;
+  --rdp-day-height: 44px;
+  margin: 1em;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-soft);
 }
 
+.rdp-caption_label {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
 
-/* Purana code waisa hi rehne dein aur neeche yeh add karein */
+.rdp-day_button:hover,
+.rdp-button_next:hover,
+.rdp-button_previous:hover {
+  background-color: var(--color-primary-soft);
+  border-radius: 0.5rem;
+}
+
+.rdp-selected .rdp-day_button,
+.rdp-range_start .rdp-day_button,
+.rdp-range_end .rdp-day_button {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+/* =============================================================================
+   PRINT (invoice pages)
+   ============================================================================= */
 
 @media print {
   body {
@@ -43,7 +334,8 @@ body {
   body * {
     visibility: hidden;
   }
-  #invoice-section, #invoice-section * {
+  #invoice-section,
+  #invoice-section * {
     visibility: visible;
   }
   #invoice-section {
@@ -56,7 +348,7 @@ body {
     padding: 0;
     box-shadow: none;
     border-radius: 0;
-    font-size: 9pt; /* Font size aur chota karein */
+    font-size: 9pt;
   }
   .no-print {
     display: none !important;
@@ -65,226 +357,5 @@ body {
 
 @page {
   size: A4;
-  margin: 10mm; /* Margins aur kam karein */
-}
-
-
-
-.loader-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(5px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-}
-
-.loader-container {
-  text-align: center;
-}
-
-.logo-animation {
-  animation: bounce 2s infinite ease-in-out;
-}
-
-@keyframes bounce {
-  0%, 20%, 50%, 80%, 100% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-30px);
-  }
-  60% {
-    transform: translateY(-15px);
-  }
-}
-
-.typing-text {
-  margin-top: 20px;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #0D3A25;
-  font-family: monospace;
-  overflow: hidden;
-  border-right: .15em solid #0D3A25;
-  white-space: nowrap;
-  letter-spacing: .1em;
-  animation:
-    typing 2.5s steps(30, end) infinite,
-    blink-caret .75s step-end infinite;
-}
-
-@keyframes typing {
-  from { width: 0 }
-  to { width: 100% }
-}
-
-@keyframes blink-caret {
-  from, to { border-color: transparent }
-  50% { border-color: #0D3A25; }
-}
-
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-/* For Firefox */
-input[type=number] {
-  -moz-appearance: textfield;
-}
-
-
-.loader-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(230, 230, 230, 0.8); /* Matches your site's bg color */
-  backdrop-filter: blur(5px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-}
-
-.loader-container {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.pulse-container {
-  position: relative;
-  width: 150px; /* Adjust size if needed */
-  height: 150px; /* Adjust size if needed */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.pulse-ring {
-  position: absolute;
-  width: 80px; /* Should match logo width */
-  height: 80px; /* Should match logo height */
-  border: 4px solid #0D3A25; /* Your theme color */
-  border-radius: 50%;
-  animation: pulse 2s ease-out infinite;
-  opacity: 0;
-}
-
-/* Delay for each ring to create a ripple effect */
-.pulse-ring:nth-child(2) {
-  animation-delay: 0.5s;
-}
-.pulse-ring:nth-child(3) {
-  animation-delay: 1s;
-}
-.pulse-ring:nth-child(4) {
-  animation-delay: 1.5s;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
-}
-
-.loader-text {
-  margin-top: 20px;
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #0D3A25; 
-  letter-spacing: .05em;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-}
-
-
-.loader-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(230, 230, 230, 0.9); /* Matches site's bg color */
-  backdrop-filter: blur(8px);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-}
-
-.loader-container {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.loader-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  width: 74px; /* Grid ki width adjust karein */
-}
-
-.loader-square {
-  width: 20px;
-  height: 20px;
-  background-color: #0D3A25; /* Aapka theme color */
-  border-radius: 4px;
-  animation: wave 1.4s ease-in-out infinite;
-}
-
-/* Har square ko alag alag delay dein taake lehar jaisa effect aaye */
-.loader-square:nth-child(1) { animation-delay: 0s; }
-.loader-square:nth-child(2) { animation-delay: 0.1s; }
-.loader-square:nth-child(3) { animation-delay: 0.2s; }
-.loader-square:nth-child(4) { animation-delay: 0.1s; }
-.loader-square:nth-child(5) { animation-delay: 0.2s; }
-.loader-square:nth-child(6) { animation-delay: 0.3s; }
-.loader-square:nth-child(7) { animation-delay: 0.2s; }
-.loader-square:nth-child(8) { animation-delay: 0.3s; }
-.loader-square:nth-child(9) { animation-delay: 0.4s; }
-
-@keyframes wave {
-  0%, 100% {
-    transform: scale(0.5);
-    opacity: 0.4;
-  }
-  50% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.loader-text {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #0D3A25; /* Aapka theme color */
-  letter-spacing: .05em;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-}
-
-
-/* Purana code waisa hi rehne dein aur neeche yeh add karein */
-
-.profile-avatar {
-  width: 48px !important;
-  height: 48px !important;
-  min-width: 48px !important;
-  min-height: 48px !important;
+  margin: 10mm;
 }

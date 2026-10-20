@@ -1,30 +1,17 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../lib/mongodb';
+import { getDb } from "@/lib/mongodb";
+import { route, ok, created, parseBody } from "@/lib/api";
+import { vendorSchema } from "@/lib/validation";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
-const COLLECTION_NAME = "vendors";
+export const GET = route(async () => {
+  const db = await getDb();
+  const vendors = await db.collection("vendors").find({}).sort({ name: 1 }).toArray();
+  return ok(vendors);
+});
 
-// Sabhi vendors ka data get karne ke liye
-export async function GET() {
-    try {
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const vendors = await db.collection(COLLECTION_NAME).find({}).sort({ name: 1 }).toArray();
-        return NextResponse.json(vendors);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error fetching vendors' }, { status: 500 });
-    }
-}
-
-// Naya vendor add karne ke liye
-export async function POST(request) {
-    try {
-        const vendorData = await request.json();
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const result = await db.collection(COLLECTION_NAME).insertOne({ ...vendorData, createdAt: new Date() });
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error adding vendor' }, { status: 500 });
-    }
-}
+export const POST = route(async (request) => {
+  const vendor = await parseBody(request, vendorSchema);
+  const db = await getDb();
+  const doc = { ...vendor, createdAt: new Date() };
+  const { insertedId } = await db.collection("vendors").insertOne(doc);
+  return created({ _id: insertedId, ...doc });
+});

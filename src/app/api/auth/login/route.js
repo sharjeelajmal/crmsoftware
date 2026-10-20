@@ -1,56 +1,42 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../../lib/mongodb';
-import bcrypt from 'bcryptjs';
+import { getDb } from "@/lib/mongodb";
+import { publicRoute, ok, parseBody, ApiError } from "@/lib/api";
+import { loginSchema } from "@/lib/validation";
+import { createSessionToken, SESSION_COOKIE, sessionCookieOptions } from "@/lib/auth";
+import { ensureBootstrapAdmin, findUserByLogin, hashPassword, passwordMatches } from "@/lib/users";
+import { normalizeRole } from "@/constants/roles";
 
-const DB_NAME = process.env.MONGODB_DB;
-const COLLECTION_NAME = "users";
+const INVALID = () => new ApiError(401, "Invalid username or password");
 
-export async function POST(request) {
-    try {
-        const { username, password } = await request.json();
-
-        console.log("Login Attempt for:", username); // Terminal mein check karne ke liye
-
-        // 1. .env se values lein
-        const envUser = process.env.FIRST_USER_NAME;
-        const envPass = process.env.FIRST_USER_PASS;
-
-        console.log("Checking ENV:", envUser, envPass); // Ye terminal mein print hoga
-
-        if (username === envUser && password === envPass) {
-            console.log("Login Success via ENV");
-            return NextResponse.json({ message: 'Login successful' }, { status: 200 });
-        }
-
-        // 2. Agar .env fail ho jaye to DB check karein
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-
-        const user = await db.collection(COLLECTION_NAME).findOne({
-            $or: [
-                { name: username.trim() },
-                { email: username.trim() }
-            ]
-        });
-
-        if (!user) {
-            console.log("User not found in DB");
-            return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-        }
-
-        const isMatch = user.password.startsWith('$2')
-            ? await bcrypt.compare(password, user.password)
-            : (password === user.password);
-
-        if (!isMatch) {
-            console.log("Password did not match");
-            return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-        }
-
-        return NextResponse.json({ message: 'Login successful' }, { status: 200 });
-
-    } catch (e) {
-        console.error("API Error:", e.message);
-        return NextResponse.json({ error: 'Login failed', details: e.message }, { status: 500 });
-    }
+/** Bootstrap admin from .env — lets the owner log in before any DB user exists. */
+function matchesBootstrapAdmin(username, password) {
+  const envUser = process.env.FIRST_USER_NAME;
+  const envPass = process.env.FIRST_USER_PASS;
+  return Boolean(envUser && envPass && username === envUser && password === envPass);
 }
+
+async function authenticateDbUser(db, username, password) {
+  const user = await findUserByLogin(db, username);
+  if (!user?.password || user.active === false) return null;
+  if (!(await passwordMatches(password, user.password))) return null;
+
+  // Legacy plain-text password: upgrade to a hash on successful login.
+  if (!user.password.startsWith("$2")) {
+    await db.collection("users").updateOne({ _id: user._id }, { $set: { password: await hashPassword(password) } });
+  }
+  return user;
+}
+
+export const POST = publicRoute(async (request) => {
+  const { username, password } = await parseBody(request, loginSchema);
+  const db = await getDb();
+
+  const user = matchesBootstrapAdmin(username, password)
+    ? await ensureBootstrapAdmin(db, { name: username })
+    : await authenticateDbUser(db, username, password);
+  if (!user) throw INVALID();
+
+  const session = { sub: String(user._id), name: user.name, role: normalizeRole(user.role) };
+  const response = ok({ ok: true, user: { name: session.name, role: session.role } });
+  response.cookies.set(SESSION_COOKIE, await createSessionToken(session), sessionCookieOptions());
+  return response;
+});

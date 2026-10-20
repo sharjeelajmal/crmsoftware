@@ -1,47 +1,27 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../../lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { ObjectId } from "mongodb";
+import { withTransaction } from "@/lib/mongodb";
+import { route, ok, parseBody, notFound, conflict } from "@/lib/api";
+import { saleLinkSchema } from "@/lib/validation";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
+/** Assigns an existing invoice to a salesman and credits its amount to their totals. */
+export const POST = route(async (request) => {
+  const { invoiceNumber, salesmanId } = await parseBody(request, saleLinkSchema);
+  const salesmanObjectId = new ObjectId(salesmanId);
 
-export async function POST(request) {
-    try {
-        const { invoiceNumber, salesmanId } = await request.json();
+  await withTransaction(async (db, session) => {
+    const [sale, salesman] = await Promise.all([
+      db.collection("sales").findOne({ invoiceNumber }, { session }),
+      db.collection("salesmen").findOne({ _id: salesmanObjectId }, { session, projection: { _id: 1 } }),
+    ]);
+    if (!sale) throw notFound("Sale with this invoice number");
+    if (!salesman) throw notFound("Salesman");
+    if (sale.salesmanId) throw conflict("This sale is already assigned to another salesman.");
 
-        if (!invoiceNumber || !salesmanId) {
-            return NextResponse.json({ error: 'Invoice number and salesman ID are required.' }, { status: 400 });
-        }
+    await db.collection("sales").updateOne({ _id: sale._id }, { $set: { salesmanId } }, { session });
+    await db
+      .collection("salesmen")
+      .updateOne({ _id: salesmanObjectId }, { $inc: { totalSales: Number(sale.subTotal) || 0 } }, { session });
+  });
 
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-
-        // 1. Find the sale by invoice number
-        const sale = await db.collection('sales').findOne({ invoiceNumber: parseInt(invoiceNumber) });
-
-        if (!sale) {
-            return NextResponse.json({ error: 'Sale with this invoice number not found.' }, { status: 404 });
-        }
-
-        if (sale.salesmanId) {
-            return NextResponse.json({ error: 'This sale is already assigned to another salesman.' }, { status: 409 });
-        }
-
-        // 2. Update the sale with the salesman ID
-        await db.collection('sales').updateOne(
-            { _id: sale._id },
-            { $set: { salesmanId: salesmanId } }
-        );
-
-        // 3. Update the salesman's total sales
-        await db.collection('salesmen').updateOne(
-            { _id: new ObjectId(salesmanId) },
-            { $inc: { totalSales: sale.subTotal } } // Increment totalSales by the sale amount
-        );
-
-        return NextResponse.json({ message: 'Sale linked successfully!' });
-
-    } catch (e) {
-        console.error("Link Sale API Error:", e);
-        return NextResponse.json({ error: 'Error linking sale.' }, { status: 500 });
-    }
-}
+  return ok({ message: "Sale linked successfully!" });
+});

@@ -1,70 +1,24 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../lib/mongodb';
-import { ObjectId } from 'mongodb';
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
+import { getDb } from "@/lib/mongodb";
+import { route, ok, created, parseBody, parseQuery } from "@/lib/api";
+import { expenseSchema, periodQuerySchema } from "@/lib/validation";
+import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
-const COLLECTION_NAME = "expenses";
+/** GET /api/expenses?filter=daily|monthly|yearly|custom&from&to  (default: all) */
+export const GET = route(async (request) => {
+  const { filter = "all", from, to } = parseQuery(request, periodQuerySchema);
+  // A half-filled custom range means "no filter yet" for this page.
+  const range = filter === "custom" && !(from && to) ? null : dateRangeFromFilter({ filter, from, to });
 
-// API to GET all expenses, with date filtering
-export async function GET(request) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const filter = searchParams.get('filter') || 'all'; 
+  const db = await getDb();
+  const expenses = await db.collection("expenses").find(dateQuery("date", range)).sort({ date: -1 }).toArray();
+  const totalAmount = expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  return ok({ expenses, totalAmount });
+});
 
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-
-        const now = new Date();
-        let dateQuery = {};
-
-        if (filter === 'daily') {
-            dateQuery = { $gte: startOfDay(now), $lte: endOfDay(now) };
-        } else if (filter === 'monthly') {
-            dateQuery = { $gte: startOfMonth(now), $lte: endOfMonth(now) };
-        } else if (filter === 'yearly') {
-            dateQuery = { $gte: startOfYear(now), $lte: endOfYear(now) };
-        } else if (filter === 'custom') {
-            // --- Custom filter logic added here ---
-            const from = searchParams.get('from');
-            const to = searchParams.get('to');
-            if (from && to) {
-                dateQuery = { $gte: startOfDay(new Date(from)), $lte: endOfDay(new Date(to)) };
-            }
-        }
-        
-        const query = Object.keys(dateQuery).length > 0 ? { date: dateQuery } : {};
-
-        const expenses = await db.collection(COLLECTION_NAME).find(query).sort({ date: -1 }).toArray();
-        
-        // Calculate total amount for stats
-        const totalAmount = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-        
-        return NextResponse.json({ expenses, totalAmount });
-    } catch (e) {
-        console.error("Error fetching expenses:", e);
-        return NextResponse.json({ error: 'Error fetching expenses' }, { status: 500 });
-    }
-}
-
-// API to POST a new expense
-export async function POST(request) {
-    try {
-        const expenseData = await request.json();
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-
-        const newExpense = {
-            ...expenseData,
-            amount: parseFloat(expenseData.amount) || 0,
-            date: new Date(expenseData.date),
-            createdAt: new Date(),
-        };
-
-        const result = await db.collection(COLLECTION_NAME).insertOne(newExpense);
-        return NextResponse.json(result);
-    } catch (e) {
-        console.error("Error adding expense:", e);
-        return NextResponse.json({ error: 'Error adding expense' }, { status: 500 });
-    }
-}
+export const POST = route(async (request) => {
+  const expense = await parseBody(request, expenseSchema);
+  const db = await getDb();
+  const doc = { ...expense, createdAt: new Date() };
+  const { insertedId } = await db.collection("expenses").insertOne(doc);
+  return created({ _id: insertedId, ...doc });
+});

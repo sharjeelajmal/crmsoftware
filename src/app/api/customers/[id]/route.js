@@ -1,39 +1,23 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../../lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { getDb } from "@/lib/mongodb";
+import { route, ok, parseBody, requireObjectId, notFound } from "@/lib/api";
+import { customerUpdateSchema } from "@/lib/validation";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
-const COLLECTION_NAME = "customers";
+export const PUT = route(async (request, context) => {
+  const _id = await requireObjectId(context);
+  const changes = await parseBody(request, customerUpdateSchema);
+  const db = await getDb();
 
-// Customer ko Update/Edit karne ke liye
-export async function PUT(request, { params }) {
-    try {
-        const { id } = params;
-        const customerData = await request.json();
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
+  const { matchedCount } = await db
+    .collection("customers")
+    .updateOne({ _id }, { $set: { ...changes, updatedAt: new Date() } });
+  if (matchedCount === 0) throw notFound("Customer");
+  return ok({ updated: true });
+});
 
-        const result = await db.collection(COLLECTION_NAME).updateOne(
-            { _id: new ObjectId(id) },
-            { $set: customerData }
-        );
-
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error updating customer' }, { status: 500 });
-    }
-}
-
-// Customer ko Delete karne ke liye
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = params;
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-
-        const result = await db.collection(COLLECTION_NAME).deleteOne({ _id: new ObjectId(id) });
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error deleting customer' }, { status: 500 });
-    }
-}
+export const DELETE = route(async (_request, context) => {
+  const _id = await requireObjectId(context);
+  const db = await getDb();
+  const { deletedCount } = await db.collection("customers").deleteOne({ _id });
+  if (deletedCount === 0) throw notFound("Customer");
+  return ok({ deleted: true });
+});

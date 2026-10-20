@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# AJ Garments CRM
 
-## Getting Started
+Internal admin portal for AJ Garments: sales & invoicing, inventory, customers, salesmen,
+purchasing, expenses, recovery (dues), analytics and CSV backups.
 
-First, run the development server:
+Stack: **Next.js 16 (App Router, JavaScript)** · React 19 · Tailwind CSS v4 · MongoDB · framer-motion · recharts.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env     # fill in MONGODB_URI, FIRST_USER_NAME/PASS, AUTH_SECRET
+npm install
+npm run dev              # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Generate a session secret:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Other scripts: `npm run build`, `npm start`, `npm run lint`.
 
-## Learn More
+## How it is organised
 
-To learn more about Next.js, take a look at the following resources:
+```text
+src/
+├── proxy.js                 # auth gate: verifies the session cookie on every page + API request
+├── app/
+│   ├── globals.css          # design tokens (colors, shadows, fonts) — the only place colors live
+│   ├── login/               # login page
+│   ├── (dashboard)/         # authenticated shell + one thin page.js per module
+│   └── api/<resource>/      # route handlers (validation + db, no business logic in pages)
+├── features/<module>/       # page-specific components + data hooks (components/, hooks/)
+├── components/
+│   ├── ui/                  # Modal, Dialogs, Button, StatCard, FilterButton, dropdowns, Toast, Loader
+│   ├── invoice/             # InvoiceDocument — the single invoice layout (screen, PDF, print)
+│   └── layout/              # Sidebar, DashboardHeader
+├── hooks/                   # useAsyncData, useInvoicePdf, useThemeColors
+├── lib/                     # mongodb, auth, api (route helpers), validation (zod), api-client, pdf, …
+└── constants/               # brand & business details, navigation, animation variants
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Read [Rules.md](Rules.md) before changing anything — it documents the conventions
+(design tokens, API helpers, validation, feature folders) that keep this codebase consistent.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Authentication
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Login issues a signed JWT in an `HttpOnly` cookie (`src/lib/auth.js`). `src/proxy.js` rejects
+unauthenticated page requests (redirect to `/login`) and API requests (`401`). Until a user exists in
+the `users` collection, the `.env` bootstrap credentials (`FIRST_USER_NAME` / `FIRST_USER_PASS`) work.

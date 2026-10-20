@@ -1,28 +1,28 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../lib/mongodb'; // Path theek kar diya hai
-import { ObjectId } from 'mongodb';
+import { getDb } from "@/lib/mongodb";
+import { route, ok, created, parseBody, conflict } from "@/lib/api";
+import { productSchema } from "@/lib/validation";
+import { withSizeTotals } from "@/lib/inventory";
+import { ALL_ROLES } from "@/constants/roles";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
+/** Product list is readable by every role (the cutting form needs the article list). */
+export const GET = route(
+  async () => {
+    const db = await getDb();
+    const products = await db.collection("products").find({}).toArray();
+    return ok(products);
+  },
+  { roles: ALL_ROLES }
+);
 
-export async function GET() {
-    try {
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const products = await db.collection('products').find({}).toArray();
-        return NextResponse.json(products);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error fetching products' }, { status: 500 });
-    }
-}
+export const POST = route(async (request) => {
+  const product = withSizeTotals(await parseBody(request, productSchema));
+  const db = await getDb();
+  const products = db.collection("products");
 
-export async function POST(request) {
-    try {
-        const product = await request.json();
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const result = await db.collection('products').insertOne(product);
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error adding product' }, { status: 500 });
-    }
-}
+  // Product names are used as the key on sale items, so they must be unique.
+  if (await products.findOne({ name: product.name })) throw conflict(`Product "${product.name}" already exists`);
+
+  const doc = { ...product, createdAt: new Date() };
+  const { insertedId } = await products.insertOne(doc);
+  return created({ _id: insertedId, ...doc });
+});

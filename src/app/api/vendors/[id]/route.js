@@ -1,33 +1,23 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../../lib/mongodb';
-import { ObjectId } from 'mongodb';
+import { getDb } from "@/lib/mongodb";
+import { route, ok, parseBody, requireObjectId, notFound } from "@/lib/api";
+import { vendorUpdateSchema } from "@/lib/validation";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
-const COLLECTION_NAME = "vendors";
+export const PUT = route(async (request, context) => {
+  const _id = await requireObjectId(context);
+  const changes = await parseBody(request, vendorUpdateSchema);
+  const db = await getDb();
 
-// Vendor ko update karne ke liye
-export async function PUT(request, { params }) {
-    try {
-        const { id } = params;
-        const updatedData = await request.json();
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const result = await db.collection(COLLECTION_NAME).updateOne({ _id: new ObjectId(id) }, { $set: updatedData });
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error updating vendor' }, { status: 500 });
-    }
-}
+  const { matchedCount } = await db
+    .collection("vendors")
+    .updateOne({ _id }, { $set: { ...changes, updatedAt: new Date() } });
+  if (matchedCount === 0) throw notFound("Vendor");
+  return ok({ updated: true });
+});
 
-// Vendor ko delete karne ke liye
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = params;
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const result = await db.collection(COLLECTION_NAME).deleteOne({ _id: new ObjectId(id) });
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error deleting vendor' }, { status: 500 });
-    }
-}
+export const DELETE = route(async (_request, context) => {
+  const _id = await requireObjectId(context);
+  const db = await getDb();
+  const { deletedCount } = await db.collection("vendors").deleteOne({ _id });
+  if (deletedCount === 0) throw notFound("Vendor");
+  return ok({ deleted: true });
+});

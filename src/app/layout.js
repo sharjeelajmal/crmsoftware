@@ -1,4 +1,6 @@
 import { Montserrat, Noto_Nastaliq_Urdu } from "next/font/google";
+import { BRAND } from "@/constants/brand";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -13,15 +15,15 @@ const notoNastaliqUrdu = Noto_Nastaliq_Urdu({
 });
 
 export const metadata = {
-  title: "Mr.Denum CRM",
-  description: "Admin Portal for Mr.Denum",
+  title: `${BRAND.name} CRM`,
+  description: `Admin Portal for ${BRAND.name}`,
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
-       <body className={`${montserrat.variable} ${notoNastaliqUrdu.variable} font-sans antialiased`}>
-        {children}
+      <body className={`${montserrat.variable} ${notoNastaliqUrdu.variable} font-sans antialiased`}>
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

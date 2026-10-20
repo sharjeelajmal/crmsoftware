@@ -1,35 +1,36 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../../lib/mongodb'; // Path theek kar diya hai
-import { ObjectId } from 'mongodb';
+import { getDb } from "@/lib/mongodb";
+import { route, ok, parseBody, requireObjectId, notFound, conflict } from "@/lib/api";
+import { productUpdateSchema } from "@/lib/validation";
+import { withSizeTotals } from "@/lib/inventory";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
+/**
+ * Updates a product. Sending `sizes` replaces the size list and recomputes `remaining`;
+ * sending only `remaining` adjusts the total of an unsized product (inventory +/- popup).
+ */
+export const PUT = route(async (request, context) => {
+  const _id = await requireObjectId(context);
+  const changes = withSizeTotals(await parseBody(request, productUpdateSchema));
+  const db = await getDb();
+  const products = db.collection("products");
 
-export async function PUT(request, { params }) {
-    try {
-        const { id } = params;
-        const { remaining } = await request.json();
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        
-        const result = await db.collection('products').updateOne(
-            { _id: new ObjectId(id) },
-            { $set: { remaining: remaining } }
-        );
+  if (changes.name) {
+    const clash = await products.findOne({ _id: { $ne: _id }, name: changes.name });
+    if (clash) throw conflict(`Product "${changes.name}" already exists`);
+  }
 
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error updating product' }, { status: 500 });
-    }
-}
+  const { matchedCount } = await products.updateOne({ _id }, { $set: { ...changes, updatedAt: new Date() } });
+  if (matchedCount === 0) throw notFound("Product");
+  return ok({ updated: true, ...changes });
+});
 
-export async function DELETE(request, { params }) {
-    try {
-        const { id } = params;
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const result = await db.collection('products').deleteOne({ _id: new ObjectId(id) });
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error deleting product' }, { status: 500 });
-    }
-}
+export const DELETE = route(async (_request, context) => {
+  const _id = await requireObjectId(context);
+  const db = await getDb();
+
+  const openLots = await db.collection("lots").countDocuments({ productId: _id, stage: { $ne: "ready" } });
+  if (openLots > 0) throw conflict(`This product has ${openLots} lot(s) in production and cannot be deleted`);
+
+  const { deletedCount } = await db.collection("products").deleteOne({ _id });
+  if (deletedCount === 0) throw notFound("Product");
+  return ok({ deleted: true });
+});

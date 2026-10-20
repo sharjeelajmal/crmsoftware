@@ -1,27 +1,20 @@
-import { NextResponse } from 'next/server';
-import clientPromise from '../../../lib/mongodb'; // Path theek kar diya hai
+import { getDb } from "@/lib/mongodb";
+import { route, ok, created, parseBody, conflict } from "@/lib/api";
+import { categorySchema } from "@/lib/validation";
 
-const DB_NAME = process.env.MONGODB_DB || "crm-software-copy";
+export const GET = route(async () => {
+  const db = await getDb();
+  const categories = await db.collection("categories").find({}).toArray();
+  return ok(categories);
+});
 
-export async function GET() {
-    try {
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const categories = await db.collection('categories').find({}).toArray();
-        return NextResponse.json(categories);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error fetching categories' }, { status: 500 });
-    }
-}
+export const POST = route(async (request) => {
+  const { name } = await parseBody(request, categorySchema);
+  const db = await getDb();
+  const categories = db.collection("categories");
 
-export async function POST(request) {
-    try {
-        const { name } = await request.json();
-        const client = await clientPromise;
-        const db = client.db(DB_NAME);
-        const result = await db.collection('categories').insertOne({ name });
-        return NextResponse.json(result);
-    } catch (e) {
-        return NextResponse.json({ error: 'Error adding category' }, { status: 500 });
-    }
-}
+  if (await categories.findOne({ name })) throw conflict(`Category "${name}" already exists`);
+
+  const { insertedId } = await categories.insertOne({ name, createdAt: new Date() });
+  return created({ _id: insertedId, name });
+});
