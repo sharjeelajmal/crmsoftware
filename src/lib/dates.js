@@ -23,6 +23,8 @@ import { badRequest } from "@/lib/api";
  *            custom(from,to) | all | lifetime
  * Note: "monthly" means "this year" on the analytics page but "this month" on expenses/purchases,
  * so callers pass `monthlyMeans` to keep their historical behaviour.
+ * Day boundaries use the server's local time zone. The live server should run on Pakistan time
+ * (TZ=Asia/Karachi); on a UTC server "today" starts at 5 am Pakistan time and late-night entries fall on the wrong day.
  */
 export function dateRangeFromFilter({ filter = "all", from, to, monthlyMeans = "month" }, now = new Date()) {
   switch (filter) {
