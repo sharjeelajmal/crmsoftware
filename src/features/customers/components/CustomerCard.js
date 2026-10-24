@@ -36,6 +36,8 @@ export function CustomerCard({ customer, onViewSales, onDelete, onRegister, onSa
   return (
     <motion.div
       variants={itemVariants}
+      initial="hidden"
+      animate="visible"
       whileHover={{ y: -5, boxShadow: "var(--shadow-card-hover)" }}
       className="bg-white rounded-2xl shadow-md p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 h-full"
     >

@@ -24,7 +24,10 @@ export function LotHistory({ events = [] }) {
             {event.qty != null ? ` · ${formatPieces(event.qty)}` : ""}
           </p>
           {event.note ? (
-            <p className="text-sm text-gray-600 mt-1 whitespace-pre-line break-words">{event.note}</p>
+            <p className="text-sm text-gray-600 mt-1 whitespace-pre-line break-words">
+              {event.type === "reversed" ? <span className="font-semibold text-danger">Reason: </span> : null}
+              {event.note}
+            </p>
           ) : null}
         </li>
       ))}

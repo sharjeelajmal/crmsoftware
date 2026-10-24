@@ -14,8 +14,13 @@ import {
   Scissors,
   PlusSquare,
   FileBarChart,
+  BookOpen,
+  Shirt,
+  HardHat,
+  Banknote,
 } from "lucide-react";
 import { ROLES, normalizeRole } from "@/constants/roles";
+import { isModuleVisible } from "@/constants/modules";
 
 const ADMIN = [ROLES.ADMIN];
 const CUTTING = [ROLES.CUTTING_MASTER];
@@ -36,7 +41,11 @@ export const NAV_ITEMS = [
   { name: "Recovery", icon: RefreshCw, path: "/recovery", roles: ADMIN, section: "main" },
   { name: "Backup", icon: Database, path: "/backup", roles: ADMIN, section: "main" },
   { name: "Lots", icon: Layers, path: "/lots", roles: ADMIN, section: "production" },
+  { name: "Stitching", icon: Shirt, path: "/stitching", roles: ADMIN, section: "production" },
   { name: "Lot Report", icon: FileBarChart, path: "/lots/report", roles: ADMIN, section: "production" },
+  { name: "Ledger", icon: BookOpen, path: "/ledger", roles: ADMIN, section: "production" },
+  { name: "Workers", icon: HardHat, path: "/workers", roles: ADMIN, section: "production" },
+  { name: "Wages", icon: Banknote, path: "/wages", roles: ADMIN, section: "production" },
   { name: "Users", icon: UserCog, path: "/users", roles: ADMIN, section: "production" },
   { name: "My Lots", icon: Scissors, path: "/cutting", roles: CUTTING, section: "main" },
   { name: "New Cutting", icon: PlusSquare, path: "/cutting/new", roles: CUTTING, section: "main" },
@@ -56,7 +65,8 @@ export const navSlug = (path) => (path === "/" ? "home" : path.replace(/^\/+/, "
 export const navForRole = (role) => {
   if (role === null || role === undefined) return { main: [], production: [] };
   const current = normalizeRole(role);
-  const visible = NAV_ITEMS.filter((item) => item.roles.includes(current));
+  // Hidden shop modules (src/constants/modules.js) get no sidebar link.
+  const visible = NAV_ITEMS.filter((item) => item.roles.includes(current) && isModuleVisible(item.path));
   return {
     main: visible.filter((item) => item.section === "main"),
     production: visible.filter((item) => item.section === "production"),

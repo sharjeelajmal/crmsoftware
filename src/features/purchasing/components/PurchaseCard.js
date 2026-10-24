@@ -9,6 +9,8 @@ export function PurchaseCard({ purchase, product, vendor, onDelete }) {
   return (
     <motion.div
       variants={itemVariants}
+      initial="hidden"
+      animate="visible"
       className="bg-white rounded-2xl shadow-lg p-5 flex flex-col justify-between hover:shadow-xl transition-shadow duration-300"
     >
       <div>

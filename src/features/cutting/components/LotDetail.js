@@ -10,6 +10,8 @@ import { formatPieces } from "../utils";
 import { LotStageBadge } from "./LotStageBadge";
 import { LotPipeline } from "./LotPipeline";
 import { LotHistory } from "./LotHistory";
+import { GatePassesCard } from "./GatePassesCard";
+import { formatShrinkage } from "@/constants/gatepass";
 
 const CARD_CLASS = "bg-white p-4 sm:p-6 rounded-2xl shadow-sm";
 
@@ -26,9 +28,18 @@ function CardTitle({ icon: Icon, children }) {
  * Full lot view: header, pipeline, fabric, sizes, note and history.
  * `editHref` shows the Edit button (only while the lot is at the cutting stage).
  * `actions` renders extra buttons in the header; `afterPipeline` renders right under the pipeline card;
- * `footer` renders below the history.
+ * `footer` renders below the history. `canIssueGatePass` (admin) enables issuing/reissuing gate passes.
  */
-export function LotDetail({ lot, backHref, backLabel = "Back", editHref, actions, afterPipeline, footer }) {
+export function LotDetail({
+  lot,
+  backHref,
+  backLabel = "Back",
+  editHref,
+  actions,
+  afterPipeline,
+  footer,
+  canIssueGatePass = false,
+}) {
   const canEdit = lot.stage === "cutting" && Boolean(editHref);
 
   return (
@@ -83,6 +94,20 @@ export function LotDetail({ lot, backHref, backLabel = "Back", editHref, actions
           <p className="text-gray-600 mt-1">
             {Number(lot.fabric?.qty) || 0} {lot.fabric?.unit || "m"}
           </p>
+          <dl className="grid grid-cols-3 gap-2 mt-4 text-sm" data-testid="lot-cutting-details">
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-gray-500">Bundle no.</dt>
+              <dd className="font-semibold text-gray-800 break-words">{lot.bundleNumber || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-gray-500">Shrinkage</dt>
+              <dd className="font-semibold text-gray-800">{formatShrinkage(lot.shrinkage)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-gray-500">Wash</dt>
+              <dd className="font-semibold text-gray-800 break-words">{lot.washType || "—"}</dd>
+            </div>
+          </dl>
         </motion.div>
 
         <motion.div variants={itemVariants} className={CARD_CLASS}>
@@ -118,6 +143,8 @@ export function LotDetail({ lot, backHref, backLabel = "Back", editHref, actions
           <p className="text-gray-700 whitespace-pre-line break-words">{lot.note}</p>
         </motion.div>
       ) : null}
+
+      <GatePassesCard lot={lot} canIssue={canIssueGatePass} />
 
       <motion.div variants={itemVariants} className={CARD_CLASS}>
         <CardTitle icon={History}>History</CardTitle>

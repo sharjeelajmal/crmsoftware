@@ -5,7 +5,7 @@ import { AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { Calendar } from "lucide-react";
 import { FilterButton } from "@/components/ui/FilterButton";
-import { CustomRangeModal } from "@/features/analytics/components/CustomRangeModal";
+import { DateRangePickerModal } from "@/components/ui/DateRangePickerModal";
 import { REPORT_PERIODS, isCompleteRange } from "../utils";
 
 /** Today / Last 7 Days / This Year / All Time pills plus the custom range button (analytics calendar). */
@@ -52,7 +52,7 @@ export function LotReportFilter({ filter, appliedRange, onSelectPeriod, onApplyR
 
       <AnimatePresence>
         {showCalendar && (
-          <CustomRangeModal
+          <DateRangePickerModal
             initialRange={appliedRange}
             onClose={() => setShowCalendar(false)}
             onApply={(range) => {

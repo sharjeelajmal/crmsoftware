@@ -66,6 +66,24 @@ export const validateSizeRows = (sizes) => {
 };
 
 /**
+ * Hint shown while switching an existing product to per-size stock: the rows' total replaces the
+ * old total, so the user sees how far the split is from the current stock.
+ * @returns {{ total: number, current: number, diff: number, message: string }}
+ */
+export const sizeSplitHint = (product, rows) => {
+  const total = sumSizes(rows);
+  const current = Number(product?.remaining) || 0;
+  const diff = total - current;
+  const message =
+    diff === 0
+      ? `Sizes add up to the current stock (${current} pcs).`
+      : diff > 0
+        ? `Sizes add up to ${total} pcs, ${diff} more than the current stock (${current} pcs). Total becomes ${total}.`
+        : `Sizes add up to ${total} pcs, ${-diff} less than the current stock (${current} pcs). Total becomes ${total}.`;
+  return { total, current, diff, message };
+};
+
+/**
  * New size list after adding (`delta` > 0) or removing (`delta` < 0) pieces of one size.
  * Returns null when that size is unknown or would drop below zero.
  */

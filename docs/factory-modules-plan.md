@@ -189,12 +189,32 @@ Relative size: Phase 0 = M, Phase 1 = M, Phase 2 = L, Phase 3 = M (risk high), P
 | 0 Foundation | **Done (2026-10-20)** | Roles + JWT role, proxy guard, `route({ roles })`, Users page, product sizes end-to-end (inventory, sales, purchases), lots/lot_events schema, unit + e2e tests |
 | 1 Cutting Portal | **Done (2026-10-20)** | `/cutting` (my lots), `/cutting/new`, `/cutting/:id` (+ edit), admin `/lots` + `/lots/:id`, dashboard Production widget, lot history |
 | 2 Operations pipeline | **Done (2026-10-20)** | `POST /api/lots/:id/stage` (send_stitching → stitched(qty ≤ cut) → washed(qty ≤ stitched) → packing), shortfall, pipeline qty, `GET /api/lots/report` (+CSV), report page; checklist `docs/phase-2-checklist.md` |
-| 3 Auto inventory sync | Pending | Ready → `addStock` per size, `stockApplied`, reverse, stock_movements |
-| 4 Ledger / B-pair | Pending | |
-| 5 Polish + training | Pending | enabling sizes on an existing unsized product (EditProductPopup) is Phase 5 polish |
+| 3 Auto inventory sync | **Done (2026-10-20)** | `ready` action (`src/lib/production.js`): `addStock` per size inside the transaction, `stockApplied` idempotency, `readySizes`, product `lastProduction`, `stock_movements` audit, `POST /api/lots/:id/reverse` (reason required), `GET /api/stock-movements`; checklist `docs/phase-3-checklist.md` |
+| 4 Ledger / B-pair | **Done (2026-10-21)** | `/ledger` (admin): entries with type chips, qty+unit, optional lot link, edit history, delete, type/period/search filters, CSV + print; `GET/POST /api/ledger`, `GET/PUT/DELETE /api/ledger/:id`; lot shortfall shortcut (`/ledger?lot=`); `ledger_entries` never touches products/stock (unit test guards the imports); checklist `docs/phase-4-checklist.md` |
+| 5 Polish + training | **Done (2026-10-21)** | Dashboard widget: Cut today / Ready today / Produced this month (net from `stock_movements`); analytics "Produced (Period)"; EditProductPopup "Track stock per size" on an unsized product (split hint); responsive sweep of all production pages (390/820); `docs/guide-admin.md`, `docs/guide-cutting-master.md`, README; checklist `docs/phase-5-checklist.md`. Client training / first-week support is a human step (see checklist §6) |
 
 Decisions taken in Phase 0/1: **D1 = (a)** sizes are a real product model (`sizes[]`, total derived); D2 any number of cutting
 masters (lots filtered by `createdBy`); D3 cutting data editable only at cutting stage (owner or admin), delete admin-only at
 cutting stage; D5 `LOT-1001` upwards. D4 (reverse rules) is implemented in Phase 3.
 
 Verification: `docs/phase-1-checklist.md`. Har phase ke baad: `npm test`, `npm run lint`, `npm run build`, `npm run test:e2e`, responsive screenshots.
+
+---
+
+## 7. Client feedback (2026-10-21) aur naye phases
+
+Client ki voice notes ka khulasa: "yeh dukaan wala setup hai"; factory mein (a) stitching workers ke **operation-wise piece rates** aur
+**salary** (hafta / 15 din / mahina, advance + deduction), (b) stitching mein cutting ka **in / out (gate pass) / balance**, (c) cutting
+walon ka alag chota portal (ban chuka). Operations ke rates admin khud dalta/badalta hai (e.g. 70 = 3.5 + 4 + …), operation select kar ke
+bande assign karta hai, system khud calculate karta hai.
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 6 Workers & Wages | `workers`, `operations` (rate per piece, editable), `work_entries` (lot + operation + worker + pieces → amount, rate snapshot), lot page "Work & wages" assign panel, `/workers` (Workers · Operations & rates), `/wages` report (this week / last week / 15 days / this month / custom, per worker, CSV, print). Leave (2026-10-22): worker `dailyRate`, leave = din × per-day salary; "Leave / Advance" popup (leave, advance, deduction, bonus) + period card; "Today" filter. **Advance khata (2026-10-24, client ka jawab)**: advance salary se khud nahi katta, worker ke khate mein jata hai; "Advance cut" (`recovery`) se jitna aur jab admin chahe katta hai (baqi se zyada nahi), baqi khud aage chalta hai; `/api/wages/advances`, Wages page par "Advance account (khata)" card (Given / Cut / Left + running balance), report mein `advanceLeft`, dashboard par "Advance left". | **Done (2026-10-22, khata 2026-10-24)** |
+| 7 Gate passes | Client ke jawab (voice 3/4/6) ke mutabiq: lot par `bundleNumber` + `shrinkage` %, `send_stitching` par **stitching gate pass** (cut/lot no., bundle, sizes range + per size, pieces, shrinkage, fabric), `stitched` par **washing gate pass** (pieces + `washType`), dono par phone 0321-4361127 upar / 0323-8888000 neeche; `gate_passes` snapshot collection (GP-1001…), `GET/POST /api/lots/:id/gate-passes`, lot page card + print preview; cutting master dekh/print, admin issue/reissue. **7b (2026-10-23)**, client ki pehli voice ("3000 piece… kitni padi hui hai… jo nikalti jayegi gate pass out"): stitching se thora thora maal washing ko (`POST /api/lots/:id/dispatch`, har hissa apna partial washing gate pass, `stitchOutQty`), "padi hui" balance = cut − sent out, `/stitching` page (lots, received / sent out / lying), lot page "Gate pass out" panel, stitching band karte waqt pieces ≥ jo nikal chuke (aakhri pass sirf baqi pieces ka), dashboard "Lying in stitching". Checklist `docs/phase-7-checklist.md` | **Done (2026-10-23)** |
+| 8 Factory mode | **Shuru (2026-10-23)**: Sales, Customers, Recovery filhal hidden (user ka faisla); Salesman, Analytics, Backup sirf Sales ka data dikhate the, woh bhi hidden. Ek list `src/constants/modules.js` (`HIDDEN_MODULES`): sidebar link nahi, page URL dashboard par redirect (proxy), data/API waise hi. Dashboard factory-first (Production upar, sales/recovery cards aur sales chart nahi), Quick actions: New Cutting Entry, Stitching, New Purchase. Wapas laane ke liye list se path hata dein. | **Done (2026-10-23)** |
+| 9 Dashboard | User ki farmaish (2026-10-23): pro level, modern dashboard. Ek call `GET /api/dashboard` (`src/lib/dashboard.js`, rules `src/constants/dashboard.js`): greeting + quick actions (New cutting entry, Gate pass out, New purchase, Add item, Calculator), hero "Produced this month" (pichle mahine ke unhi dinon se %, 14 din sparkline), tiles (Cut today vs kal, Lots in process + 7+ din ruke, Lying in stitching, Stock alerts), Production pipeline (stage-wise lots/pieces, click → `/lots?stage=`), 14 din trend chart + table, Waiting longest, Recent activity, Stock health, Spending this month (purchasing/expenses/wages), Workers this week, Recent gate passes. Har minute khud refresh, skeleton loading, phone/tablet responsive. Sales/Recovery wapas on hon to unke cards upar khud aa jate hain. | **Done (2026-10-23)** |
+
+Client ke saare zaroori sawal hal (2026-10-24): advance khata ki tarah (upar Phase 6). Baqi cheezen default par chal rahi hain aur sirf tab
+poochni hain jab client khud kuch alag chahe: work entry admin karta hai; washing ke liye gate pass bahar jaane wala maal maan kar bana hai;
+Sales user ke faisle se hidden hai.

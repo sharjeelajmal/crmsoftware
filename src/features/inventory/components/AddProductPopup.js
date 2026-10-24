@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { CustomDropdown } from "@/components/ui/CustomDropdown";
+import { Collapse } from "@/components/ui/Collapse";
 import { blankSizeRows, sumSizes } from "../utils";
 import { SizeRowsEditor } from "./SizeRowsEditor";
 
@@ -67,17 +68,23 @@ export function AddProductPopup({ categories, initialCategory, onSave, onCancel 
             className={INPUT_CLASS}
           />
         </div>
-        <label className="flex items-center justify-between gap-3 p-3 bg-gray-100 rounded-xl cursor-pointer">
-          <span className="text-sm font-semibold text-gray-700">Track stock per size</span>
-          <input
-            type="checkbox"
-            data-testid="product-track-sizes"
-            checked={trackSizes}
-            onChange={(e) => setTrackSizes(e.target.checked)}
-            className="w-5 h-5 accent-primary cursor-pointer"
-          />
-        </label>
-        {trackSizes && <SizeRowsEditor rows={sizes} onChange={setSizes} quantityLabel="Starting qty" />}
+        <div>
+          <label className="flex items-center justify-between gap-3 p-3 bg-gray-100 rounded-xl cursor-pointer">
+            <span className="text-sm font-semibold text-gray-700">Track stock per size</span>
+            <input
+              type="checkbox"
+              data-testid="product-track-sizes"
+              checked={trackSizes}
+              onChange={(e) => setTrackSizes(e.target.checked)}
+              className="w-5 h-5 accent-primary cursor-pointer"
+            />
+          </label>
+          <Collapse open={trackSizes} testId="product-sizes-section">
+            <div className="pt-4">
+              <SizeRowsEditor rows={sizes} onChange={setSizes} quantityLabel="Starting qty" />
+            </div>
+          </Collapse>
+        </div>
         <input
           type="number"
           name="remaining"
@@ -86,7 +93,7 @@ export function AddProductPopup({ categories, initialCategory, onSave, onCancel 
           readOnly={trackSizes}
           placeholder="Enter Quantity"
           title={trackSizes ? "Total is the sum of the sizes" : undefined}
-          className={`${INPUT_CLASS} ${trackSizes ? "text-gray-500 cursor-not-allowed" : ""}`}
+          className={`${INPUT_CLASS} transition-colors duration-300 ${trackSizes ? "text-gray-500 cursor-not-allowed" : ""}`}
         />
       </div>
       <div className="flex justify-end mt-8">

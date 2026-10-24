@@ -30,7 +30,7 @@ function Stat({ label, children }) {
 /** One lot: a table row on md+, a card on phones. The whole row links to the lot detail. */
 export function LotsRow({ lot }) {
   return (
-    <motion.div variants={itemVariants}>
+    <motion.div variants={itemVariants} initial="hidden" animate="visible">
       <Link
         href={`/lots/${lot._id}`}
         data-testid="lots-row"

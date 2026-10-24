@@ -45,6 +45,17 @@
   --color-danger-border: #fecaca;
 
   --color-warning: #f59e0b;
+  --color-warning-soft: #fffbeb;
+
+  /* ---- Charts (dashboard) ------------------------------------------------
+     Categorical slots in a fixed order, checked for colour-blind safety with the dataviz palette
+     validator (adjacent pairs pass). Aqua is below 3:1 on white, so every chart that uses it also
+     shows its numbers as text (legend totals, direct labels or a table view). */
+  --color-chart-1: #2a78d6; /* blue: pieces cut, purchasing */
+  --color-chart-2: #eb6834; /* orange: expenses */
+  --color-chart-3: #1baf7a; /* aqua: produced into stock, wages */
+  --color-chart-grid: #eef1f6; /* hairline gridlines */
+  --color-chart-muted: #a3adc2; /* de-emphasis (sparkline lines) */
 
   --color-white: #ffffff;
   --color-black: #000000;
@@ -132,12 +143,17 @@ input[type="number"] {
    Z-INDEX LAYERS — keep every overlay on this ladder
    dropdowns/tooltips: 10–30 (Tailwind z-10/z-20/z-30)
    modals/popups:      50   (z-50)
+   portaled dropdowns: 60   (.dropdown-portal: menus rendered on <body>, above modals)
    loader overlay:     9000
    toasts:             10000 (always on top)
    ============================================================================= */
 
 .toast-viewport {
   z-index: 10000;
+}
+
+.dropdown-portal {
+  z-index: 60;
 }
 
 /* Full-screen frosted overlay */
@@ -322,6 +338,174 @@ input[type="number"] {
   color: var(--color-white);
 }
 
+/* Modern range picker (DateRangePickerModal): the calendar sits flat inside the modal card.
+   `.rdp-root.rdp-modern` (two classes) because react-day-picker's own stylesheet loads after this file and
+   would otherwise win with its single-class `.rdp-root` variables. */
+.rdp-root.rdp-modern {
+  --rdp-accent-color: var(--color-primary);
+  --rdp-accent-background-color: var(--color-primary-soft);
+  --rdp-day-width: 42px;
+  --rdp-day-height: 42px;
+  --rdp-day_button-width: 38px;
+  --rdp-day_button-height: 38px;
+  --rdp-day_button-border-radius: 12px;
+  --rdp-day_button-border: 0;
+  --rdp-selected-border: 0;
+  --rdp-months-gap: 1.75rem;
+  --rdp-nav-height: 2.5rem;
+  --rdp-range_middle-color: var(--color-primary);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.rdp-modern .rdp-weekday {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  opacity: 0.8;
+}
+
+.rdp-modern .rdp-caption_label {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.rdp-modern .rdp-dropdown_root {
+  padding: 0.25rem 0.6rem;
+  border-radius: 0.6rem;
+  background: var(--color-surface-muted);
+  transition: background-color 0.2s;
+}
+
+.rdp-modern .rdp-dropdown_root:hover {
+  background: var(--color-primary-soft);
+}
+
+.rdp-modern .rdp-button_previous,
+.rdp-modern .rdp-button_next {
+  border-radius: 9999px;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.rdp-modern .rdp-button_previous:hover,
+.rdp-modern .rdp-button_next:hover {
+  transform: scale(1.08);
+}
+
+.rdp-modern .rdp-chevron {
+  fill: var(--color-primary);
+}
+
+.rdp-modern .rdp-day_button {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, box-shadow 0.2s ease;
+}
+
+.rdp-modern .rdp-day:not(.rdp-disabled) .rdp-day_button:hover {
+  transform: scale(1.1);
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.rdp-modern .rdp-outside .rdp-day_button {
+  color: var(--color-text-muted);
+}
+
+.rdp-modern .rdp-today:not(.rdp-outside) .rdp-day_button {
+  position: relative;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.rdp-modern .rdp-today:not(.rdp-outside) .rdp-day_button::after {
+  content: "";
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
+.rdp-modern .rdp-range_middle .rdp-day_button {
+  border-radius: 0;
+  border-color: transparent;
+  background-color: transparent;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.rdp-modern .rdp-range_middle .rdp-day_button:hover {
+  transform: none;
+  background-color: color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.rdp-modern .rdp-range_start .rdp-day_button,
+.rdp-modern .rdp-range_end .rdp-day_button,
+.rdp-modern .rdp-selected:not(.rdp-range_middle) .rdp-day_button {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: var(--color-white);
+  font-weight: 700;
+  border-color: transparent;
+  box-shadow: var(--shadow-brand);
+  animation: rdp-pop 0.28s cubic-bezier(0.2, 0.8, 0.2, 1.4);
+}
+
+/* Two months side by side only where the modal shows two (matches DateRangePickerModal's 900px). */
+@media (min-width: 900px) {
+  .rdp-modern .rdp-months {
+    flex-wrap: nowrap;
+  }
+}
+
+.rdp-modern .rdp-range_start .rdp-day_button:hover,
+.rdp-modern .rdp-range_end .rdp-day_button:hover {
+  color: var(--color-white);
+}
+
+@keyframes rdp-pop {
+  from {
+    transform: scale(0.75);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* Small or short phones: slightly smaller cells so a whole month fits without scrolling. */
+@media (max-width: 380px), (max-height: 720px) {
+  .rdp-root.rdp-modern {
+    --rdp-day-width: 38px;
+    --rdp-day-height: 36px;
+    --rdp-day_button-width: 34px;
+    --rdp-day_button-height: 34px;
+    --rdp-day_button-border-radius: 10px;
+    --rdp-nav-height: 2.25rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .rdp-root.rdp-modern {
+    --rdp-day-width: 36px;
+    --rdp-day_button-width: 32px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rdp-modern .rdp-day_button {
+    transition: none;
+    animation: none !important;
+  }
+}
+
 /* =============================================================================
    PRINT (invoice pages)
    ============================================================================= */
@@ -335,10 +519,19 @@ input[type="number"] {
     visibility: hidden;
   }
   #invoice-section,
-  #invoice-section * {
+  #invoice-section *,
+  #ledger-print,
+  #ledger-print *,
+  #wages-print,
+  #wages-print *,
+  #gate-pass-print,
+  #gate-pass-print * {
     visibility: visible;
   }
-  #invoice-section {
+  #invoice-section,
+  #ledger-print,
+  #wages-print,
+  #gate-pass-print {
     position: absolute;
     left: 0;
     top: 0;

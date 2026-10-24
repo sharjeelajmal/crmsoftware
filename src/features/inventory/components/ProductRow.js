@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Minus, Pencil, Plus, Trash2 } from "lucide-react";
+import { History, Minus, Pencil, Plus, Trash2 } from "lucide-react";
+import { formatDateTime } from "@/lib/format";
 import { hasSizes } from "../utils";
 
 const ICON_BUTTON_CLASS = "transition-transform hover:scale-125 cursor-pointer";
@@ -16,10 +18,30 @@ function Stat({ label, value }) {
   );
 }
 
-export function ProductRow({ product, onStockChange, onEdit, onDelete }) {
+/** "LOT-1001 · +117" chip linking to the lot that last added stock to this product. */
+function LastProductionChip({ lastProduction }) {
+  if (!lastProduction?.lotId) return null;
+  const qty = Number(lastProduction.qty) || 0;
+  return (
+    <Link
+      href={`/lots/${lastProduction.lotId}`}
+      title={`Last production: ${formatDateTime(lastProduction.at)}`}
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 hover:bg-white/30 text-xs
+        font-semibold whitespace-nowrap"
+      data-testid="product-last-lot"
+      data-lot-number={lastProduction.lotNumber}
+    >
+      <History size={12} />
+      {lastProduction.lotNumber} · {qty >= 0 ? `+${qty}` : qty}
+    </Link>
+  );
+}
+
+export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory }) {
   const purchase = `${product.purchasePrice}/-`;
   const sale = `${product.salePrice}/-`;
   const remaining = `${product.remaining} pcs`;
+  const showChips = hasSizes(product) || Boolean(product.lastProduction?.lotId);
 
   return (
     <motion.div
@@ -33,16 +55,18 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete }) {
     >
       <div className="md:flex-grow min-w-0">
         <span className="font-medium text-lg md:text-base break-words">{product.name}</span>
-        {hasSizes(product) && (
+        {showChips && (
           <div className="flex flex-wrap gap-1.5 mt-1.5">
-            {product.sizes.map((row) => (
-              <span
-                key={row.size}
-                className="px-2 py-0.5 rounded-full bg-white/15 text-xs font-medium whitespace-nowrap"
-              >
-                {row.size} · {Number(row.remaining) || 0}
-              </span>
-            ))}
+            {hasSizes(product) &&
+              product.sizes.map((row) => (
+                <span
+                  key={row.size}
+                  className="px-2 py-0.5 rounded-full bg-white/15 text-xs font-medium whitespace-nowrap"
+                >
+                  {row.size} · {Number(row.remaining) || 0}
+                </span>
+              ))}
+            <LastProductionChip lastProduction={product.lastProduction} />
           </div>
         )}
       </div>
@@ -58,8 +82,8 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete }) {
       <span className="hidden md:inline-block w-32 text-center shrink-0">{remaining}</span>
 
       <div
-        className="flex justify-end md:justify-center gap-5 md:gap-3 md:w-32 shrink-0 border-t border-white/15 md:border-0
-          pt-3 md:pt-0"
+        className="flex justify-end md:justify-center gap-5 md:gap-2.5 md:w-36 shrink-0 border-t border-white/15
+          md:border-0 pt-3 md:pt-0"
       >
         <button
           type="button"
@@ -79,6 +103,16 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete }) {
           aria-label="Edit product"
         >
           <Pencil size={18} />
+        </button>
+        <button
+          type="button"
+          data-testid="product-stock-history"
+          onClick={() => onHistory?.(product._id)}
+          className={ICON_BUTTON_CLASS}
+          title="Stock history"
+          aria-label="Stock history"
+        >
+          <History size={18} />
         </button>
         <button
           type="button"

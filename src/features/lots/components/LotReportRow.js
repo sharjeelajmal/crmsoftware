@@ -45,7 +45,7 @@ export function LotReportRow({ row }) {
   const highlighted = isShortfall(row.shortfall);
 
   return (
-    <motion.div variants={itemVariants}>
+    <motion.div variants={itemVariants} initial="hidden" animate="visible">
       <div
         data-testid="lot-report-row"
         data-lot-number={row.lotNumber}

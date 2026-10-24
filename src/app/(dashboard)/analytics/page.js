@@ -62,6 +62,9 @@ export default function AnalyticsPage() {
           {!data && (
             <motion.div
               variants={itemVariants}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
               className="flex flex-col items-center text-center text-gray-500 py-10 bg-white rounded-2xl shadow-lg"
             >
               <AlertTriangle size={48} className="text-red-400 mb-4" />

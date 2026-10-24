@@ -24,6 +24,8 @@ import {
   maxQtyFor,
   applyStageAction,
   lotShortfall,
+  distributeBySizes,
+  readySizesProblem,
 } from "@/constants/lots";
 
 export {
@@ -41,6 +43,8 @@ export {
   maxQtyFor,
   applyStageAction,
   lotShortfall,
+  distributeBySizes,
+  readySizesProblem,
 };
 
 export const isAdmin = (session) => normalizeRole(session?.role) === ROLES.ADMIN;
@@ -84,6 +88,9 @@ export function buildLot({ input, product, seq, session }) {
     fabric: { name: input.fabric.name, qty: Number(input.fabric.qty) || 0, unit: input.fabric.unit || "m" },
     sizes,
     cutQty: cutQtyOf(sizes),
+    bundleNumber: input.bundleNumber || "",
+    shrinkage: input.shrinkage === undefined ? null : input.shrinkage,
+    washType: "",
     note: input.note || "",
     stage: "cutting",
     stitchedQty: null,

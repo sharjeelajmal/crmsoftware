@@ -16,6 +16,11 @@ const TOKENS = {
   textPrimary: "--color-text-primary",
   textSecondary: "--color-text-secondary",
   border: "--color-border",
+  chart1: "--color-chart-1",
+  chart2: "--color-chart-2",
+  chart3: "--color-chart-3",
+  chartGrid: "--color-chart-grid",
+  surface: "--color-surface",
 };
 
 const readTokens = () => {

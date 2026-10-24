@@ -4,10 +4,13 @@ import { STAGES, STAGE_LABELS, cutQtyOf } from "@/constants/lots";
 
 export { STAGES, STAGE_LABELS, cutQtyOf };
 
-/** "All" first, then one filter per pipeline stage. `value: ""` means no stage filter. */
+/** Shorter stage names for phone-width filter pills ("Ready for Sale" → "Ready"). */
+const STAGE_SHORT_LABELS = { ready: "Ready" };
+
+/** "All" first, then one filter per pipeline stage. `value: ""` means no stage filter; `short` is the phone label. */
 export const STAGE_FILTERS = [
-  { value: "", label: "All" },
-  ...STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s] })),
+  { value: "", label: "All", short: "All" },
+  ...STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s], short: STAGE_SHORT_LABELS[s] || STAGE_LABELS[s] })),
 ];
 
 /** Badge colours per stage (neutral/state palette; brand blue for washing). */
@@ -26,6 +29,7 @@ export const EVENT_LABELS = {
   created: "Cutting entry saved",
   edited: "Cutting entry edited",
   sent_stitching: "Sent to stitching",
+  dispatched: "Gate pass out to washing",
   stitched: "Stitching received",
   washed: "Washing entry",
   packing: "In packing",
@@ -46,6 +50,8 @@ export const EMPTY_LOT_FORM = {
   fabricQty: "",
   fabricUnit: "m",
   sizes: DEFAULT_SIZES.map((size) => ({ size, qty: "" })),
+  bundleNumber: "",
+  shrinkage: "",
   note: "",
 };
 
@@ -63,6 +69,8 @@ export const formFromLot = (lot) => ({
   fabricQty: lot.fabric?.qty ?? "",
   fabricUnit: lot.fabric?.unit || "m",
   sizes: (lot.sizes || []).map((s) => ({ size: String(s.size), qty: s.qty === 0 ? "" : String(s.qty) })),
+  bundleNumber: lot.bundleNumber || "",
+  shrinkage: lot.shrinkage === null || lot.shrinkage === undefined ? "" : String(lot.shrinkage),
   note: lot.note || "",
 });
 
@@ -77,6 +85,9 @@ export const validateLotInput = (form) => {
   const names = new Set(rows.map((row) => row.size.trim().toLowerCase()));
   if (names.size !== rows.length) return "Sizes must be unique";
   if (totalPieces(rows) <= 0) return "Enter the cut quantity for at least one size";
+  if (form.shrinkage !== "" && !(Number(form.shrinkage) >= 0 && Number(form.shrinkage) <= 100)) {
+    return "Shrinkage must be between 0 and 100 percent";
+  }
   return null;
 };
 
@@ -87,6 +98,9 @@ export const toLotPayload = (form) => ({
   sizes: form.sizes
     .filter((row) => row.size.trim())
     .map((row) => ({ size: row.size.trim(), qty: Math.trunc(Number(row.qty)) || 0 })),
+  bundleNumber: String(form.bundleNumber || "").trim(),
+  shrinkage:
+    form.shrinkage === "" || form.shrinkage === null || form.shrinkage === undefined ? null : Number(form.shrinkage),
   note: form.note.trim(),
 });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { api, errorMessage } from "@/lib/api-client";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -22,7 +22,12 @@ export function useLots(stage = "") {
     if (error) toast.error(errorMessage(error));
   }, [error, toast]);
 
+  const { reload: reloadLots } = lotsQuery;
+  const { reload: reloadSummary } = summaryQuery;
+  const reload = useCallback(() => Promise.all([reloadLots(), reloadSummary()]), [reloadLots, reloadSummary]);
+
   return {
+    reload,
     lots: lotsQuery.data || [],
     summary: summaryQuery.data,
     isLoading: lotsQuery.isLoading,

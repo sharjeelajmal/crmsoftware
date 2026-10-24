@@ -11,7 +11,7 @@ const ROW_CLASS =
 
 export function ExpenseRow({ expense, onEdit, onDelete }) {
   return (
-    <motion.div variants={itemVariants} className={ROW_CLASS}>
+    <motion.div variants={itemVariants} initial="hidden" animate="visible" className={ROW_CLASS}>
       <div className="flex-grow mb-2 md:mb-0">
         <p className="font-semibold">{expense.name}</p>
         <p className="text-xs text-gray-300 flex items-center gap-1 mt-1">

@@ -27,6 +27,8 @@ export const BUSINESS = {
     { bank: "MCB Bank", accountName: "Bashir Ahmad", accountNumber: "0000000006375057" },
   ],
   invoiceNoteUrdu: "براہ کرم اپنی سامان موقع پر تسلی سے گن کر لیں۔ " + "بعد میں ہم ذمہ دار نہ ہوں گے۔",
+  // Printed on every gate pass: one number at the top, one at the bottom (client's instruction).
+  gatePass: { phoneTop: "0321-4361127", phoneBottom: "0323-8888000" },
   // Pakistan Standard Time; used when bucketing sales by hour on the server.
   timezoneOffsetHours: 5,
 };

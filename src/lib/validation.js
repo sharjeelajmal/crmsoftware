@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { ALL_ROLES } from "@/constants/roles";
+import { LEDGER_TYPES } from "@/constants/ledger";
+import { ADJUSTMENT_TYPES } from "@/constants/wages";
+import { GATE_PASS_TYPES } from "@/constants/gatepass";
 
 /**
  * Request schemas for every API resource. Keep them here so the API contract
@@ -196,15 +199,36 @@ export const lotCreateSchema = z.object({
     .max(50)
     .refine(uniqueSizes, "Sizes must be unique")
     .refine((sizes) => sizes.some((s) => s.qty > 0), "Total pieces must be more than 0"),
+  bundleNumber: optionalText(40),
+  shrinkage: z.coerce.number().min(0).max(100).nullable().optional(), // percent, printed on the gate pass
   note: optionalText(500),
 });
 
 export const lotUpdateSchema = lotCreateSchema.partial();
 
 export const lotStageActionSchema = z.object({
-  action: z.enum(["send_stitching", "stitched", "washed"]),
+  action: z.enum(["send_stitching", "stitched", "washed", "ready"]),
   qty: z.coerce.number().int().min(0).optional(),
+  // ready only: pieces per size that go into stock (must add up to qty); omitted = proportional split
+  sizes: z.array(lotSizeSchema).max(50).optional(),
+  washType: optionalText(80), // stitched only: printed on the washing gate pass
   note: optionalText(500),
+});
+
+export const gatePassIssueSchema = z.object({
+  type: z.enum(GATE_PASS_TYPES),
+  washType: optionalText(80),
+});
+
+/** Partial "gate pass out" from stitching to washing. */
+export const lotDispatchSchema = z.object({
+  pieces: z.coerce.number().int().positive("Pieces must be more than 0"),
+  washType: optionalText(80),
+  note: optionalText(500),
+});
+
+export const lotReverseSchema = z.object({
+  reason: trimmed(500),
 });
 
 export const lotsQuerySchema = z.object({
@@ -218,4 +242,125 @@ export const periodQuerySchema = z.object({
   filter: z.string().trim().optional(),
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),
+});
+
+// ---- Loose items & B-pair register (no link to stock) ---------------------
+export const ledgerEntrySchema = z.object({
+  type: z.enum(LEDGER_TYPES),
+  item: trimmed(120),
+  qty: money.gt(0, "Quantity must be more than 0"),
+  unit: z.string().trim().min(1).max(20).default("pcs"),
+  note: optionalText(500),
+  lotId: objectId.nullable().optional(), // optional link to the lot the pieces came from
+});
+
+// Explicit (no defaults) so a partial edit never resets unit/note to their defaults.
+export const ledgerEntryUpdateSchema = z.object({
+  type: z.enum(LEDGER_TYPES).optional(),
+  item: trimmed(120).optional(),
+  qty: money.gt(0, "Quantity must be more than 0").optional(),
+  unit: z.string().trim().min(1).max(20).optional(),
+  note: z.string().trim().max(500).optional(),
+  lotId: objectId.nullable().optional(),
+});
+
+export const ledgerQuerySchema = periodQuerySchema.extend({
+  type: z.enum(LEDGER_TYPES).optional(),
+  lotId: objectId.optional(),
+  search: z.string().trim().max(120).optional(),
+});
+
+// ---- Workers & wages ------------------------------------------------------
+export const workerSchema = z.object({
+  name: trimmed(120),
+  phone: optionalText(40),
+  type: z.string().trim().max(40).default("stitching"), // stitching / washing / packing / helper …
+  dailyRate: nonNegative.default(0), // per-day salary: one day of leave is cut at this rate (0 = piece rate only)
+  note: optionalText(500),
+  active: z.boolean().default(true),
+});
+
+export const workerUpdateSchema = z.object({
+  name: trimmed(120).optional(),
+  phone: z.string().trim().max(40).optional(),
+  type: z.string().trim().min(1).max(40).optional(),
+  dailyRate: nonNegative.optional(),
+  note: z.string().trim().max(500).optional(),
+  active: z.boolean().optional(),
+});
+
+export const operationSchema = z.object({
+  name: trimmed(80),
+  rate: nonNegative, // Rs per piece
+  order: z.coerce.number().int().min(0).default(0),
+  active: z.boolean().default(true),
+});
+
+export const operationUpdateSchema = z.object({
+  name: trimmed(80).optional(),
+  rate: nonNegative.optional(),
+  order: z.coerce.number().int().min(0).optional(),
+  active: z.boolean().optional(),
+});
+
+/** One worker doing one operation on one lot. The rate is copied from the operation (editable per assignment). */
+export const workEntrySchema = z.object({
+  lotId: objectId,
+  operationId: objectId,
+  workerId: objectId,
+  pieces: z.coerce.number().int().positive("Pieces must be more than 0"),
+  rate: nonNegative.optional(), // omitted = the operation's current rate
+  date: dateLike.optional(),
+  note: optionalText(500),
+});
+
+/** Assign one operation to several workers at once (lot page). */
+export const workAssignmentSchema = z.object({
+  lotId: objectId,
+  operationId: objectId,
+  rate: nonNegative.optional(),
+  date: dateLike.optional(),
+  note: optionalText(500),
+  rows: z
+    .array(z.object({ workerId: objectId, pieces: z.coerce.number().int().positive() }))
+    .min(1, "Add at least one worker")
+    .max(50)
+    .refine((rows) => new Set(rows.map((r) => r.workerId)).size === rows.length, "A worker can only appear once"),
+});
+
+export const workEntryUpdateSchema = z.object({
+  pieces: z.coerce.number().int().positive().optional(),
+  rate: nonNegative.optional(),
+  date: dateLike.optional(),
+  note: z.string().trim().max(500).optional(),
+});
+
+export const workEntriesQuerySchema = periodQuerySchema.extend({
+  lotId: objectId.optional(),
+  workerId: objectId.optional(),
+  operationId: objectId.optional(),
+});
+
+/** Leave needs `days` (rate defaults to the worker's per-day salary); every other type needs an `amount`. */
+export const wageAdjustmentSchema = z
+  .object({
+    workerId: objectId,
+    type: z.enum(ADJUSTMENT_TYPES),
+    amount: money.min(0).optional(),
+    days: z.coerce.number().positive().max(31).optional(),
+    rate: nonNegative.optional(),
+    date: dateLike.optional(),
+    note: optionalText(500),
+  })
+  .superRefine((value, ctx) => {
+    if (value.type === "leave") {
+      if (!(value.days > 0))
+        ctx.addIssue({ code: "custom", path: ["days"], message: "Leave days must be more than 0" });
+    } else if (!(value.amount > 0)) {
+      ctx.addIssue({ code: "custom", path: ["amount"], message: "Amount must be more than 0" });
+    }
+  });
+
+export const wagesQuerySchema = periodQuerySchema.extend({
+  workerId: objectId.optional(),
 });

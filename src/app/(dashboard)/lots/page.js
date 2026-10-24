@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { FileBarChart, Layers, Loader2, PackageCheck, Scissors, Search } from "lucide-react";
@@ -11,14 +11,24 @@ import { StatCard } from "@/components/ui/StatCard";
 import { FilterButton } from "@/components/ui/FilterButton";
 import { useLots } from "@/features/lots/hooks/useLots";
 import { LotsTable } from "@/features/lots/components/LotsTable";
-import { STAGE_FILTERS, filterLots } from "@/features/cutting/utils";
+import { STAGES, STAGE_FILTERS, filterLots } from "@/features/cutting/utils";
 
 const SEARCH_CLASS =
   "pl-12 pr-4 py-3 w-full bg-white rounded-lg border border-gray-200 outline-none focus:ring-2 focus:ring-primary";
 
-export default function LotsPage() {
-  const [stage, setStage] = useState("");
+/** `/lots?stage=stitching` opens the list on that stage (links from the dashboard pipeline). */
+const stageFromParams = (params) => (STAGES.includes(params?.stage) ? params.stage : "");
+
+export default function LotsPage({ searchParams }) {
+  const params = use(searchParams);
+  const [stage, setStage] = useState(() => stageFromParams(params));
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Keep the address in step with the filter, so a refresh or a shared link opens the same stage.
+  const chooseStage = (value) => {
+    setStage(value);
+    window.history.replaceState(null, "", value ? `?stage=${value}` : window.location.pathname);
+  };
   const { lots, summary, isLoading, isFetching } = useLots(stage);
 
   const visible = filterLots(lots, { searchTerm });
@@ -56,13 +66,22 @@ export default function LotsPage() {
 
       <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4 mb-5">
-          <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl w-full lg:w-auto">
-            {STAGE_FILTERS.map(({ value, label }) => (
+          <div className="grid grid-cols-2 min-[360px]:grid-cols-3 sm:flex sm:flex-wrap gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl w-full lg:w-auto">
+            {STAGE_FILTERS.map(({ value, label, short }) => (
               <FilterButton
                 key={value || "all"}
-                label={label}
+                label={
+                  <>
+                    <span className="sm:hidden">{short}</span>
+                    <span className="hidden sm:inline">{label}</span>
+                  </>
+                }
+                title={label}
+                wrap
                 active={stage === value}
-                onClick={() => setStage(value)}
+                aria-pressed={stage === value}
+                data-testid={`lots-filter-${value || "all"}`}
+                onClick={() => chooseStage(value)}
               />
             ))}
           </div>

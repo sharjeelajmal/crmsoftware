@@ -15,6 +15,7 @@ import { useDeleteLot } from "@/features/lots/hooks/useDeleteLot";
 import { LotDetail } from "@/features/cutting/components/LotDetail";
 import { StageActionPanel } from "@/features/lots/components/StageActionPanel";
 import { ShortfallPanel } from "@/features/lots/components/ShortfallPanel";
+import { WorkPanel } from "@/features/wages/components/WorkPanel";
 
 export default function AdminLotPage() {
   const { id } = useParams();
@@ -69,6 +70,7 @@ export default function AdminLotPage() {
         backHref="/lots"
         backLabel="Production Lots"
         editHref={`/cutting/${lot._id}/edit`}
+        canIssueGatePass
         actions={
           canDelete ? (
             <Button
@@ -83,14 +85,17 @@ export default function AdminLotPage() {
           ) : null
         }
         afterPipeline={
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-            <div className="lg:col-span-3">
-              <StageActionPanel lot={lot} onUpdated={handleStageUpdated} />
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+              <div className="lg:col-span-3">
+                <StageActionPanel lot={lot} onUpdated={handleStageUpdated} />
+              </div>
+              <div className="lg:col-span-2">
+                <ShortfallPanel lot={lot} ledgerHref={`/ledger?lot=${lot._id}`} />
+              </div>
             </div>
-            <div className="lg:col-span-2">
-              <ShortfallPanel lot={lot} />
-            </div>
-          </div>
+            <WorkPanel lot={lot} />
+          </>
         }
       />
     </>

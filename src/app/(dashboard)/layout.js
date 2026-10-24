@@ -105,7 +105,9 @@ export default function DashboardLayout({ children }) {
         </div>
       </aside>
 
-      <main className="flex-grow flex flex-col p-4 sm:p-6 overflow-y-auto overflow-x-hidden min-w-0 h-full">
+      {/* `relative`: absolutely positioned descendants (e.g. sr-only labels) stay inside this single scroller
+          instead of stretching <html> and adding a second, page-level scrollbar. */}
+      <main className="relative flex-grow flex flex-col p-4 sm:p-6 overflow-y-auto overflow-x-hidden min-w-0 h-full">
         <DashboardHeader profile={profile} onOpenMenu={() => setDrawerOpen(true)} />
         <div className="flex-grow">
           {/* New page mounts immediately with a quick fade; no exit animation to wait for. */}

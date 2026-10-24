@@ -13,7 +13,12 @@ const typeBadgeClass = (customer) =>
 /** One debtor row: avatar + name/phone, type badge (under the phone on phones), editable total due. */
 export function RecoveryRow({ customer, onSaveBalance }) {
   return (
-    <motion.tr variants={itemVariants} className="border-b border-gray-100 hover:bg-gray-50">
+    <motion.tr
+      variants={itemVariants}
+      initial="hidden"
+      animate="visible"
+      className="border-b border-gray-100 hover:bg-gray-50"
+    >
       <td className="p-3 sm:p-4 font-semibold text-gray-800">
         <div className="flex items-center gap-3 cursor-pointer">
           <div className="w-10 h-10 shrink-0 rounded-full bg-gray-100 flex items-center justify-center font-bold text-primary">

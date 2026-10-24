@@ -16,10 +16,9 @@ import { useExpenses } from "@/features/expenses/hooks/useExpenses";
 import { AddEditExpensePopup } from "@/features/expenses/components/AddEditExpensePopup";
 import { AddCategoryPopup } from "@/features/expenses/components/AddCategoryPopup";
 import { ExpenseRow } from "@/features/expenses/components/ExpenseRow";
-import { DateRangeModal } from "@/features/expenses/components/DateRangeModal";
+import { DateRangePickerModal } from "@/components/ui/DateRangePickerModal";
 import {
   CUSTOM_FILTER,
-  EMPTY_RANGE,
   PERIOD_FILTERS,
   filterExpenses,
   isCompleteRange,
@@ -55,7 +54,6 @@ export default function ExpensesPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [popup, setPopup] = useState(CLOSED);
   const [showCalendar, setShowCalendar] = useState(false);
-  const [draftRange, setDraftRange] = useState(EMPTY_RANGE); // range being picked, applied on "Apply Range"
 
   const closePopup = () => setPopup(CLOSED);
   const withClose = async (promise) => {
@@ -69,18 +67,14 @@ export default function ExpensesPage() {
     }
   };
 
-  const openCalendar = () => {
-    setDraftRange(appliedRange);
-    setShowCalendar(true);
-  };
+  const openCalendar = () => setShowCalendar(true);
   const closeCalendar = () => {
     setShowCalendar(false);
-    setDraftRange(appliedRange);
     dropIncompleteCustomRange();
   };
-  const applyRange = () => {
-    if (!isCompleteRange(draftRange)) return;
-    applyCustomRange(draftRange);
+  const applyRange = (range) => {
+    if (!isCompleteRange(range)) return;
+    applyCustomRange(range);
     setShowCalendar(false);
   };
 
@@ -132,12 +126,7 @@ export default function ExpensesPage() {
           />
         )}
         {showCalendar && (
-          <DateRangeModal
-            range={draftRange}
-            onRangeChange={(range) => setDraftRange(range || EMPTY_RANGE)}
-            onApply={applyRange}
-            onClose={closeCalendar}
-          />
+          <DateRangePickerModal initialRange={appliedRange} onApply={applyRange} onClose={closeCalendar} />
         )}
       </AnimatePresence>
 

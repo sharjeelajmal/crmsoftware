@@ -14,6 +14,8 @@ export function SaleRow({ sale, isCustomerRegistered, onEdit, onView, onPdf, onA
   return (
     <motion.div
       variants={itemVariants}
+      initial="hidden"
+      animate="visible"
       className="flex flex-col md:flex-row items-start md:items-center p-4 rounded-xl text-white transition-transform transform
         hover:scale-[1.01] bg-primary"
     >

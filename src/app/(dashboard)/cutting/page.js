@@ -53,11 +53,18 @@ export default function CuttingPage() {
 
       <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4 mb-5">
-          <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl w-full lg:w-auto">
-            {STAGE_FILTERS.map(({ value, label }) => (
+          <div className="grid grid-cols-2 min-[360px]:grid-cols-3 sm:flex sm:flex-wrap gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl w-full lg:w-auto">
+            {STAGE_FILTERS.map(({ value, label, short }) => (
               <FilterButton
                 key={value || "all"}
-                label={label}
+                label={
+                  <>
+                    <span className="sm:hidden">{short}</span>
+                    <span className="hidden sm:inline">{label}</span>
+                  </>
+                }
+                title={label}
+                wrap
                 active={stage === value}
                 onClick={() => setStage(value)}
               />

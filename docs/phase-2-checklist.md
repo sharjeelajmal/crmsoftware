@@ -1,7 +1,7 @@
 # Phase 2 — Verification Checklist (Operations & Tracking)
 
 Pehle `npm run dev`, browser hard refresh. Automated: `npm test`, `npm run test:e2e`, `npm run lint`, `npm run build` sab pass.
-Interactive version: root folder ki `verification.html` browser mein kholein.
+Client guide (chapters, step by step, Roman Urdu): root folder ki `verification.html` browser mein kholein.
 
 ## 1. Lot pipeline (Admin → Production → Lots → lot kholein)
 - [ ] Pipeline mein har step ke neeche pieces dikhte hain (Cutting = cut qty, baqi "—" jab tak entry na ho).
@@ -14,8 +14,8 @@ Interactive version: root folder ki `verification.html` browser mein kholein.
 ## 3. Washing entry (manual, simple)
 - [ ] Washing stage par ek number: washed pieces (max = stitched). 119 par error, 117 par stage Packing; shortfall "after washing: 1", total 3.
 
-## 4. Packing & Phase 3 note
-- [ ] Packing stage par koi action nahi, muted note: "Ready for Sale (stock add) arrives in Phase 3".
+## 4. Packing par agla qadam
+- [ ] Packing stage par **Ready for Sale** panel (pieces + size table) dikhta hai; Edit/Delete nahi. Ready mark karna Phase 3 checklist ka hissa hai.
 - [ ] Packing stage par lot delete/edit nahi ho sakta (error message).
 
 ## 5. History
@@ -28,7 +28,7 @@ Interactive version: root folder ki `verification.html` browser mein kholein.
 ## 7. Lot report (Production → Lot Report)
 - [ ] Filters: Today / Last 7 Days / This Year / All Time / Custom Range.
 - [ ] Stat cards (Lots, Cut, Stitched, Washed) aur stage-wise table sahi; lots table mein shortfall highlighted.
-- [ ] "Download CSV" se file download hoti hai jis mein Lot #, Article, Stage, Cut, Stitched, Washed, Shortfall columns hain.
+- [ ] "Download CSV" se file download hoti hai jis mein Lot #, Article, Stage, Cut, Stitched, Washed, Ready, In stock, Shortfall columns hain.
 
 ## 8. Dashboard & lists
 - [ ] Dashboard Production widget "In process" mein stitching/washing/packing wale lots count hote hain.

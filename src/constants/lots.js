@@ -53,13 +53,32 @@ export const STAGE_ACTIONS = Object.freeze({
     qtyField: "washedQty",
     maxField: "stitchedQty",
   },
-  // "ready" (packing → ready, adds stock) arrives in Phase 3.
+  ready: {
+    from: "packing",
+    to: "ready",
+    label: "Mark Ready for Sale",
+    eventType: "ready",
+    needsQty: true,
+    qtyField: "readyQty",
+    maxField: "washedQty",
+    addsStock: true,
+  },
 });
 
 export const STAGE_ACTION_KEYS = Object.freeze(Object.keys(STAGE_ACTIONS));
 
-/** The action available at the lot's current stage, or null (packing → ready comes in Phase 3). */
+/** The action available at the lot's current stage, or null once the lot is ready. */
 export const nextActionFor = (lot) => STAGE_ACTION_KEYS.find((key) => STAGE_ACTIONS[key].from === lot?.stage) ?? null;
+
+/** Pieces already sent out of stitching with partial gate passes (Phase 7b). */
+export const stitchOutQtyOf = (lot) => Math.max(0, Math.trunc(Number(lot?.stitchOutQty)) || 0);
+
+/** Pieces still lying in stitching ("padi hui"): received (cut) minus sent out; 0 outside the stitching stage. */
+export const stitchBalanceOf = (lot) =>
+  lot?.stage === "stitching" ? Math.max(0, (Number(lot?.cutQty) || 0) - stitchOutQtyOf(lot)) : 0;
+
+/** Lower limit for an action's quantity: closing stitching can't record fewer pieces than were already sent out. */
+export const minQtyFor = (lot, actionKey) => (actionKey === "stitched" ? stitchOutQtyOf(lot) : 0);
 
 /** Upper limit for the quantity an action may record (pieces that reached this stage). */
 export const maxQtyFor = (lot, actionKey) => {
@@ -85,6 +104,8 @@ export function applyStageAction(lot, actionKey, { qty } = {}) {
     if (!Number.isFinite(pieces) || pieces < 0) throw new Error("Enter the number of pieces (0 or more)");
     const max = maxQtyFor(lot, actionKey);
     if (pieces > max) throw new Error(`Cannot record ${pieces} pieces: only ${max} reached this stage`);
+    const min = minQtyFor(lot, actionKey);
+    if (pieces < min) throw new Error(`${min} pieces already went out with gate passes — enter at least ${min}`);
     $set[action.qtyField] = pieces;
   }
   return $set;
@@ -101,4 +122,38 @@ export function lotShortfall(lot) {
     total: washed !== null ? cut - washed : stitched !== null ? cut - stitched : null,
     lastQty: washed ?? stitched ?? cut,
   };
+}
+
+// ---- Ready for sale: size distribution (Phase 3) ------------------------------
+/**
+ * Splits `qty` pieces across the lot's sizes in proportion to what was cut (largest remainder
+ * method, so the parts always add up exactly to `qty`). Used to prefill the Ready form.
+ */
+export function distributeBySizes(sizes = [], qty) {
+  const total = cutQtyOf(sizes);
+  const pieces = Math.max(0, Math.trunc(Number(qty)) || 0);
+  if (sizes.length === 0 || total === 0) return sizes.map((s) => ({ size: s.size, qty: 0 }));
+  const raw = sizes.map((s) => ({ size: s.size, exact: (pieces * (Math.trunc(Number(s.qty)) || 0)) / total }));
+  const parts = raw.map((r) => ({ size: r.size, qty: Math.floor(r.exact), frac: r.exact - Math.floor(r.exact) }));
+  let remainder = pieces - parts.reduce((sum, p) => sum + p.qty, 0);
+  for (const part of [...parts].sort((a, b) => b.frac - a.frac)) {
+    if (remainder <= 0) break;
+    part.qty += 1;
+    remainder -= 1;
+  }
+  return parts.map(({ size, qty: q }) => ({ size, qty: q }));
+}
+
+/** Validates the per-size ready quantities against the lot; returns a message or null. */
+export function readySizesProblem(lot, sizes, qty) {
+  if (!Array.isArray(sizes) || sizes.length === 0) return "Enter the pieces per size";
+  const lotSizes = new Set((lot?.sizes || []).map((s) => s.size));
+  for (const row of sizes) {
+    if (!lotSizes.has(row.size)) return `Size "${row.size}" is not part of this lot`;
+    const n = Math.trunc(Number(row.qty));
+    if (!Number.isFinite(n) || n < 0) return `Invalid pieces for size ${row.size}`;
+  }
+  const sum = cutQtyOf(sizes);
+  if (sum !== Math.trunc(Number(qty))) return `Sizes add up to ${sum}, but ${qty} pieces were entered`;
+  return null;
 }

@@ -85,3 +85,12 @@ export async function addStock(db, productId, qty, { size, session } = {}) {
     await products.updateOne({ _id }, { $push: { sizes: { size, remaining: amount } } }, { session });
   }
 }
+
+/**
+ * Append-only audit trail of stock changes made by production (and, later, other sources).
+ * `movement`: { productId, productName, qty (+/-), size?, reason: "lot_ready" | "lot_reversed",
+ *               lotId, lotNumber, by: { id, name } }
+ */
+export async function recordStockMovement(db, movement, session) {
+  await db.collection("stock_movements").insertOne({ ...movement, at: new Date() }, { session });
+}

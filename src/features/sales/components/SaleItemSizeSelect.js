@@ -1,12 +1,15 @@
 "use client";
 
+import { SelectDropdown } from "@/components/ui/CustomDropdown";
 import { hasSizes, sizeOptions } from "@/features/inventory/utils";
 
-const SELECT_CLASS = "bg-gray-100 rounded-md px-1.5 py-1 text-xs text-gray-800 outline-none cursor-pointer max-w-full";
+/** "32 (8 left)" in the menu, just "32" on the compact button. */
+const pickerOptions = (product) => sizeOptions(product).map((option) => ({ ...option, short: option.value }));
 
 /**
- * Size picker for one sale item. Renders a select when `product` tracks sizes; otherwise the stored
- * size as plain text (legacy rows / products no longer in the list), or `emptyText` when there is none.
+ * Size picker for one sale item: the app's custom dropdown, compact, with the menu portaled so the invoice
+ * table and the edit-sale popup can't clip it. Products without sizes show the stored size as plain text
+ * (legacy rows / products no longer in the list), or `emptyText` when there is none.
  */
 export function SaleItemSizeSelect({ product, value, onChange, className = "", textPrefix = "", emptyText = null }) {
   if (!hasSizes(product)) {
@@ -19,20 +22,17 @@ export function SaleItemSizeSelect({ product, value, onChange, className = "", t
     );
   }
   return (
-    <select
-      data-testid="sale-item-size"
-      aria-label="Size"
-      value={value ?? ""}
-      onChange={(e) => onChange(e.target.value)}
-      className={`${SELECT_CLASS} ${className}`}
-    >
-      <option value="">Size</option>
-      {sizeOptions(product).map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <SelectDropdown
+      size="sm"
+      portal
+      options={pickerOptions(product)}
+      selected={value ?? ""}
+      onSelect={onChange}
+      placeholder="Size"
+      ariaLabel="Size"
+      testId="sale-item-size"
+      className={className}
+    />
   );
 }
 

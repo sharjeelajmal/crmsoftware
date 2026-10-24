@@ -14,7 +14,7 @@ const CARD_CLASS =
 /** One lot in the "My Lots" list; the whole card links to the lot's detail page. */
 export function LotCard({ lot, href }) {
   return (
-    <motion.div variants={itemVariants}>
+    <motion.div variants={itemVariants} initial="hidden" animate="visible">
       <Link href={href} data-testid="lot-card" data-lot-number={lot.lotNumber} className={CARD_CLASS}>
         <div className="p-3 rounded-full bg-primary-soft text-primary shrink-0">
           <Scissors size={20} />

@@ -10,6 +10,8 @@ export function VendorCard({ vendor, onEdit, onDelete }) {
   return (
     <motion.div
       variants={itemVariants}
+      initial="hidden"
+      animate="visible"
       className="bg-white rounded-2xl shadow-lg p-5 flex flex-col justify-between hover:shadow-xl transition-shadow duration-300 h-full"
     >
       <div>

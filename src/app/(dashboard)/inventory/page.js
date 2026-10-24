@@ -12,6 +12,7 @@ import { AddCategoryPopup } from "@/features/inventory/components/AddCategoryPop
 import { AddProductPopup } from "@/features/inventory/components/AddProductPopup";
 import { EditProductPopup } from "@/features/inventory/components/EditProductPopup";
 import { StockUpdatePopup } from "@/features/inventory/components/StockUpdatePopup";
+import { StockHistoryPopup } from "@/features/inventory/components/StockHistoryPopup";
 import { ProductTable } from "@/features/inventory/components/ProductTable";
 import { STOCK_FILTERS, STOCK_FILTER_OPTIONS, filterProducts } from "@/features/inventory/utils";
 
@@ -42,6 +43,7 @@ export default function InventoryPage() {
   const filteredProducts = filterProducts(products, { searchTerm, category: selectedCategory, stockFilter });
   const stockProduct = popup.type === "stock" ? products.find((p) => p._id === popup.data.productId) : null;
   const editProduct = popup.type === "edit" ? products.find((p) => p._id === popup.data) : null;
+  const historyProduct = popup.type === "history" ? products.find((p) => p._id === popup.data) : null;
   // Pre-select the category the user is currently looking at.
   const initialCategory = selectedCategory !== "All" ? selectedCategory : categories[0] || "";
 
@@ -109,6 +111,7 @@ export default function InventoryPage() {
             onCancel={closePopup}
           />
         )}
+        {historyProduct && <StockHistoryPopup product={historyProduct} onClose={closePopup} />}
       </AnimatePresence>
 
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="w-full space-y-6">
@@ -174,6 +177,7 @@ export default function InventoryPage() {
             onStockChange={(productId, action) => setPopup({ type: "stock", data: { productId, action } })}
             onEdit={(productId) => setPopup({ type: "edit", data: productId })}
             onDelete={(productId) => setPopup({ type: "deleteProduct", data: productId })}
+            onHistory={(productId) => setPopup({ type: "history", data: productId })}
           />
         </motion.div>
       </motion.div>

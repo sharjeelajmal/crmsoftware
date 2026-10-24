@@ -107,6 +107,34 @@ export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
             </select>
           </Field>
         </div>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+          <Field label="Bundle number (optional)">
+            <input
+              type="text"
+              value={f.form.bundleNumber}
+              onChange={(e) => f.setField("bundleNumber", e.target.value)}
+              placeholder="e.g. B-12"
+              maxLength={40}
+              data-testid="lot-form-bundle"
+              className={INPUT_CLASS}
+            />
+          </Field>
+          <Field label="Shrinkage % (optional)">
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="any"
+              inputMode="decimal"
+              value={f.form.shrinkage}
+              onChange={(e) => f.setField("shrinkage", e.target.value)}
+              placeholder="e.g. 12"
+              data-testid="lot-form-shrinkage"
+              className={INPUT_CLASS}
+            />
+          </Field>
+        </div>
+        <p className="text-xs text-gray-500">Bundle number and shrinkage are printed on the stitching gate pass.</p>
       </motion.section>
 
       <motion.section variants={itemVariants} className={SECTION_CLASS}>

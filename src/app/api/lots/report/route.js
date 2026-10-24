@@ -18,13 +18,17 @@ export const GET = route(async (request) => {
   const db = await getDb();
   const lots = await db.collection("lots").find(dateQuery("createdAt", range)).sort({ createdAt: -1 }).toArray();
 
-  const byStage = Object.fromEntries(STAGES.map((s) => [s, { count: 0, cutQty: 0, stitchedQty: 0, washedQty: 0 }]));
+  const byStage = Object.fromEntries(
+    STAGES.map((s) => [s, { count: 0, cutQty: 0, stitchedQty: 0, washedQty: 0, readyQty: 0 }])
+  );
   for (const lot of lots) {
-    const bucket = byStage[lot.stage] ?? (byStage[lot.stage] = { count: 0, cutQty: 0, stitchedQty: 0, washedQty: 0 });
+    const bucket =
+      byStage[lot.stage] ?? (byStage[lot.stage] = { count: 0, cutQty: 0, stitchedQty: 0, washedQty: 0, readyQty: 0 });
     bucket.count += 1;
     bucket.cutQty += Number(lot.cutQty) || 0;
     bucket.stitchedQty += Number(lot.stitchedQty) || 0;
     bucket.washedQty += Number(lot.washedQty) || 0;
+    bucket.readyQty += Number(lot.readyQty) || 0;
   }
 
   const rows = lots.map((lot) => {
@@ -36,6 +40,8 @@ export const GET = route(async (request) => {
       cutQty: lot.cutQty,
       stitchedQty: lot.stitchedQty ?? "",
       washedQty: lot.washedQty ?? "",
+      readyQty: lot.readyQty ?? "",
+      stockApplied: lot.stockApplied ? "yes" : "",
       shortfall: shortfall.total ?? "",
       createdBy: lot.createdBy?.name ?? "",
       createdAt: new Date(lot.createdAt).toLocaleString(),
@@ -52,6 +58,8 @@ export const GET = route(async (request) => {
         { label: "Cut", value: "cutQty" },
         { label: "Stitched", value: "stitchedQty" },
         { label: "Washed", value: "washedQty" },
+        { label: "Ready", value: "readyQty" },
+        { label: "In stock", value: "stockApplied" },
         { label: "Shortfall", value: "shortfall" },
         { label: "Created by", value: "createdBy" },
         { label: "Created", value: "createdAt" },
@@ -72,6 +80,7 @@ export const GET = route(async (request) => {
     cutQty: lots.reduce((s, l) => s + (Number(l.cutQty) || 0), 0),
     stitchedQty: lots.reduce((s, l) => s + (Number(l.stitchedQty) || 0), 0),
     washedQty: lots.reduce((s, l) => s + (Number(l.washedQty) || 0), 0),
+    readyQty: lots.reduce((s, l) => s + (Number(l.readyQty) || 0), 0),
   };
 
   return ok({ filter, from: range?.start ?? null, to: range?.end ?? null, totals, byStage, lots: rows });

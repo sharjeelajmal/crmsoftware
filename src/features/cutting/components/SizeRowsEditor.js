@@ -17,7 +17,7 @@ export function SizeRowsEditor({ rows, onChange }) {
 
   return (
     <div className="space-y-2">
-      <div className={`${ROW_GRID_CLASS} px-1 text-xs font-semibold uppercase tracking-wide text-gray-500`}>
+      <div className={`${ROW_GRID_CLASS} relative px-1 text-xs font-semibold uppercase tracking-wide text-gray-500`}>
         <span>Size</span>
         <span>Cut qty</span>
         <span className="sr-only">Remove</span>

@@ -12,7 +12,7 @@ const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2
 /** On/off switch for the "active" flag (edit mode only). */
 function ActiveToggle({ checked, onChange }) {
   return (
-    <label className="flex items-center justify-between p-3 bg-gray-100 rounded-xl cursor-pointer">
+    <label className="relative flex items-center justify-between p-3 bg-gray-100 rounded-xl cursor-pointer">
       <span className="text-gray-700">
         <span className="font-medium">{checked ? "Active" : "Inactive"}</span>
         <span className="block text-xs text-gray-500">{checked ? "Can sign in" : "Sign-in blocked"}</span>

@@ -13,6 +13,7 @@ export function ConfirmDialog({
   tone = "danger",
   onConfirm,
   onCancel,
+  confirmTestId,
 }) {
   return (
     <Modal onClose={onCancel} size="sm">
@@ -24,7 +25,7 @@ export function ConfirmDialog({
           <Button variant="secondary" onClick={onCancel}>
             {cancelLabel}
           </Button>
-          <Button variant={tone} onClick={onConfirm}>
+          <Button variant={tone} onClick={onConfirm} data-testid={confirmTestId}>
             {confirmLabel}
           </Button>
         </div>

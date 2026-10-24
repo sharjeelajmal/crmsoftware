@@ -45,6 +45,8 @@ export const PUT = route(
         $set.sizes = input.sizes.map((s) => ({ size: s.size, qty: Math.trunc(Number(s.qty)) || 0 }));
         $set.cutQty = cutQtyOf($set.sizes);
       }
+      if (input.bundleNumber !== undefined) $set.bundleNumber = input.bundleNumber;
+      if (input.shrinkage !== undefined) $set.shrinkage = input.shrinkage;
       if (input.note !== undefined) $set.note = input.note;
 
       await db.collection("lots").updateOne({ _id }, { $set }, { session: tx });

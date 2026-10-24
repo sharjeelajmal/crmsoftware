@@ -5,7 +5,7 @@ import { AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { Calendar } from "lucide-react";
 import { FilterButton } from "@/components/ui/FilterButton";
-import { CustomRangeModal } from "./CustomRangeModal";
+import { DateRangePickerModal } from "@/components/ui/DateRangePickerModal";
 import { PERIODS, isCompleteRange } from "../utils";
 
 /** Today / Last 7 Days / This Year pills plus the custom range button. */
@@ -46,7 +46,7 @@ export function PeriodFilter({ filter, appliedRange, onSelectPeriod, onApplyRang
 
       <AnimatePresence>
         {showCalendar && (
-          <CustomRangeModal
+          <DateRangePickerModal
             initialRange={appliedRange}
             onClose={() => setShowCalendar(false)}
             onApply={(range) => {

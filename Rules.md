@@ -39,7 +39,7 @@ src/
 │   │   ├── layout.js           # Shell: Sidebar + DashboardHeader + page transition
 │   │   └── <module>/page.js    # THIN orchestrator (< 250 lines): popup state + feature hook + layout
 │   └── api/<resource>/route.js # Route handlers built with src/lib/api.js helpers
-├── features/<module>/          # Everything page-specific
+├── features/<module>/          # Everything page-specific (sales, inventory, …, cutting, lots, ledger)
 │   ├── components/<Name>.js    # one component per file (popups, cards, rows, tables, views)
 │   ├── hooks/use<Module>.js    # data loading + mutations (api-client + useAsyncData + useToast)
 │   └── utils.js                # pure helpers (optional)
@@ -183,14 +183,29 @@ export const POST = route(async (request) => {
 - Network: hamesha `api` from `@/lib/api-client` (JSON, `cache: "no-store"`, 401 → login redirect). Direct `fetch()` sirf blob downloads (CSV) ke liye.
 - Errors/notifications: `useToast()` (`toast.success/error/info`). `window.alert` / per-page NotificationPopup mana hai.
 - Confirmations: `<ConfirmDialog>`; info: `<AlertDialog>`; forms/popups: `<Modal size padded>` within `<AnimatePresence>`.
-- Standard pieces: `StatCard`, `FilterButton`, `Button`, `CustomDropdown` (string options) / `SelectDropdown` ({value,label}), `Loader`.
-- Animations: `containerVariants` / `itemVariants` from `@/constants/animations`.
+- **Hidden modules**: `src/constants/modules.js` (`HIDDEN_MODULES`, `isHiddenPath`, `isModuleVisible`) — sidebar (`navForRole`), proxy redirect,
+  dashboard cards aur quick actions isi se chalte hain. Naya link/card jo kisi module ke page par le jaye, `isModuleVisible(path)` check kare.
+- **Dashboard** (`/`): sara data ek call `GET /api/dashboard` (`src/lib/dashboard.js`, pure rules `src/constants/dashboard.js`), cards
+  `src/features/dashboard/components/*` (har card `Panel` frame mein). Chart colours sirf tokens `--color-chart-1..3` (yehi tarteeb, colour-blind
+  check ho chuki); chart ki har value text ya table mein bhi ho. Ginti wale numbers `AnimatedNumber`, chhoti trend line `Sparkline`.
+- Standard pieces: `StatCard`, `FilterButton`, `Button`, `CustomDropdown` (string options) / `SelectDropdown` ({value,label}), `Loader`,
+  `Collapse` (height + fade expand/collapse), `DateRangePickerModal` (har "Custom range" ke liye yahi — presets, live From → To,
+  `initialRange` / `onApply(range)` / `onClose`; calendar theme `.rdp-root.rdp-modern` globals.css mein). Naya dropdown banana ho to native `<select>` ke bajaye `SelectDropdown`: `size="sm"` table cells ke liye
+  (option ka `short` button par dikhta hai), `portal` jab parent mein `overflow` ho (menu `<body>` par, `.dropdown-portal` z 60).
+- Animations: `containerVariants` / `itemVariants` from `@/constants/animations`. List ki har row/card (jo filter, search ya tab
+  badalne par dobara mount hoti hai) apne motion element par `initial="hidden" animate="visible"` lagaye — warna parent ki animation
+  khatam ho chuki hoti hai aur nayi row `opacity: 0` par atak jati hai (cards gayab). e2e Lots search se isko check karta hai.
 - `useEffect` deps sahi hon; `eslint-disable` sirf comment ke saath justified.
 
 ### 7.1 Responsive (phone → tablet → desktop)
 - Breakpoints: `sm` 640 (bare phones/landscape), `md` 768 (tablet), `lg` 1024 (sidebar docked), `xl` 1280.
 - Shell: `lg` se neeche sidebar drawer hai (header ka menu button), `lg+` par docked/collapsible. Document kabhi scroll nahi karta; sirf `<main>`.
+  `<main>` `relative` hai taake `absolute`/`sr-only` elements usi ke andar rahein; kisi component mein `absolute` ya `sr-only` lagayein to
+  uska parent bhi `relative` rakhein (warna `<html>` lamba ho kar doosra scrollbar aa jata hai — e2e isko check karta hai).
 - Har page ka toolbar phone par stack ho: search `w-full sm:w-72`, buttons `w-full sm:w-auto`, filters `flex-wrap` ya `grid grid-cols-N sm:flex`.
+- Filter pills grid mein hon to `FilterButton wrap` (text box ke andar wrap, bahar nahi), lambe naam ka phone label chhota rakhein
+  (`<span className="sm:hidden">Ready</span><span className="hidden sm:inline">Ready for Sale</span>` + `title`), aur 360px se
+  chhote phones par columns kam: `grid-cols-2 min-[360px]:grid-cols-3 sm:flex`. 280–414px par check karein.
 - Tables: `md` se neeche column header `hidden md:flex` aur har row card ban jaye (labelled values + actions line). Popups ke tables mein secondary column (date/customer) phone par primary cell ke neeche chhote text mein.
 - Cards/sections: padding `p-4 sm:p-6`, grid gap `gap-4 sm:gap-6`, headings `text-3xl sm:text-4xl`.
 - Invoice preview hamesha `InvoicePreview` (scale-to-fit); DayPicker phone par `numberOfMonths={1}` (`useMediaQuery`).
@@ -202,15 +217,31 @@ export const POST = route(async (request) => {
 - Product optional `sizes: [{ size, remaining }]`; `remaining` hamesha total hai (server `withSizeTotals` se sync rakhta hai).
 - Stock sirf `src/lib/inventory.js` se badalta hai: `deductStock`/`restoreStock` (sale items `productId` + optional `size`), `addStock(db, productId, qty, { size })` (purchases, production). Kabhi direct `$inc remaining` route mein na likhein.
 - Sized product bechte/kharidte waqt size lazmi; unsized product pehle jaisa.
+- Unsized product ko sizes dena sirf `EditProductPopup` ke "Track stock per size" se (`sizeSplitHint` farq dikhata hai; PUT `sizes` bhejne par server total recompute karta hai). Sizes hataane ka koi UI nahi — data loss se bachne ke liye.
 
 ## 7.3 Production lots
 - Collections `lots` + `lot_events` (append-only history). Rules `src/lib/lots.js` mein: `STAGES`, `nextLotSeq` (LOT-1001 se), `buildLot`, `buildLotEvent`, `canViewLot` / `canEditCutting` / `canDeleteLot`.
 - Ek lot = ek product. Cutting data sirf `stage === "cutting"` par edit; delete sirf admin, sirf cutting stage.
 - Stage transitions sirf `applyStageAction` (`src/constants/lots.js`, pure, client-safe) se: `send_stitching` (cutting→stitching), `stitched` (qty ≤ cutQty → washing), `washed` (qty ≤ stitchedQty → packing). Route: `POST /api/lots/:id/stage` (admin). Har action = `lot_events` entry. Shortfall `lotShortfall(lot)` se.
 - Client code lot constants sirf `@/constants/lots` se import kare (`@/lib/lots` mongodb import karta hai, browser bundle mein nahi ja sakta).
-- Ready → stock plus Phase 3 (`stockApplied` flag idempotency ke liye). Report: `GET /api/lots/report` (+ `format=csv`).
+- `ready` action (packing → ready) `src/lib/production.js` → `markLotReady`: `addStock` per size (product sized ho to) transaction ke andar, `stockApplied: true` (dobara kabhi nahi), `readySizes`, product par `lastProduction`, `stock_movements` entry. Reverse sirf `POST /api/lots/:id/reverse` (admin, reason lazmi) → `reverseLotReady`. Stock ko production se badalne ka aur koi raasta na banayein.
+- `stock_movements` append-only audit hai (`recordStockMovement`); kabhi edit/delete nahi. Report: `GET /api/lots/report` (+ `format=csv`). Produced pieces (widget/analytics) hamesha `producedPiecesInRange` (net: `lot_ready` + `lot_reversed`) se — lots ko dobara count na karein.
+- **Gate passes** (`gate_passes`, snapshot — kabhi edit nahi): rules `src/constants/gatepass.js` (`GATE_PASS_FOR_ACTION`, `sizeRangeOf`, `gatePassPiecesFor`, `canIssueGatePass`), server `src/lib/gatepass.js` (`issueGatePass` stage route ke transaction ke andar). Lot par `bundleNumber`, `shrinkage` (%), `washType`. Print layout `GatePassDocument` (inline `var(--color-*)`), print area `#gate-pass-print`; phone numbers sirf `BUSINESS.gatePass` se.
+- **Stitching se partial outs** (Phase 7b): `POST /api/lots/:id/dispatch` (admin) — washing gate pass `partial: true` sirf un pieces ka, lot par
+  `stitchOutQty` (+). Rules `stitchBalanceOf` / `minQtyFor` (`src/constants/lots.js`), `dispatchProblem` / `finalWashingPieces`
+  (`src/constants/gatepass.js`). `stitched` action pieces ≥ `stitchOutQty`; stage route aakhri pass sirf baqi pieces ka banata hai.
+- **Loose Items & B-Pair register** (`ledger_entries`, admin): constants `src/constants/ledger.js` (types, units, `shortfallEntryFor`, totals/filter), server `src/lib/ledger.js` (`buildLedgerEntry`, `ledgerEditOps` → har edit `history[]` mein snapshot), routes `/api/ledger` + `/api/ledger/:id`. Ledger ka stock se **koi link nahi**: yeh code kabhi `products`, `stock_movements`, `inventory.js` ya `production.js` ko import/touch na kare (`tests/unit/ledger.test.js` isko enforce karta hai). Lot shortfall se shortcut `/ledger?lot=<id>` (`useLedgerShortcut`).
 
-## 7.4 Tests
+## 7.4 Workers & wages
+- Collections `workers`, `operations` (rate per piece, editable), `work_entries` (lot × operation × worker × pieces; `rate`, `amount`, naam snapshot — purani wages kabhi nahi badalti), `wage_adjustments` (advance / deduction / bonus).
+- Pure maths sirf `src/constants/wages.js` (`entryAmount`, `perPieceLabour`, `splitEvenly`, `summarizeWages`); server `src/lib/wages.js`. Routes: `/api/workers`, `/api/operations`, `/api/work-entries` (POST = ek operation kai workers ko), `/api/wages/report` (+csv), `/api/wage-adjustments`.
+- Chhutti (leave): worker ka `dailyRate` (per-day salary) hota hai; `wage_adjustments` mein `type: "leave"` = `days` × `rate`
+  (rate snapshot, default worker ka dailyRate, aadha din allowed). Net = wages + bonus − leave − advance − deduction; advance
+  usi period mein poora katta hai jismein diya gaya. Math `leaveAmount` / `summarizeWages` (`src/constants/wages.js`).
+- Worker/operation jo use ho chuka ho delete nahi hota (409) — `active: false` karein. Wage periods `dates.js` mein: `thisweek` (Mon–Sun), `lastweek`, `last15days`, `monthly`.
+- Wages ka stock/products se koi link nahi.
+
+## 7.5 Tests
 - Unit: `npm test` (Vitest, `tests/unit/**`): pure logic — validation schemas, roles, auth tokens, inventory ops, lots rules. Naya lib helper = naya test.
 - E2E: `npm run test:e2e` (`tests/e2e/run.js`): alag DB (`MONGODB_DB=crm-e2e`) par apna dev server (port 3100) chala kar API + browser (Edge channel) scenarios. Koi test production DB ko touch nahi karta.
 - Har phase ke aakhir mein: `npm test`, `npm run lint`, `npm run build`, `npm run test:e2e`.

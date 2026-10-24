@@ -5,7 +5,7 @@ import { containerVariants } from "@/constants/animations";
 import { Loader } from "@/components/ui/Loader";
 import { ProductRow } from "./ProductRow";
 
-export function ProductTable({ products, isLoading, onStockChange, onEdit, onDelete }) {
+export function ProductTable({ products, isLoading, onStockChange, onEdit, onDelete, onHistory }) {
   return (
     <>
       <div className="hidden md:flex items-center px-4 py-2 text-sm text-gray-500 font-medium">
@@ -13,7 +13,7 @@ export function ProductTable({ products, isLoading, onStockChange, onEdit, onDel
         <span className="w-32 text-center">Purchase Price</span>
         <span className="w-32 text-center">Sale Price</span>
         <span className="w-32 text-center">Remaining</span>
-        <span className="w-32 text-center">Actions</span>
+        <span className="w-36 text-center">Actions</span>
       </div>
       <motion.div variants={containerVariants} className="space-y-3">
         {isLoading ? (
@@ -26,6 +26,7 @@ export function ProductTable({ products, isLoading, onStockChange, onEdit, onDel
               onStockChange={onStockChange}
               onEdit={onEdit}
               onDelete={onDelete}
+              onHistory={onHistory}
             />
           ))
         )}

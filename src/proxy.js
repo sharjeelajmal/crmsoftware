@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { ROLE_HOME, isPathAllowedForRole } from "@/constants/roles";
+import { isHiddenPath } from "@/constants/modules";
 
 /**
  * Auth + role gate for every page and API route (Next.js "proxy", formerly middleware).
@@ -9,6 +10,7 @@ import { ROLE_HOME, isPathAllowedForRole } from "@/constants/roles";
  * - Valid session on /login                -> redirect to the role's home
  * - Role may not open this path (page)     -> redirect to the role's home
  * - Role may not open this path (API)      -> 403 JSON
+ * - Page of a hidden module (modules.js)   -> redirect to the role's home (its API keeps working)
  * Route handlers re-check roles themselves (defence in depth, see src/lib/api.js).
  */
 
@@ -34,6 +36,7 @@ export async function proxy(request) {
       if (isApi) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       return NextResponse.redirect(new URL(home, request.url));
     }
+    if (!isApi && isHiddenPath(pathname)) return NextResponse.redirect(new URL(home, request.url));
   }
 
   return NextResponse.next();

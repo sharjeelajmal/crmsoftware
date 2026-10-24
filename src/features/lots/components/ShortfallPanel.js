@@ -1,6 +1,7 @@
 "use client";
 
-import { TrendingDown } from "lucide-react";
+import Link from "next/link";
+import { BookOpen, TrendingDown } from "lucide-react";
 import { lotShortfall } from "@/constants/lots";
 import { formatQty, isShortfall } from "../utils";
 
@@ -20,8 +21,11 @@ function DiffCell({ value }) {
   );
 }
 
-/** Cut → Stitched → Washed pieces with the loss at each step, highlighted when pieces went missing. */
-export function ShortfallPanel({ lot }) {
+/**
+ * Cut → Stitched → Washed pieces with the loss at each step, highlighted when pieces went missing.
+ * `ledgerHref` (admin) adds the shortcut that records the shortfall in the B-pair register.
+ */
+export function ShortfallPanel({ lot, ledgerHref }) {
   const shortfall = lotShortfall(lot);
   const rows = [
     { key: "cut", label: "Cut", qty: lot?.cutQty, diff: null },
@@ -72,6 +76,18 @@ export function ShortfallPanel({ lot }) {
       </table>
       {shortfall.total === null && (
         <p className="text-xs text-gray-400 mt-2">Differences appear once stitching and washing are recorded.</p>
+      )}
+      {ledgerHref && isShortfall(shortfall.total) && (
+        <Link
+          href={ledgerHref}
+          className={
+            "mt-4 inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm " +
+            "font-semibold bg-primary-soft text-primary hover:bg-primary hover:text-white transition-colors"
+          }
+          data-testid="lot-shortfall-ledger"
+        >
+          <BookOpen size={16} /> Record {shortfall.total} pcs as B-pair
+        </Link>
       )}
     </div>
   );

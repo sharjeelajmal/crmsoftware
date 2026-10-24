@@ -11,6 +11,8 @@ export function SalesmanCard({ salesman, onAddSale, onViewSales, onDelete }) {
   return (
     <motion.div
       variants={itemVariants}
+      initial="hidden"
+      animate="visible"
       className="bg-white rounded-2xl shadow-lg p-4 sm:p-6 flex flex-col justify-between h-full"
     >
       <div>
