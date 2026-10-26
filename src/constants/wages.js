@@ -38,8 +38,14 @@ export const ADJUSTMENT_LABELS = Object.freeze({
   bonus: "Bonus",
 });
 
+/**
+ * Types the "Advance / Deduction" popup records. Leave and absent days come from the attendance register
+ * (src/constants/attendance.js); old "leave" entries still count.
+ */
+export const MANUAL_ADJUSTMENT_TYPES = Object.freeze(["advance", "recovery", "deduction", "bonus"]);
+
 /** What an adjustment does to the period's net pay: −1 cut, +1 added, 0 nothing (an advance only fills the account). */
-export const PAY_EFFECT = Object.freeze({ leave: -1, advance: 0, recovery: -1, deduction: -1, bonus: 1 });
+export const PAY_EFFECT = Object.freeze({ leave: -1, absent: -1, advance: 0, recovery: -1, deduction: -1, bonus: 1 });
 
 /** Adjustment types that make up the advance account. */
 export const ADVANCE_TYPES = Object.freeze(["advance", "recovery"]);
@@ -95,10 +101,11 @@ export const assignmentProblem = ({ operationId, rate, rows = [] }) => {
 };
 
 /**
- * Per-worker wage summary for a period: pieces, amount, leave (days + cut), advances given, advance cuts, deductions,
- * bonuses and the net payable (= wages + bonuses − leave − advance cuts − deductions). Advances given are reported
- * but not subtracted: they only change the advance account until an advance cut is recorded.
- * `entries` are work entries, `adjustments` are wage adjustments of the same period.
+ * Per-worker wage summary for a period: pieces, amount, leave and absent (days + cut), advances given, advance cuts,
+ * deductions, bonuses and the net payable (= wages + bonuses − leave − absent − advance cuts − deductions). Advances
+ * given are reported but not subtracted: they only change the advance account until an advance cut is recorded.
+ * `entries` are work entries, `adjustments` are wage adjustments of the same period plus the attendance marks as
+ * adjustments ("leave" / "absent", see attendanceAdjustments).
  */
 export const summarizeWages = (entries = [], adjustments = []) => {
   const byWorker = new Map();
@@ -113,6 +120,8 @@ export const summarizeWages = (entries = [], adjustments = []) => {
         amount: 0,
         leaveDays: 0,
         leaves: 0,
+        absentDays: 0,
+        absents: 0,
         advances: 0,
         recoveries: 0,
         deductions: 0,
@@ -136,13 +145,19 @@ export const summarizeWages = (entries = [], adjustments = []) => {
     if (adj.type === "leave") {
       row.leaves = round2(row.leaves + amount);
       row.leaveDays = round2(row.leaveDays + (Number(adj.days) || 0));
+    } else if (adj.type === "absent") {
+      row.absents = round2(row.absents + amount);
+      row.absentDays = round2(row.absentDays + (Number(adj.days) || 0));
     } else if (adj.type === "advance") row.advances = round2(row.advances + amount);
     else if (adj.type === "recovery") row.recoveries = round2(row.recoveries + amount);
     else if (adj.type === "deduction") row.deductions = round2(row.deductions + amount);
     else if (adj.type === "bonus") row.bonuses = round2(row.bonuses + amount);
   }
   const workers = [...byWorker.values()]
-    .map((row) => ({ ...row, net: round2(row.amount + row.bonuses - row.leaves - row.recoveries - row.deductions) }))
+    .map((row) => ({
+      ...row,
+      net: round2(row.amount + row.bonuses - row.leaves - row.absents - row.recoveries - row.deductions),
+    }))
     .sort((a, b) => a.workerName.localeCompare(b.workerName));
   const totals = workers.reduce(
     (sum, row) => ({
@@ -151,6 +166,8 @@ export const summarizeWages = (entries = [], adjustments = []) => {
       amount: round2(sum.amount + row.amount),
       leaveDays: round2(sum.leaveDays + row.leaveDays),
       leaves: round2(sum.leaves + row.leaves),
+      absentDays: round2(sum.absentDays + row.absentDays),
+      absents: round2(sum.absents + row.absents),
       advances: round2(sum.advances + row.advances),
       recoveries: round2(sum.recoveries + row.recoveries),
       deductions: round2(sum.deductions + row.deductions),
@@ -163,6 +180,8 @@ export const summarizeWages = (entries = [], adjustments = []) => {
       amount: 0,
       leaveDays: 0,
       leaves: 0,
+      absentDays: 0,
+      absents: 0,
       advances: 0,
       recoveries: 0,
       deductions: 0,

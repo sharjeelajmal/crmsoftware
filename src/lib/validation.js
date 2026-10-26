@@ -3,6 +3,10 @@ import { ALL_ROLES } from "@/constants/roles";
 import { LEDGER_TYPES } from "@/constants/ledger";
 import { ADJUSTMENT_TYPES } from "@/constants/wages";
 import { GATE_PASS_TYPES } from "@/constants/gatepass";
+import { PAYMENT_METHODS } from "@/constants/purchasingLedger";
+import { FABRIC_UNITS } from "@/constants/fabric";
+import { ATTENDANCE_STATUSES } from "@/constants/attendance";
+import { MAIN_OPERATIONS } from "@/constants/operations";
 
 /**
  * Request schemas for every API resource. Keep them here so the API contract
@@ -17,6 +21,21 @@ const money = z.coerce.number().finite();
 const nonNegative = money.min(0);
 const dateLike = z.coerce.date();
 export const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid id");
+
+/**
+ * The update form of a create schema: every field optional and without its default. Zod 4's `.partial()` still
+ * fills `.default()`s in for keys that were not sent, so a partial update (only the balance, only the stock) would
+ * overwrite the other fields with their defaults (city → "", remaining → 0).
+ */
+const updateSchemaOf = (schema) =>
+  z.object(
+    Object.fromEntries(
+      Object.entries(schema.shape).map(([key, field]) => [
+        key,
+        (field instanceof z.ZodDefault ? field.removeDefault() : field).optional(),
+      ])
+    )
+  );
 
 // ---- Auth & users ---------------------------------------------------------
 export const loginSchema = z.object({
@@ -77,7 +96,7 @@ export const productSchema = z.object({
   sizes: z.array(sizeStockSchema).max(50).refine(uniqueSizes, "Sizes must be unique").optional(),
 });
 
-export const productUpdateSchema = productSchema.partial();
+export const productUpdateSchema = updateSchemaOf(productSchema);
 
 // ---- Customers ------------------------------------------------------------
 export const customerSchema = z.object({
@@ -87,7 +106,7 @@ export const customerSchema = z.object({
   openingBalance: money.optional().default(0),
 });
 
-export const customerUpdateSchema = customerSchema.partial();
+export const customerUpdateSchema = updateSchemaOf(customerSchema);
 
 // ---- Sales ----------------------------------------------------------------
 // Rows with an empty description are blank form lines; routes drop them (see cleanSaleItems).
@@ -116,7 +135,7 @@ export const saleSchema = z.object({
   salesmanId: objectId.optional(),
 });
 
-export const saleUpdateSchema = saleSchema.partial();
+export const saleUpdateSchema = updateSchemaOf(saleSchema);
 
 export const saleAdjustSchema = z.object({
   customerName: trimmed(120),
@@ -145,7 +164,7 @@ export const salesmanSchema = z.object({
   joiningDate: dateLike.default(() => new Date()),
 });
 
-export const salesmanUpdateSchema = salesmanSchema.partial();
+export const salesmanUpdateSchema = updateSchemaOf(salesmanSchema);
 
 // ---- Purchasing -----------------------------------------------------------
 export const vendorSchema = z.object({
@@ -154,7 +173,28 @@ export const vendorSchema = z.object({
   phone: optionalText(40),
 });
 
-export const vendorUpdateSchema = vendorSchema.partial();
+export const vendorUpdateSchema = updateSchemaOf(vendorSchema);
+
+// ---- Purchasing ledger (vendor khata) ---------------------------------------
+export const vendorPaymentSchema = z.object({
+  vendorId: objectId,
+  amount: money.refine((n) => n > 0, "Amount must be more than 0"),
+  date: dateLike.optional(),
+  method: z.enum(PAYMENT_METHODS).default("cash"),
+  note: optionalText(300),
+});
+
+const dayString = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a yyyy-mm-dd date")
+  .optional();
+
+export const purchaseLedgerQuerySchema = z.object({
+  vendorId: objectId.optional(),
+  from: dayString,
+  to: dayString,
+});
 
 export const purchaseSchema = z.object({
   productId: objectId,
@@ -176,7 +216,7 @@ export const expenseSchema = z.object({
   note: optionalText(500),
 });
 
-export const expenseUpdateSchema = expenseSchema.partial();
+export const expenseUpdateSchema = updateSchemaOf(expenseSchema);
 
 // ---- Production: lots -----------------------------------------------------
 export const LOT_STAGES = Object.freeze(["cutting", "stitching", "washing", "packing", "ready"]);
@@ -204,7 +244,56 @@ export const lotCreateSchema = z.object({
   note: optionalText(500),
 });
 
-export const lotUpdateSchema = lotCreateSchema.partial();
+export const lotUpdateSchema = updateSchemaOf(lotCreateSchema);
+
+// ---- Fabric khata (fabric received from the store; used fabric comes from the lots) ---------------------
+const requiredDay = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a yyyy-mm-dd date");
+
+export const fabricReceiptSchema = z.object({
+  day: requiredDay,
+  name: trimmed(120),
+  qty: money.refine((n) => n > 0, "Quantity must be more than 0"),
+  unit: z.enum(FABRIC_UNITS).default("m"),
+  holderId: objectId.optional(), // admin only: the cutting master who got the fabric (default: whoever records it)
+  note: optionalText(300),
+});
+
+export const fabricReceiptUpdateSchema = updateSchemaOf(fabricReceiptSchema);
+
+export const fabricQuerySchema = z.object({
+  holderId: objectId.optional(),
+  fabric: z.string().trim().max(200).optional(),
+  from: dayString,
+  to: dayString,
+});
+
+export const cuttingReportQuerySchema = z.object({
+  day: requiredDay,
+  holderId: objectId.optional(),
+});
+
+// ---- Attendance (one mark per worker per day) -----------------------------------------------------------
+/** `status: ""` clears the worker's mark for that day. */
+export const attendanceSaveSchema = z.object({
+  day: requiredDay,
+  marks: z
+    .array(z.object({ workerId: objectId, status: z.enum([...ATTENDANCE_STATUSES, ""]) }))
+    .min(1, "Mark at least one worker")
+    .max(500)
+    .refine((marks) => new Set(marks.map((m) => m.workerId)).size === marks.length, "A worker can only appear once"),
+});
+
+export const attendanceDayQuerySchema = z.object({ day: requiredDay });
+
+export const attendanceMonthQuerySchema = z.object({
+  month: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Use a yyyy-mm month"),
+});
 
 export const lotStageActionSchema = z.object({
   action: z.enum(["send_stitching", "stitched", "washed", "ready"]),
@@ -291,7 +380,8 @@ export const workerUpdateSchema = z.object({
 
 export const operationSchema = z.object({
   name: trimmed(80),
-  rate: nonNegative, // Rs per piece
+  rate: nonNegative, // Rs per piece (a category's rate card can set its own)
+  stage: z.enum(MAIN_OPERATIONS).default("stitching"), // the main operation it is part of
   order: z.coerce.number().int().min(0).default(0),
   active: z.boolean().default(true),
 });
@@ -299,8 +389,20 @@ export const operationSchema = z.object({
 export const operationUpdateSchema = z.object({
   name: trimmed(80).optional(),
   rate: nonNegative.optional(),
+  stage: z.enum(MAIN_OPERATIONS).optional(),
   order: z.coerce.number().int().min(0).optional(),
   active: z.boolean().optional(),
+});
+
+/** A category's rate card: the operations it needs and the rate of each. An empty list removes the card. */
+export const rateCardSchema = z.object({
+  items: z
+    .array(z.object({ operationId: objectId, rate: nonNegative }))
+    .max(200)
+    .refine(
+      (items) => new Set(items.map((i) => i.operationId)).size === items.length,
+      "An operation can only appear once"
+    ),
 });
 
 /** One worker doing one operation on one lot. The rate is copied from the operation (editable per assignment). */

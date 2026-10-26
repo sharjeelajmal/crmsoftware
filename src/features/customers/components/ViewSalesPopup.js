@@ -55,7 +55,8 @@ export function ViewSalesPopup({ customerName, onClose, onViewInvoice, onSavePdf
                         <button
                           type="button"
                           onClick={() => onViewInvoice(sale)}
-                          title="View Invoice"
+                          data-tip="View Invoice"
+                          aria-label="View Invoice"
                           className="text-gray-500 hover:text-blue-600 cursor-pointer"
                         >
                           <FileText size={18} />
@@ -63,7 +64,8 @@ export function ViewSalesPopup({ customerName, onClose, onViewInvoice, onSavePdf
                         <button
                           type="button"
                           onClick={() => onSavePdf(sale)}
-                          title="Save as PDF"
+                          data-tip="Save as PDF"
+                          aria-label="Save as PDF"
                           className="text-gray-500 hover:text-green-600 cursor-pointer"
                         >
                           <Save size={18} />

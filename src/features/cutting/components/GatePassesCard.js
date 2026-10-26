@@ -22,6 +22,11 @@ export function GatePassesCard({ lot, canIssue = false }) {
   const missing = GATE_PASS_TYPES.filter(
     (type) => canIssue && !isLoading && canIssueGatePass(lot, type) && !passes.some((pass) => pass.type === type)
   );
+  // An edit of the cutting details issues a fresh cutting pass; the older ones stay listed but are marked old.
+  const latestCutting = passes.reduce(
+    (latest, pass) => (pass.type === "cutting" && (!latest || pass.seq > latest.seq) ? pass : latest),
+    null
+  );
 
   const handleIssue = async (type) => {
     const pass = await issue(type, type === "washing" ? lot.washType || "" : "");
@@ -60,38 +65,51 @@ export function GatePassesCard({ lot, canIssue = false }) {
         <p className="text-sm text-gray-500">Loading…</p>
       ) : passes.length === 0 ? (
         <p className="text-sm text-gray-500" data-testid="gate-pass-empty">
-          A gate pass is issued automatically when the lot is sent to stitching, and again when it goes to washing.
+          The cutting gate pass is made when the cutting entry is saved, the stitching gate pass when the lot is sent to
+          stitching, and the washing gate pass when it goes to washing.
         </p>
       ) : (
         <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100">
-          {passes.map((pass) => (
-            <li
-              key={pass._id}
-              className="flex items-center gap-3 px-3 py-2 text-sm"
-              data-testid="gate-pass-row"
-              data-number={pass.number}
-              data-type={pass.type}
-            >
-              <span className="flex-grow min-w-0">
-                <span className="font-semibold text-gray-800">{pass.number}</span>
-                <span className="text-gray-600"> · {GATE_PASS_LABELS[pass.type]}</span>
-                <span className="block text-xs text-gray-500">
-                  {pass.pieces} pcs · {formatDateTime(pass.issuedAt)}
-                  {pass.washType ? ` · ${pass.washType}` : ""}
-                  {pass.issuedBy?.name ? ` · ${pass.issuedBy.name}` : ""}
-                </span>
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={Printer}
-                onClick={() => setOpen(pass)}
-                data-testid="gate-pass-open"
+          {passes.map((pass) => {
+            const replaced = pass.type === "cutting" && latestCutting && pass.seq < latestCutting.seq;
+            return (
+              <li
+                key={pass._id}
+                className="flex items-center gap-3 px-3 py-2 text-sm"
+                data-testid="gate-pass-row"
+                data-number={pass.number}
+                data-type={pass.type}
+                data-replaced={replaced ? "true" : undefined}
               >
-                Print
-              </Button>
-            </li>
-          ))}
+                <span className={`flex-grow min-w-0 ${replaced ? "opacity-60" : ""}`}>
+                  <span className="font-semibold text-gray-800">{pass.number}</span>
+                  <span className="text-gray-600"> · {GATE_PASS_LABELS[pass.type]}</span>
+                  {replaced && (
+                    <span
+                      className="ml-1.5 inline-block rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600"
+                      data-testid="gate-pass-replaced"
+                    >
+                      Old · use {latestCutting.number}
+                    </span>
+                  )}
+                  <span className="block text-xs text-gray-500">
+                    {pass.pieces} pcs · {formatDateTime(pass.issuedAt)}
+                    {pass.washType ? ` · ${pass.washType}` : ""}
+                    {pass.issuedBy?.name ? ` · ${pass.issuedBy.name}` : ""}
+                  </span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={Printer}
+                  onClick={() => setOpen(pass)}
+                  data-testid="gate-pass-open"
+                >
+                  Print
+                </Button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </motion.div>

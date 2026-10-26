@@ -3,6 +3,8 @@ import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, parseBody, requireObjectId, notFound, forbidden, conflict } from "@/lib/api";
 import { lotUpdateSchema } from "@/lib/validation";
 import { buildLotEvent, canDeleteLot, canEditCutting, canViewLot, cutQtyOf, lotEvents } from "@/lib/lots";
+import { issueGatePass } from "@/lib/gatepass";
+import { cuttingPassChanged } from "@/constants/gatepass";
 import { ALL_ROLES } from "@/constants/roles";
 
 /** GET /api/lots/:id — lot with its history (owner or admin). */
@@ -18,7 +20,10 @@ export const GET = route(
   { roles: ALL_ROLES }
 );
 
-/** PUT /api/lots/:id — edit cutting data while the lot is still at the cutting stage. */
+/**
+ * PUT /api/lots/:id — edit cutting data while the lot is still at the cutting stage.
+ * A change to anything printed on the cutting gate pass issues a fresh one (printed numbers never change).
+ */
 export const PUT = route(
   async (request, { session, ...context }) => {
     const _id = await requireObjectId(context);
@@ -53,7 +58,11 @@ export const PUT = route(
       await db
         .collection("lot_events")
         .insertOne(buildLotEvent(_id, "edited", session, { qty: $set.cutQty ?? lot.cutQty }), { session: tx });
-      return { ...lot, ...$set };
+      const next = { ...lot, ...$set };
+      const gatePasses = cuttingPassChanged(lot, next)
+        ? [await issueGatePass(db, tx, { lot: next, type: "cutting", session })]
+        : [];
+      return { ...next, gatePasses };
     });
 
     return ok(updated);
@@ -61,7 +70,7 @@ export const PUT = route(
   { roles: ALL_ROLES }
 );
 
-/** DELETE /api/lots/:id — admin only, only before production started. */
+/** DELETE /api/lots/:id — admin only, only before production started (its cutting gate passes go with it). */
 export const DELETE = route(async (_request, { session, ...context }) => {
   const _id = await requireObjectId(context);
 
@@ -70,6 +79,7 @@ export const DELETE = route(async (_request, { session, ...context }) => {
     if (!lot) throw notFound("Lot");
     if (!canDeleteLot(lot, session)) throw conflict("Only lots at the cutting stage can be deleted");
     await db.collection("lot_events").deleteMany({ lotId: _id }, { session: tx });
+    await db.collection("gate_passes").deleteMany({ lotId: _id }, { session: tx });
     await db.collection("lots").deleteOne({ _id }, { session: tx });
   });
 

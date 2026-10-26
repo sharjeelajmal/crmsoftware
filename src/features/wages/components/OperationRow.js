@@ -43,7 +43,8 @@ export function OperationRow({ operation, index, onEdit, onToggleActive, onDelet
         <button
           type="button"
           onClick={() => onEdit(operation)}
-          title="Edit"
+          data-tip="Edit"
+          aria-label="Edit"
           className={`${ICON_CLASS} hover:text-yellow-300`}
         >
           <Edit2 size={18} />
@@ -51,7 +52,8 @@ export function OperationRow({ operation, index, onEdit, onToggleActive, onDelet
         <button
           type="button"
           onClick={() => onToggleActive(operation, !active)}
-          title={active ? "Deactivate" : "Activate"}
+          data-tip={active ? "Deactivate" : "Activate"}
+          aria-label={active ? "Deactivate" : "Activate"}
           className={`${ICON_CLASS} hover:text-yellow-300`}
         >
           {active ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -59,7 +61,8 @@ export function OperationRow({ operation, index, onEdit, onToggleActive, onDelet
         <button
           type="button"
           onClick={() => onDelete(operation)}
-          title="Delete"
+          data-tip="Delete"
+          aria-label="Delete"
           className={`${ICON_CLASS} hover:text-red-300`}
           data-testid="operation-delete"
         >

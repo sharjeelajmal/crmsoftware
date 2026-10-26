@@ -6,33 +6,20 @@ import { Button } from "@/components/ui/Button";
 import { SelectDropdown } from "@/components/ui/CustomDropdown";
 import { useToast } from "@/components/ui/ToastProvider";
 import { EMPTY_USER_FORM, ROLE_OPTIONS, userToForm, validateUserForm } from "../utils";
+import { Switch } from "@/components/ui/Switch";
 
 const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-primary transition-all";
 
 /** On/off switch for the "active" flag (edit mode only). */
 function ActiveToggle({ checked, onChange }) {
   return (
-    <label className="relative flex items-center justify-between p-3 bg-gray-100 rounded-xl cursor-pointer">
-      <span className="text-gray-700">
-        <span className="font-medium">{checked ? "Active" : "Inactive"}</span>
-        <span className="block text-xs text-gray-500">{checked ? "Can sign in" : "Sign-in blocked"}</span>
-      </span>
-      <input
-        type="checkbox"
-        role="switch"
-        aria-checked={checked}
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        data-testid="user-form-active"
-        className="sr-only peer"
-      />
-      <span
-        aria-hidden="true"
-        className="relative w-11 h-6 rounded-full bg-gray-300 peer-checked:bg-primary transition-colors after:absolute
-          after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:transition-transform
-          peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary"
-      />
-    </label>
+    <Switch
+      label={checked ? "Active" : "Inactive"}
+      description={checked ? "Can sign in" : "Sign-in blocked"}
+      checked={checked}
+      onChange={onChange}
+      testId="user-form-active"
+    />
   );
 }
 
@@ -67,8 +54,9 @@ export function UserFormPopup({ user = null, onSave, onCancel }) {
   return (
     <Modal onClose={onCancel} size="lg">
       <h3 className="text-2xl font-bold mb-6 text-center text-gray-800">{isNew ? "Add New User" : "Edit User"}</h3>
-      <form onSubmit={handleSubmit} data-testid="user-form" className="space-y-4" autoComplete="off">
+      <form noValidate onSubmit={handleSubmit} data-testid="user-form" className="space-y-4" autoComplete="off">
         <input
+          autoComplete="off"
           type="text"
           name="name"
           value={form.name}
@@ -79,6 +67,7 @@ export function UserFormPopup({ user = null, onSave, onCancel }) {
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
+            autoComplete="off"
             type="email"
             name="email"
             value={form.email}
@@ -87,6 +76,7 @@ export function UserFormPopup({ user = null, onSave, onCancel }) {
             className={INPUT_CLASS}
           />
           <input
+            autoComplete="off"
             type="tel"
             name="phone"
             value={form.phone}

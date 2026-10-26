@@ -1,6 +1,7 @@
 import { Montserrat, Noto_Nastaliq_Urdu } from "next/font/google";
 import { BRAND } from "@/constants/brand";
 import { ToastProvider } from "@/components/ui/ToastProvider";
+import { TooltipLayer } from "@/components/ui/TooltipLayer";
 import "./globals.css";
 
 const montserrat = Montserrat({
@@ -24,6 +25,7 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body className={`${montserrat.variable} ${notoNastaliqUrdu.variable} font-sans antialiased`}>
         <ToastProvider>{children}</ToastProvider>
+        <TooltipLayer />
       </body>
     </html>
   );

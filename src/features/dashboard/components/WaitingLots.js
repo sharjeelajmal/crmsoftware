@@ -63,7 +63,7 @@ export function WaitingLots({ lots, className = "" }) {
                       "inline-flex items-center gap-1 shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold " +
                       (late ? "bg-warning-soft text-amber-700" : "bg-surface-muted text-gray-600")
                     }
-                    title={late ? `No movement for ${IDLE_WARN_DAYS}+ days` : undefined}
+                    data-tip={late ? `No movement for ${IDLE_WARN_DAYS}+ days` : undefined}
                   >
                     <Clock size={12} aria-hidden="true" />
                     {idleLabel(lot.idleDays)}

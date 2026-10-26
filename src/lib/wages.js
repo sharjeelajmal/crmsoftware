@@ -98,6 +98,8 @@ export const wageCsvRows = (workers) =>
     amount: w.amount,
     leaveDays: w.leaveDays,
     leaves: w.leaves,
+    absentDays: w.absentDays,
+    absents: w.absents,
     bonuses: w.bonuses,
     advances: w.advances,
     recoveries: w.recoveries,

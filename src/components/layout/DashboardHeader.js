@@ -21,6 +21,7 @@ export function DashboardHeader({ profile, onOpenMenu }) {
         <div className="relative hidden md:block">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
+            autoComplete="off"
             type="text"
             placeholder="Search anything..."
             className={

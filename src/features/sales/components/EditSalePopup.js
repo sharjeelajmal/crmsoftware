@@ -149,6 +149,7 @@ export function EditSalePopup({ sale, onSave, onCancel, isSaving = false }) {
                     >
                       <td className="p-3">
                         <input
+                          autoComplete="off"
                           type="text"
                           value={item.desc}
                           onChange={(e) => handleItemChange(index, "desc", e.target.value)}
@@ -167,6 +168,7 @@ export function EditSalePopup({ sale, onSave, onCancel, isSaving = false }) {
                       <td className="p-3">
                         <div className={CELL_BOX}>
                           <input
+                            autoComplete="off"
                             type="number"
                             value={item.qty}
                             onChange={(e) => handleItemChange(index, "qty", e.target.value)}
@@ -177,6 +179,7 @@ export function EditSalePopup({ sale, onSave, onCancel, isSaving = false }) {
                       <td className="p-3">
                         <div className={CELL_BOX}>
                           <input
+                            autoComplete="off"
                             type="number"
                             value={item.price}
                             onChange={(e) => handleItemChange(index, "price", e.target.value)}
@@ -209,6 +212,7 @@ export function EditSalePopup({ sale, onSave, onCancel, isSaving = false }) {
               <div className="flex justify-between items-center gap-4">
                 <span className="text-gray-500 font-medium text-sm">Others (+)</span>
                 <input
+                  autoComplete="off"
                   type="number"
                   value={formData.others}
                   onChange={(e) => handleFieldChange("others", e.target.value)}
@@ -220,6 +224,7 @@ export function EditSalePopup({ sale, onSave, onCancel, isSaving = false }) {
               <div className="flex justify-between items-center gap-4">
                 <span className="text-gray-500 font-medium text-sm">Discount (-)</span>
                 <input
+                  autoComplete="off"
                   type="number"
                   value={formData.discount}
                   onChange={(e) => handleFieldChange("discount", e.target.value)}
@@ -238,6 +243,7 @@ export function EditSalePopup({ sale, onSave, onCancel, isSaving = false }) {
               <div className="bg-gray-50 p-3 rounded-xl flex justify-between items-center border border-gray-100">
                 <span className="text-gray-600 font-bold text-sm">Received Amount</span>
                 <input
+                  autoComplete="off"
                   type="number"
                   value={formData.receivedAmount}
                   onChange={(e) => handleFieldChange("receivedAmount", e.target.value)}

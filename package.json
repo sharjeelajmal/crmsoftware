@@ -14,7 +14,7 @@
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "date-fns": "^4.1.0",
-    "framer-motion": "^12.23.22",
+    "framer-motion": "^12.43.0",
     "html2canvas": "^1.4.1",
     "jose": "^6.2.12",
     "json2csv": "^6.0.0-alpha.2",

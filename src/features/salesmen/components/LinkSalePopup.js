@@ -30,6 +30,7 @@ export function LinkSalePopup({ salesmanName, onSave, onCancel }) {
       <p className="text-center text-gray-500 mb-6">for {salesmanName}</p>
       <div className="space-y-4">
         <input
+          autoComplete="off"
           type="number"
           name="invoiceNumber"
           value={invoiceNumber}

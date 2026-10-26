@@ -23,6 +23,7 @@ export function SizeRowsEditor({ rows, onChange, quantityLabel = "Quantity" }) {
       {rows.map((row, index) => (
         <div key={index} data-testid="product-size-row" className={GRID_CLASS}>
           <input
+            autoComplete="off"
             type="text"
             value={row.size}
             onChange={(e) => update(index, "size", e.target.value)}
@@ -31,6 +32,7 @@ export function SizeRowsEditor({ rows, onChange, quantityLabel = "Quantity" }) {
             className={CELL_CLASS}
           />
           <input
+            autoComplete="off"
             type="number"
             min="0"
             value={row.remaining}
@@ -43,7 +45,7 @@ export function SizeRowsEditor({ rows, onChange, quantityLabel = "Quantity" }) {
             type="button"
             onClick={() => remove(index)}
             aria-label="Remove size"
-            title="Remove size"
+            data-tip="Remove size"
             className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-600 cursor-pointer"
           >
             <Trash2 size={16} />

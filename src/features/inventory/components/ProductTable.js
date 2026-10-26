@@ -5,7 +5,15 @@ import { containerVariants } from "@/constants/animations";
 import { Loader } from "@/components/ui/Loader";
 import { ProductRow } from "./ProductRow";
 
-export function ProductTable({ products, isLoading, onStockChange, onEdit, onDelete, onHistory }) {
+export function ProductTable({
+  products,
+  isLoading,
+  onStockChange,
+  onEdit,
+  onDelete,
+  onHistory,
+  emptyText = "No products found. Add a new product to get started!",
+}) {
   return (
     <>
       <div className="hidden md:flex items-center px-4 py-2 text-sm text-gray-500 font-medium">
@@ -30,9 +38,7 @@ export function ProductTable({ products, isLoading, onStockChange, onEdit, onDel
             />
           ))
         )}
-        {!isLoading && products.length === 0 && (
-          <p className="text-center text-gray-500 py-8">No products found. Add a new product to get started!</p>
-        )}
+        {!isLoading && products.length === 0 && <p className="text-center text-gray-500 py-8">{emptyText}</p>}
       </motion.div>
     </>
   );

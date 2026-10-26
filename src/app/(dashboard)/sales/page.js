@@ -71,6 +71,7 @@ export default function SalesPage() {
           <div className="relative flex items-center w-full sm:w-72">
             <Search className="absolute left-4 text-gray-400" size={20} />
             <input
+              autoComplete="off"
               type="text"
               placeholder="Search by Customer"
               value={searchTerm}

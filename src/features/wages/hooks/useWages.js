@@ -55,24 +55,20 @@ export function useWages() {
     }
   }, [filter, appliedRange, workerId, toast]);
 
-  /** POST /api/wage-adjustments — leave sends days + rate, every other type an amount. */
+  /** POST /api/wage-adjustments — advance, advance cut, deduction or bonus (leave days come from attendance). */
   const addAdjustment = useCallback(
     async (form) => {
       setIsSaving(true);
       try {
-        const base = {
+        await api.post("/api/wage-adjustments", {
           workerId: form.workerId,
           type: form.type,
+          amount: Number(form.amount),
           date: form.date,
           note: String(form.note || "").trim(),
-        };
-        const payload =
-          form.type === "leave"
-            ? { ...base, days: Number(form.days), rate: Number(form.rate) || 0 }
-            : { ...base, amount: Number(form.amount) };
-        await api.post("/api/wage-adjustments", payload);
+        });
         clearAsyncDataCache("wages:");
-        toast.success(form.type === "leave" ? "Leave recorded" : "Entry recorded");
+        toast.success("Entry recorded");
         await reload();
         return true;
       } catch (err) {

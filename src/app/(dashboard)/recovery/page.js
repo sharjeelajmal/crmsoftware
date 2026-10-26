@@ -48,6 +48,7 @@ export default function RecoveryPage() {
             <div className="relative w-full md:w-72">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
+                autoComplete="off"
                 type="text"
                 placeholder="Search by name or phone..."
                 value={searchTerm}

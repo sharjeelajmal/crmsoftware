@@ -41,6 +41,7 @@ export function ProductSuggestionInput({ products, value, onChange, onSelect }) 
   return (
     <div className="relative w-full" ref={containerRef}>
       <input
+        autoComplete="off"
         type="text"
         value={value}
         onChange={handleInputChange}

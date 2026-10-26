@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Scale, Trash2, UserPlus } from "lucide-react";
+import { ListChecks, Plus, Scale, Trash2, UserPlus } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { SelectDropdown } from "@/components/ui/CustomDropdown";
@@ -9,20 +9,22 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { assignmentProblem, workPiecesOf } from "@/constants/wages";
 import { formatMoney } from "@/lib/format";
 import { useWorkers } from "../hooks/useWorkers";
-import { useOperations } from "../hooks/useOperations";
+import { useLotOperations } from "../hooks/useLotOperations";
 import { assignmentTotal, emptyAssignment, operationOptions, splitRows, workerOptions } from "../utils";
 
 const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-sm font-medium text-gray-700 mb-1";
 
 /**
- * Assigns one operation of a lot to one or more workers. The operation's rate is prefilled (editable for
- * this assignment only); pieces default to the lot's pieces and can be split evenly across the rows.
+ * Assigns one operation of a lot to one or more workers. The operations offered are the rate card of the lot's
+ * category (else every active operation); the rate is prefilled from the card (editable for this assignment only);
+ * pieces default to the lot's pieces and can be split evenly across the rows.
  */
 export function AssignWorkModal({ lot, onSave, onCancel, isSaving = false }) {
   const toast = useToast();
   const { workers } = useWorkers();
-  const { operations } = useOperations();
+  const offer = useLotOperations(lot._id);
+  const operations = offer.operations;
   const lotPieces = workPiecesOf(lot);
   const [form, setForm] = useState(() => emptyAssignment(lotPieces));
 
@@ -33,7 +35,7 @@ export function AssignWorkModal({ lot, onSave, onCancel, isSaving = false }) {
     setForm((prev) => ({ ...prev, rows: splitRows([...prev.rows, { workerId: "", pieces: "" }], lotPieces) }));
   const removeRow = (index) => setForm((prev) => ({ ...prev, rows: prev.rows.filter((_, i) => i !== index) }));
   const selectOperation = (operationId) => {
-    const operation = operations.find((op) => String(op._id) === operationId);
+    const operation = operations.find((op) => op.operationId === operationId);
     setForm((prev) => ({ ...prev, operationId, rate: operation ? String(operation.rate) : prev.rate }));
   };
 
@@ -52,7 +54,7 @@ export function AssignWorkModal({ lot, onSave, onCancel, isSaving = false }) {
 
   return (
     <Modal onClose={isSaving ? undefined : onCancel} size="lg">
-      <form onSubmit={handleSubmit} className="space-y-5" data-testid="assign-work-form">
+      <form noValidate onSubmit={handleSubmit} className="space-y-5" data-testid="assign-work-form">
         <div>
           <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
             <UserPlus size={22} className="text-primary" /> Assign work
@@ -60,6 +62,32 @@ export function AssignWorkModal({ lot, onSave, onCancel, isSaving = false }) {
           <p className="text-sm text-gray-500 mt-1">
             {lot.lotNumber} · {lot.productName} · {lotPieces} pcs in stitching
           </p>
+          {!offer.isLoading && (
+            <p
+              className="mt-2 flex items-start gap-2 rounded-xl bg-surface-muted px-3 py-2 text-xs text-gray-600"
+              data-testid="assign-rate-card"
+              data-from-card={offer.fromCard}
+            >
+              <ListChecks size={14} className="shrink-0 mt-0.5 text-primary" />
+              {offer.fromCard ? (
+                <span>
+                  <b className="text-gray-800">{offer.category}</b> rate card: {operations.length} operations ·{" "}
+                  {formatMoney(offer.perPiece)} per piece
+                </span>
+              ) : (
+                <span>
+                  {offer.category ? (
+                    <>
+                      <b className="text-gray-800">{offer.category}</b> has no rate card yet
+                    </>
+                  ) : (
+                    "This article has no category"
+                  )}{" "}
+                  — every operation is shown at its own rate (Workers → Category rates).
+                </span>
+              )}
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
@@ -69,7 +97,13 @@ export function AssignWorkModal({ lot, onSave, onCancel, isSaving = false }) {
               options={operationOptions(operations)}
               selected={form.operationId}
               onSelect={selectOperation}
-              placeholder={operations.length ? "Select operation" : "Add operations first (Workers → Operations)"}
+              placeholder={
+                offer.isLoading
+                  ? "Loading operations…"
+                  : operations.length
+                    ? "Select operation"
+                    : "Add operations first (Workers → Operations)"
+              }
             />
           </div>
           <div>
@@ -77,6 +111,7 @@ export function AssignWorkModal({ lot, onSave, onCancel, isSaving = false }) {
               Rate (Rs / piece)
             </label>
             <input
+              autoComplete="off"
               id="assign-rate"
               type="number"
               inputMode="decimal"
@@ -115,6 +150,7 @@ export function AssignWorkModal({ lot, onSave, onCancel, isSaving = false }) {
                   placeholder={workers.length ? "Select worker" : "Add workers first"}
                 />
                 <input
+                  autoComplete="off"
                   type="number"
                   inputMode="numeric"
                   min={1}
@@ -153,6 +189,7 @@ export function AssignWorkModal({ lot, onSave, onCancel, isSaving = false }) {
             Note <span className="text-gray-400">(optional)</span>
           </label>
           <input
+            autoComplete="off"
             id="assign-note"
             type="text"
             maxLength={500}

@@ -52,6 +52,7 @@ export function EditableBalance({ customer, onSave, align = "start", inputWidthC
     <div className={`flex items-center gap-2 ${align === "end" ? "justify-end" : ""}`}>
       {isEditing ? (
         <input
+          autoComplete="off"
           type="number"
           value={balance}
           onChange={(e) => setBalance(e.target.value)}
@@ -67,7 +68,7 @@ export function EditableBalance({ customer, onSave, align = "start", inputWidthC
             type="button"
             onClick={startEditing}
             className="text-gray-400 hover:text-red-500 cursor-pointer"
-            title="Edit Balance"
+            data-tip="Edit Balance"
             aria-label="Edit balance"
           >
             <Edit2 size={iconSize} />

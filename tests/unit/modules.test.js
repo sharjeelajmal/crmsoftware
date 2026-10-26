@@ -33,6 +33,6 @@ describe("hidden shop modules", () => {
 
   it("does not change the cutting master's menu", () => {
     const { main } = navForRole(ROLES.CUTTING_MASTER);
-    expect(main.map((item) => item.path)).toEqual(["/cutting", "/cutting/new"]);
+    expect(main.map((item) => item.path)).toEqual(["/cutting", "/cutting/new", "/fabric", "/fabric/report"]);
   });
 });

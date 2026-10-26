@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { History, Minus, Pencil, Plus, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 import { formatDateTime } from "@/lib/format";
-import { hasSizes } from "../utils";
+import { hasSizes, productAddedAt } from "../utils";
 
 const ICON_BUTTON_CLASS = "transition-transform hover:scale-125 cursor-pointer";
 
@@ -25,7 +26,7 @@ function LastProductionChip({ lastProduction }) {
   return (
     <Link
       href={`/lots/${lastProduction.lotId}`}
-      title={`Last production: ${formatDateTime(lastProduction.at)}`}
+      data-tip={`Last production: ${formatDateTime(lastProduction.at)}`}
       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 hover:bg-white/30 text-xs
         font-semibold whitespace-nowrap"
       data-testid="product-last-lot"
@@ -42,6 +43,7 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory
   const sale = `${product.salePrice}/-`;
   const remaining = `${product.remaining} pcs`;
   const showChips = hasSizes(product) || Boolean(product.lastProduction?.lotId);
+  const addedAt = productAddedAt(product);
 
   return (
     <motion.div
@@ -55,6 +57,11 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory
     >
       <div className="md:flex-grow min-w-0">
         <span className="font-medium text-lg md:text-base break-words">{product.name}</span>
+        {addedAt && (
+          <span className="block text-xs text-white/65" data-testid="product-added">
+            Added {format(addedAt, "d MMM yyyy")}
+          </span>
+        )}
         {showChips && (
           <div className="flex flex-wrap gap-1.5 mt-1.5">
             {hasSizes(product) &&
@@ -89,7 +96,7 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory
           type="button"
           onClick={() => onStockChange(product._id, "remove")}
           className={ICON_BUTTON_CLASS}
-          title="Decrease stock"
+          data-tip="Decrease stock"
           aria-label="Decrease stock"
         >
           <Minus size={18} />
@@ -99,7 +106,7 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory
           data-testid="product-edit"
           onClick={() => onEdit(product._id)}
           className={ICON_BUTTON_CLASS}
-          title="Edit product"
+          data-tip="Edit product"
           aria-label="Edit product"
         >
           <Pencil size={18} />
@@ -109,7 +116,7 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory
           data-testid="product-stock-history"
           onClick={() => onHistory?.(product._id)}
           className={ICON_BUTTON_CLASS}
-          title="Stock history"
+          data-tip="Stock history"
           aria-label="Stock history"
         >
           <History size={18} />
@@ -118,7 +125,7 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory
           type="button"
           onClick={() => onDelete(product._id)}
           className={ICON_BUTTON_CLASS}
-          title="Delete product"
+          data-tip="Delete product"
           aria-label="Delete product"
         >
           <Trash2 size={18} />
@@ -127,7 +134,7 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory
           type="button"
           onClick={() => onStockChange(product._id, "add")}
           className={ICON_BUTTON_CLASS}
-          title="Increase stock"
+          data-tip="Increase stock"
           aria-label="Increase stock"
         >
           <Plus size={18} />

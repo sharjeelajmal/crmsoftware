@@ -61,7 +61,7 @@ export function UserRow({ user, onEdit, onResetPassword, onDelete }) {
           data-testid="user-edit"
           onClick={() => onEdit(user)}
           className={ICON_BUTTON_CLASS}
-          title="Edit user"
+          data-tip="Edit user"
           aria-label="Edit user"
         >
           <Pencil size={18} />
@@ -71,7 +71,7 @@ export function UserRow({ user, onEdit, onResetPassword, onDelete }) {
           data-testid="user-reset-password"
           onClick={() => onResetPassword(user)}
           className={ICON_BUTTON_CLASS}
-          title="Reset password"
+          data-tip="Reset password"
           aria-label="Reset password"
         >
           <KeyRound size={18} />
@@ -81,7 +81,7 @@ export function UserRow({ user, onEdit, onResetPassword, onDelete }) {
           data-testid="user-delete"
           onClick={() => onDelete(user)}
           className={`${ICON_BUTTON_CLASS} hover:text-danger hover:bg-danger-soft`}
-          title="Delete user"
+          data-tip="Delete user"
           aria-label="Delete user"
         >
           <Trash2 size={18} />

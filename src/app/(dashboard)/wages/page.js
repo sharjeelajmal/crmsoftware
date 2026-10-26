@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Banknote, CalendarMinus, Download, HardHat, Layers, Printer } from "lucide-react";
+import { Banknote, CalendarCheck, Download, HardHat, Layers, Printer, Wallet } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { formatMoney } from "@/lib/format";
 import { Loader } from "@/components/ui/Loader";
@@ -76,13 +77,18 @@ export default function WagesPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
-                icon={CalendarMinus}
+                icon={Wallet}
                 className={ACTION_CLASS}
                 onClick={() => setAdding({})}
                 data-testid="wages-add-adjustment"
               >
-                Leave / Advance
+                Advance / Deduction
               </Button>
+              <Link href="/attendance" className="flex-1 sm:flex-none" data-testid="wages-attendance-link">
+                <Button variant="secondary" icon={CalendarCheck} className="w-full whitespace-nowrap">
+                  Attendance
+                </Button>
+              </Link>
               <Button
                 variant="secondary"
                 icon={Printer}

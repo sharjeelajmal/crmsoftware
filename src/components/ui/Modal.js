@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
+import { BodyPortal } from "./BodyPortal";
 
 const SIZE_CLASS = {
   sm: "max-w-sm",
@@ -11,7 +12,8 @@ const SIZE_CLASS = {
 };
 
 /**
- * Centered modal with backdrop. Render inside an <AnimatePresence> for exit animation.
+ * Centered modal with backdrop, rendered on <body> (see BodyPortal). Render inside an <AnimatePresence> for exit
+ * animation.
  *
  * @param {object} props
  * @param {() => void} props.onClose
@@ -20,34 +22,36 @@ const SIZE_CLASS = {
  */
 export function Modal({ children, onClose, size = "md", padded = true, className = "" }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
-    >
+    <BodyPortal>
       <motion.div
-        role="dialog"
-        aria-modal="true"
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASS[size] ?? SIZE_CLASS.md} relative flex flex-col ${className}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+        onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-20 cursor-pointer"
+        <motion.div
+          role="dialog"
+          aria-modal="true"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          className={`bg-white rounded-2xl shadow-xl w-full ${SIZE_CLASS[size] ?? SIZE_CLASS.md} relative flex flex-col ${className}`}
         >
-          <X size={24} />
-        </button>
-        <div className={`${padded ? "p-5 sm:p-8" : "p-1 sm:p-2"} overflow-y-auto overflow-x-auto max-h-[90vh]`}>
-          {children}
-        </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-20 cursor-pointer"
+          >
+            <X size={24} />
+          </button>
+          <div className={`${padded ? "p-5 sm:p-8" : "p-1 sm:p-2"} overflow-y-auto overflow-x-auto max-h-[90vh]`}>
+            {children}
+          </div>
+        </motion.div>
       </motion.div>
-    </motion.div>
+    </BodyPortal>
   );
 }
 

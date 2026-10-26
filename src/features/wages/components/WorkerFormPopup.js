@@ -27,11 +27,12 @@ export function WorkerFormPopup({ initialData = null, onSave, onCancel }) {
 
   return (
     <Modal onClose={onCancel}>
-      <form onSubmit={handleSubmit} className="space-y-4" data-testid="worker-form">
+      <form noValidate onSubmit={handleSubmit} className="space-y-4" data-testid="worker-form">
         <h3 className="text-2xl font-bold text-center text-gray-800 mb-2">
           {isEditing ? "Edit Worker" : "Add Worker"}
         </h3>
         <input
+          autoComplete="off"
           type="text"
           name="name"
           value={form.name}
@@ -43,6 +44,7 @@ export function WorkerFormPopup({ initialData = null, onSave, onCancel }) {
           required
         />
         <input
+          autoComplete="off"
           type="text"
           name="phone"
           value={form.phone}
@@ -52,6 +54,7 @@ export function WorkerFormPopup({ initialData = null, onSave, onCancel }) {
         />
         <div>
           <input
+            autoComplete="off"
             type="number"
             name="dailyRate"
             inputMode="decimal"
@@ -75,6 +78,7 @@ export function WorkerFormPopup({ initialData = null, onSave, onCancel }) {
           buttonClassName="bg-gray-100"
         />
         <input
+          autoComplete="off"
           type="text"
           name="note"
           value={form.note}

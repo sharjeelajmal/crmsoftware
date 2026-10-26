@@ -1,8 +1,9 @@
 /** Pure helpers for the cutting portal (also reused by the admin lots pages). */
 
 import { STAGES, STAGE_LABELS, cutQtyOf } from "@/constants/lots";
+import { FABRIC_UNITS } from "@/constants/fabric";
 
-export { STAGES, STAGE_LABELS, cutQtyOf };
+export { STAGES, STAGE_LABELS, cutQtyOf, FABRIC_UNITS };
 
 /** Shorter stage names for phone-width filter pills ("Ready for Sale" → "Ready"). */
 const STAGE_SHORT_LABELS = { ready: "Ready" };
@@ -38,8 +39,6 @@ export const EVENT_LABELS = {
 };
 
 export const eventLabel = (type) => EVENT_LABELS[type] || type;
-
-export const FABRIC_UNITS = ["m", "yards", "kg", "pcs"];
 
 /** Rows shown when the chosen article has no size list of its own. */
 export const DEFAULT_SIZES = ["30", "32", "34", "36"];

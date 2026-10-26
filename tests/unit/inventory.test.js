@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ObjectId } from "mongodb";
 import { stockChangeOps, totalOfSizes, withSizeTotals } from "@/lib/inventory";
+import { addedInRange, filterProducts, productAddedAt } from "@/features/inventory/utils";
 
 describe("sizes", () => {
   it("sums size stock and derives the product total", () => {
@@ -54,5 +55,39 @@ describe("stockChangeOps", () => {
         -1
       )
     ).toEqual([]);
+  });
+});
+
+describe("inventory date filter (added on)", () => {
+  // 2026-10-22 10:00 local, written into a Mongo id the way the server does for older products.
+  const oct22 = new Date(2026, 9, 22, 10, 0);
+  const idAt = (date) => Math.floor(date.getTime() / 1000).toString(16).padStart(8, "0") + "0000000000000000";
+  const products = [
+    { _id: idAt(new Date(2026, 1, 1)), name: "Old Hoodie", category: "Tops", remaining: 5 },
+    { _id: idAt(oct22), name: "New Pents", category: "Pants", remaining: 47, createdAt: oct22.toISOString() },
+    { _id: idAt(new Date(2026, 9, 25)), name: "Baggy pents", category: "Pants", remaining: 0 },
+  ];
+  const range = (from, to) => ({ from: new Date(from), to: new Date(to) });
+
+  it("uses createdAt, else the time inside the product id", () => {
+    expect(productAddedAt(products[1]).getTime()).toBe(oct22.getTime());
+    expect(productAddedAt(products[0]).getTime()).toBe(new Date(2026, 1, 1).getTime());
+    expect(productAddedAt({ _id: "not-an-id" })).toBeNull();
+  });
+
+  it("keeps whole days, both ends included; no range keeps everything", () => {
+    expect(addedInRange(products[1], range("2026-10-22T00:00", "2026-10-22T00:00"))).toBe(true);
+    expect(addedInRange(products[1], range("2026-10-23T00:00", "2026-10-31T00:00"))).toBe(false);
+    expect(addedInRange(products[1], null)).toBe(true);
+    expect(addedInRange({ _id: "x" }, range("2026-10-01T00:00", "2026-10-31T00:00"))).toBe(false);
+  });
+
+  it("combines with search, category and stock filters", () => {
+    const october = range("2026-10-01T00:00", "2026-10-31T00:00");
+    expect(filterProducts(products, { addedRange: october }).map((p) => p.name)).toEqual(["New Pents", "Baggy pents"]);
+    expect(filterProducts(products, { addedRange: october, searchTerm: "baggy" }).map((p) => p.name)).toEqual([
+      "Baggy pents",
+    ]);
+    expect(filterProducts(products, { category: "Tops" }).map((p) => p.name)).toEqual(["Old Hoodie"]);
   });
 });

@@ -360,6 +360,15 @@ input[type="number"] {
   box-shadow: none;
 }
 
+/* Single-date field (DatePickerField): slightly smaller days so a month fits a 320px phone. */
+.rdp-root.rdp-modern.rdp-compact {
+  --rdp-day-width: 38px;
+  --rdp-day-height: 38px;
+  --rdp-day_button-width: 34px;
+  --rdp-day_button-height: 34px;
+  --rdp-day_button-border-radius: 10px;
+}
+
 .rdp-modern .rdp-weekday {
   font-size: 0.7rem;
   font-weight: 700;
@@ -388,7 +397,9 @@ input[type="number"] {
 .rdp-modern .rdp-button_previous,
 .rdp-modern .rdp-button_next {
   border-radius: 9999px;
-  transition: background-color 0.2s, transform 0.2s;
+  transition:
+    background-color 0.2s,
+    transform 0.2s;
 }
 
 .rdp-modern .rdp-button_previous:hover,
@@ -404,7 +415,11 @@ input[type="number"] {
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--color-text-primary);
-  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.2s ease;
 }
 
 .rdp-modern .rdp-day:not(.rdp-disabled) .rdp-day_button:hover {
@@ -525,13 +540,25 @@ input[type="number"] {
   #wages-print,
   #wages-print *,
   #gate-pass-print,
-  #gate-pass-print * {
+  #gate-pass-print *,
+  #purchase-ledger-print,
+  #purchase-ledger-print *,
+  #fabric-print,
+  #fabric-print *,
+  #cutting-report-print,
+  #cutting-report-print *,
+  #attendance-print,
+  #attendance-print * {
     visibility: visible;
   }
   #invoice-section,
   #ledger-print,
   #wages-print,
-  #gate-pass-print {
+  #gate-pass-print,
+  #purchase-ledger-print,
+  #fabric-print,
+  #cutting-report-print,
+  #attendance-print {
     position: absolute;
     left: 0;
     top: 0;

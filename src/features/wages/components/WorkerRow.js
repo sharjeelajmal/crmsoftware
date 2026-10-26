@@ -49,7 +49,8 @@ export function WorkerRow({ worker, onEdit, onToggleActive, onDelete }) {
         <button
           type="button"
           onClick={() => onEdit(worker)}
-          title="Edit"
+          data-tip="Edit"
+          aria-label="Edit"
           className={`${ICON_CLASS} hover:text-yellow-300`}
         >
           <Edit2 size={18} />
@@ -57,7 +58,8 @@ export function WorkerRow({ worker, onEdit, onToggleActive, onDelete }) {
         <button
           type="button"
           onClick={() => onToggleActive(worker, !active)}
-          title={active ? "Deactivate" : "Activate"}
+          data-tip={active ? "Deactivate" : "Activate"}
+          aria-label={active ? "Deactivate" : "Activate"}
           className={`${ICON_CLASS} hover:text-yellow-300`}
           data-testid="worker-toggle"
         >
@@ -66,7 +68,8 @@ export function WorkerRow({ worker, onEdit, onToggleActive, onDelete }) {
         <button
           type="button"
           onClick={() => onDelete(worker)}
-          title="Delete"
+          data-tip="Delete"
+          aria-label="Delete"
           className={`${ICON_CLASS} hover:text-red-300`}
           data-testid="worker-delete"
         >

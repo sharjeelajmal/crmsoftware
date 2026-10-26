@@ -11,6 +11,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { FilterButton } from "@/components/ui/FilterButton";
 import { useMyLots } from "@/features/cutting/hooks/useMyLots";
 import { LotCard } from "@/features/cutting/components/LotCard";
+import { FabricInHandStrip } from "@/features/fabric/components/FabricInHandStrip";
 import { STAGE_FILTERS, filterLots, lotStats } from "@/features/cutting/utils";
 
 const SEARCH_CLASS =
@@ -51,6 +52,8 @@ export default function CuttingPage() {
         <StatCard icon={PackageCheck} title="Ready" value={stats.ready} />
       </motion.div>
 
+      <FabricInHandStrip />
+
       <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4 mb-5">
           <div className="grid grid-cols-2 min-[360px]:grid-cols-3 sm:flex sm:flex-wrap gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl w-full lg:w-auto">
@@ -63,7 +66,7 @@ export default function CuttingPage() {
                     <span className="hidden sm:inline">{label}</span>
                   </>
                 }
-                title={label}
+                data-tip={label}
                 wrap
                 active={stage === value}
                 onClick={() => setStage(value)}
@@ -73,6 +76,7 @@ export default function CuttingPage() {
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
+              autoComplete="off"
               type="text"
               placeholder="Search lot number or article..."
               value={searchTerm}

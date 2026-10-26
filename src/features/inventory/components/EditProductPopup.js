@@ -7,6 +7,7 @@ import { CustomDropdown } from "@/components/ui/CustomDropdown";
 import { Collapse } from "@/components/ui/Collapse";
 import { blankSizeRows, hasSizes, sizeRowsOf, sizeSplitHint } from "../utils";
 import { SizeRowsEditor } from "./SizeRowsEditor";
+import { Switch } from "@/components/ui/Switch";
 
 const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none";
 
@@ -43,6 +44,7 @@ export function EditProductPopup({ product, categories, onSave, onCancel }) {
           buttonClassName="bg-gray-100"
         />
         <input
+          autoComplete="off"
           type="text"
           name="name"
           value={form.name}
@@ -52,6 +54,7 @@ export function EditProductPopup({ product, categories, onSave, onCancel }) {
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
+            autoComplete="off"
             type="number"
             name="purchasePrice"
             value={form.purchasePrice}
@@ -60,6 +63,7 @@ export function EditProductPopup({ product, categories, onSave, onCancel }) {
             className={INPUT_CLASS}
           />
           <input
+            autoComplete="off"
             type="number"
             name="salePrice"
             value={form.salePrice}
@@ -71,21 +75,13 @@ export function EditProductPopup({ product, categories, onSave, onCancel }) {
 
         <div>
           {!alreadyTracked && (
-            <label className="flex items-center justify-between gap-3 p-3 bg-gray-100 rounded-xl cursor-pointer">
-              <span className="text-sm font-semibold text-gray-700">
-                Track stock per size
-                <span className="block text-xs font-normal text-gray-500">
-                  Current stock: {Number(product.remaining) || 0} pcs — split it across sizes below.
-                </span>
-              </span>
-              <input
-                type="checkbox"
-                data-testid="product-track-sizes"
-                checked={trackSizes}
-                onChange={(e) => setTrackSizes(e.target.checked)}
-                className="w-5 h-5 accent-primary cursor-pointer shrink-0"
-              />
-            </label>
+            <Switch
+              label="Track stock per size"
+              description={`Current stock: ${Number(product.remaining) || 0} pcs — split it across sizes below.`}
+              checked={trackSizes}
+              onChange={setTrackSizes}
+              testId="product-track-sizes"
+            />
           )}
 
           <Collapse open={trackSizes} testId="product-sizes-section">

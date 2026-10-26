@@ -3,6 +3,7 @@ import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, created, parseBody, parseQuery, notFound } from "@/lib/api";
 import { lotCreateSchema, lotsQuerySchema } from "@/lib/validation";
 import { buildLot, buildLotEvent, isAdmin, nextLotSeq } from "@/lib/lots";
+import { issueGatePass } from "@/lib/gatepass";
 import { ALL_ROLES } from "@/constants/roles";
 
 /**
@@ -24,7 +25,7 @@ export const GET = route(
   { roles: ALL_ROLES }
 );
 
-/** POST /api/lots — cutting entry (cutting master or admin). */
+/** POST /api/lots — cutting entry (cutting master or admin). Issues the lot's cutting gate pass with it. */
 export const POST = route(
   async (request, { session }) => {
     const input = await parseBody(request, lotCreateSchema);
@@ -43,7 +44,9 @@ export const POST = route(
         .insertOne(buildLotEvent(insertedId, "created", session, { qty: doc.cutQty, note: doc.note }), {
           session: session_,
         });
-      return { _id: insertedId, ...doc };
+      const lot = { _id: insertedId, ...doc };
+      const pass = await issueGatePass(db, session_, { lot, type: "cutting", session });
+      return { ...lot, gatePasses: [pass] };
     });
 
     return created(lot);

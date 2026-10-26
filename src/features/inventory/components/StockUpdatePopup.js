@@ -32,7 +32,7 @@ export function StockUpdatePopup({ product, action, onSave, onCancel }) {
 
   return (
     <Modal onClose={onCancel}>
-      <form onSubmit={handleSubmit} data-testid="stock-update-form">
+      <form noValidate onSubmit={handleSubmit} data-testid="stock-update-form">
         <h3 className="text-2xl font-bold mb-2 text-center text-gray-800">
           {action === "add" ? "Increase" : "Decrease"} Stock
         </h3>
@@ -53,6 +53,7 @@ export function StockUpdatePopup({ product, action, onSave, onCancel }) {
           </div>
         )}
         <input
+          autoComplete="off"
           type="number"
           inputMode="numeric"
           min="1"

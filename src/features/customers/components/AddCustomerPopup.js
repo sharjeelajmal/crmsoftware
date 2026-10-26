@@ -32,11 +32,12 @@ export function AddCustomerPopup({ onSave, onClose, initialData }) {
 
   return (
     <Modal onClose={onClose} size="lg">
-      <form onSubmit={handleSubmit}>
+      <form noValidate onSubmit={handleSubmit}>
         <h3 className="text-2xl font-bold mb-6 text-center text-gray-800">Register Customer</h3>
         <div className="space-y-4">
           {FIELDS.map((field) => (
             <input
+              autoComplete="off"
               key={field.name}
               type={field.type}
               name={field.name}

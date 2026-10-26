@@ -38,7 +38,13 @@ export function ResetPasswordPopup({ user, onSave, onCancel }) {
         <h3 className="text-xl font-bold mt-3 text-gray-800">Reset Password</h3>
         <p className="text-sm text-gray-500 mt-1 break-words">{user.name}</p>
       </div>
-      <form onSubmit={handleSubmit} data-testid="reset-password-form" className="space-y-4" autoComplete="off">
+      <form
+        noValidate
+        onSubmit={handleSubmit}
+        data-testid="reset-password-form"
+        className="space-y-4"
+        autoComplete="off"
+      >
         <input
           type="password"
           value={password}

@@ -2,11 +2,14 @@
 
 import { motion } from "framer-motion";
 import { Edit2, Phone, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 import { itemVariants } from "@/constants/animations";
+import { createdAtOf } from "@/constants/datePresets";
 
 const ICON_BUTTON_CLASS = "p-2 text-gray-500 cursor-pointer";
 
 export function VendorCard({ vendor, onEdit, onDelete }) {
+  const addedAt = createdAtOf(vendor);
   return (
     <motion.div
       variants={itemVariants}
@@ -22,6 +25,11 @@ export function VendorCard({ vendor, onEdit, onDelete }) {
           <div>
             <h3 className="text-lg font-bold text-gray-800">{vendor.name}</h3>
             <p className="text-sm text-gray-500">{vendor.contactPerson}</p>
+            {addedAt && (
+              <p className="text-xs text-gray-400" data-testid="vendor-added">
+                Added {format(addedAt, "d MMM yyyy")}
+              </p>
+            )}
           </div>
         </div>
         <p className="text-sm text-gray-600 flex items-center gap-2">
@@ -33,7 +41,8 @@ export function VendorCard({ vendor, onEdit, onDelete }) {
           type="button"
           onClick={() => onEdit(vendor)}
           className={`${ICON_BUTTON_CLASS} hover:text-blue-600`}
-          title="Edit"
+          data-tip="Edit"
+          aria-label="Edit"
         >
           <Edit2 size={18} />
         </button>
@@ -41,7 +50,8 @@ export function VendorCard({ vendor, onEdit, onDelete }) {
           type="button"
           onClick={() => onDelete(vendor._id)}
           className={`${ICON_BUTTON_CLASS} hover:text-red-600`}
-          title="Delete"
+          data-tip="Delete"
+          aria-label="Delete"
         >
           <Trash2 size={18} />
         </button>

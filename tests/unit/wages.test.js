@@ -104,6 +104,8 @@ describe("summarizeWages", () => {
       amount: 1440,
       leaveDays: 0,
       leaves: 0,
+      absentDays: 0,
+      absents: 0,
       advances: 800,
       recoveries: 200,
       deductions: 40,

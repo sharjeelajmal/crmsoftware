@@ -1,5 +1,7 @@
 /** Pure helpers for the inventory module (also reused by the dashboard, sales and purchasing modules). */
 
+import { createdAtOf, inDayRange } from "@/constants/datePresets";
+
 export const STOCK_FILTERS = {
   ALL: "All",
   LOW: "Low Stock (<10)",
@@ -21,13 +23,23 @@ export const matchesStockFilter = (product, filter) => {
   return true;
 };
 
-export const filterProducts = (products, { searchTerm = "", category = "All", stockFilter = STOCK_FILTERS.ALL }) => {
+/** When the product was added (`createdAt`, or the time inside its id for the oldest products). */
+export const productAddedAt = createdAtOf;
+
+/** True when the product was added inside `range` (whole days, both ends included); no range = every product. */
+export const addedInRange = (product, range) => inDayRange(productAddedAt(product), range);
+
+export const filterProducts = (
+  products,
+  { searchTerm = "", category = "All", stockFilter = STOCK_FILTERS.ALL, addedRange = null }
+) => {
   const query = searchTerm.toLowerCase();
   return products.filter(
     (product) =>
       (category === "All" || product.category === category) &&
       product.name.toLowerCase().includes(query) &&
-      matchesStockFilter(product, stockFilter)
+      matchesStockFilter(product, stockFilter) &&
+      addedInRange(product, addedRange)
   );
 };
 

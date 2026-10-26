@@ -7,6 +7,10 @@ import { containerVariants, itemVariants } from "@/constants/animations";
 import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/ui/Loader";
 import { SelectDropdown } from "@/components/ui/CustomDropdown";
+import { SuggestInput } from "@/components/ui/SuggestInput";
+import { useFabricBalances } from "@/features/fabric/hooks/useFabricBalances";
+import { FabricBalanceHint } from "@/features/fabric/components/FabricBalanceHint";
+import { fabricSuggestions } from "@/features/fabric/utils";
 import { useLotForm } from "../hooks/useLotForm";
 import { FABRIC_UNITS } from "../utils";
 import { SizeRowsEditor } from "./SizeRowsEditor";
@@ -31,6 +35,7 @@ function Field({ label, children }) {
  */
 export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
   const f = useLotForm({ lot, onSaved });
+  const { balances } = useFabricBalances();
 
   if (f.productsLoading) return <Loader text="Loading articles" />;
 
@@ -68,19 +73,24 @@ export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
       <motion.section variants={itemVariants} className={SECTION_CLASS}>
         <h2 className="text-lg font-bold text-gray-800">Fabric</h2>
         <Field label="Fabric name">
-          <input
-            type="text"
+          <SuggestInput
             value={f.form.fabricName}
-            onChange={(e) => f.setField("fabricName", e.target.value)}
+            onChange={(value) => f.setField("fabricName", value)}
+            onPick={(option) => {
+              f.setField("fabricName", option.name);
+              f.setField("fabricUnit", option.unit);
+            }}
+            options={fabricSuggestions(balances)}
             placeholder="e.g. Denim 12oz"
             maxLength={120}
-            data-testid="lot-form-fabric-name"
+            testId="lot-form-fabric-name"
             className={INPUT_CLASS}
           />
         </Field>
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <Field label="Fabric quantity">
             <input
+              autoComplete="off"
               type="number"
               min="0"
               step="any"
@@ -93,23 +103,26 @@ export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
             />
           </Field>
           <Field label="Unit">
-            <select
-              value={f.form.fabricUnit}
-              onChange={(e) => f.setField("fabricUnit", e.target.value)}
-              data-testid="lot-form-fabric-unit"
-              className={`${INPUT_CLASS} cursor-pointer`}
-            >
-              {FABRIC_UNITS.map((unit) => (
-                <option key={unit} value={unit}>
-                  {unit}
-                </option>
-              ))}
-            </select>
+            <SelectDropdown
+              options={FABRIC_UNITS.map((unit) => ({ value: unit, label: unit }))}
+              selected={f.form.fabricUnit}
+              onSelect={(unit) => f.setField("fabricUnit", unit)}
+              ariaLabel="Fabric unit"
+              testId="lot-form-fabric-unit"
+            />
           </Field>
         </div>
+        <FabricBalanceHint
+          balances={balances}
+          name={f.form.fabricName}
+          unit={f.form.fabricUnit}
+          qty={f.form.fabricQty}
+          lot={lot}
+        />
         <div className="grid grid-cols-2 gap-3 sm:gap-4">
           <Field label="Bundle number (optional)">
             <input
+              autoComplete="off"
               type="text"
               value={f.form.bundleNumber}
               onChange={(e) => f.setField("bundleNumber", e.target.value)}
@@ -121,6 +134,7 @@ export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
           </Field>
           <Field label="Shrinkage % (optional)">
             <input
+              autoComplete="off"
               type="number"
               min="0"
               max="100"
@@ -134,7 +148,9 @@ export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
             />
           </Field>
         </div>
-        <p className="text-xs text-gray-500">Bundle number and shrinkage are printed on the stitching gate pass.</p>
+        <p className="text-xs text-gray-500">
+          Bundle number and shrinkage are printed on the cutting and stitching gate passes.
+        </p>
       </motion.section>
 
       <motion.section variants={itemVariants} className={SECTION_CLASS}>
@@ -149,13 +165,14 @@ export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
       </motion.section>
 
       <motion.section variants={itemVariants} className={SECTION_CLASS}>
-        <Field label="Note (optional)">
+        <Field label="Remarks / instructions (optional)">
           <textarea
+            autoComplete="off"
             value={f.form.note}
             onChange={(e) => f.setField("note", e.target.value)}
             rows={3}
             maxLength={500}
-            placeholder="Anything the stitching unit should know…"
+            placeholder="Instructions for this cut — shown on the daily cutting report"
             data-testid="lot-form-note"
             className={`${INPUT_CLASS} resize-y`}
           />

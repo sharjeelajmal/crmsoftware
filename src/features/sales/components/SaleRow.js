@@ -29,23 +29,53 @@ export function SaleRow({ sale, isCustomerRegistered, onEdit, onView, onPdf, onA
       <span className="hidden md:inline-block w-32 text-center">{formatDate(sale.invoiceDate)}</span>
       <span className="w-24 text-center font-bold md:font-normal">{(Number(sale.subTotal) || 0).toFixed(0)}/-</span>
       <div className="w-full md:w-48 flex justify-end md:justify-center gap-4 mt-3 md:mt-0">
-        <button type="button" onClick={() => onEdit(sale)} title="Edit Invoice" className={ICON_BUTTON}>
+        <button
+          type="button"
+          onClick={() => onEdit(sale)}
+          data-tip="Edit Invoice"
+          aria-label="Edit Invoice"
+          className={ICON_BUTTON}
+        >
           <Edit size={18} />
         </button>
-        <button type="button" onClick={() => onView(sale)} title="View Invoice" className={ICON_BUTTON}>
+        <button
+          type="button"
+          onClick={() => onView(sale)}
+          data-tip="View Invoice"
+          aria-label="View Invoice"
+          className={ICON_BUTTON}
+        >
           <FileText size={18} />
         </button>
-        <button type="button" onClick={() => onPdf(sale)} title="Save as PDF" className={ICON_BUTTON}>
+        <button
+          type="button"
+          onClick={() => onPdf(sale)}
+          data-tip="Save as PDF"
+          aria-label="Save as PDF"
+          className={ICON_BUTTON}
+        >
           <Save size={18} />
         </button>
         {isCustomerRegistered ? (
           <Check size={18} className="text-green-400" aria-label="Customer Already Saved" />
         ) : (
-          <button type="button" onClick={() => onAddCustomer(sale)} title="Add to Customers" className={ICON_BUTTON}>
+          <button
+            type="button"
+            onClick={() => onAddCustomer(sale)}
+            data-tip="Add to Customers"
+            aria-label="Add to Customers"
+            className={ICON_BUTTON}
+          >
             <UserPlus size={18} />
           </button>
         )}
-        <button type="button" onClick={() => onDelete(sale)} title="Delete Sale" className={ICON_BUTTON}>
+        <button
+          type="button"
+          onClick={() => onDelete(sale)}
+          data-tip="Delete Sale"
+          aria-label="Delete Sale"
+          className={ICON_BUTTON}
+        >
           <Trash2 size={18} />
         </button>
       </div>

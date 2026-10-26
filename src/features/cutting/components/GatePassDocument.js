@@ -44,7 +44,10 @@ export function GatePassDocument({ pass, id = "gate-pass-print" }) {
           {BUSINESS.gatePass.phoneTop}
         </p>
         <h1 style={{ fontSize: "22px", fontWeight: 800, margin: "4px 0 0" }}>{BRAND.name}</h1>
-        <p style={{ fontSize: "15px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px" }}>
+        <p
+          style={{ fontSize: "15px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "2px" }}
+          data-testid="gate-pass-title"
+        >
           {GATE_PASS_LABELS[pass.type] || "Gate pass"}
         </p>
       </div>

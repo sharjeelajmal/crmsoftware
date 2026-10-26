@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DATE_PRESETS, activePresetKey, nextRange, presetRange, rangeDays } from "@/constants/datePresets";
+import { DATE_PRESETS, activePresetKey, pickRangeDay, presetRange, rangeDays } from "@/constants/datePresets";
 
 const now = new Date(2026, 9, 22, 15, 30); // Thu 22 Oct 2026, 3:30 pm local
 const ymd = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
@@ -38,16 +38,23 @@ describe("date presets", () => {
     expect(rangeDays({ from: new Date(2026, 9, 1) })).toBe(0);
   });
 
-  it("starts a fresh range when clicking after a complete one", () => {
-    const complete = { from: new Date(2026, 9, 1), to: new Date(2026, 9, 5) };
-    const fresh = nextRange(
-      complete,
-      { from: new Date(2026, 9, 1), to: new Date(2026, 9, 9) },
-      new Date(2026, 9, 9, 12)
-    );
-    expect(ymd(fresh.from)).toBe("2026-10-9");
-    expect(fresh.to).toBeUndefined();
-    const half = nextRange({ from: new Date(2026, 9, 1) }, { from: new Date(2026, 9, 1), to: new Date(2026, 9, 9) });
-    expect(ymd(half.to)).toBe("2026-10-9");
+  it("picks the start with the first click and the end with the second", () => {
+    const first = pickRangeDay({ from: undefined, to: undefined }, new Date(2026, 9, 3, 14));
+    expect(ymd(first.from)).toBe("2026-10-3");
+    expect(first.to).toBeUndefined(); // waiting for the end, not a finished one-day range
+    const second = pickRangeDay(first, new Date(2026, 9, 9, 8));
+    expect(`${ymd(second.from)} → ${ymd(second.to)}`).toBe("2026-10-3 → 2026-10-9");
+  });
+
+  it("swaps an end before the start, allows a single day, and restarts after a complete range", () => {
+    const start = { from: new Date(2026, 9, 9), to: undefined };
+    const swapped = pickRangeDay(start, new Date(2026, 9, 2));
+    expect(`${ymd(swapped.from)} → ${ymd(swapped.to)}`).toBe("2026-10-2 → 2026-10-9");
+    const single = pickRangeDay(start, new Date(2026, 9, 9, 18));
+    expect(`${ymd(single.from)} → ${ymd(single.to)}`).toBe("2026-10-9 → 2026-10-9");
+    const restart = pickRangeDay({ from: new Date(2026, 9, 1), to: new Date(2026, 9, 5) }, new Date(2026, 9, 20));
+    expect(ymd(restart.from)).toBe("2026-10-20");
+    expect(restart.to).toBeUndefined();
+    expect(pickRangeDay(start, undefined)).toBe(start);
   });
 });

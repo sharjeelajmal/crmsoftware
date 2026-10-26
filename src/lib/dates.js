@@ -65,6 +65,9 @@ export function dateRangeFromFilter({ filter = "all", from, to, monthlyMeans = "
   }
 }
 
+/** "yyyy-mm-dd" → noon of that day (server local time), so a stored day never shifts across time zones. */
+export const dayNoon = (day) => new Date(`${day}T12:00:00`);
+
 /** Builds `{ [field]: { $gte, $lte } }` or `{}` for a Mongo query. */
 export function dateQuery(field, range) {
   return range ? { [field]: { $gte: range.start, $lte: range.end } } : {};

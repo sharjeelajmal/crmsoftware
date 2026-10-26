@@ -40,6 +40,7 @@ export function InvoiceItemsTable({ items, products = [], suggestions, onItemCha
               <td className="border relative" style={BORDER}>
                 <div className="flex items-center gap-1 pr-1">
                   <input
+                    autoComplete="off"
                     type="text"
                     value={item.desc}
                     onChange={(e) => onItemChange(index, "desc", e.target.value)}
@@ -72,6 +73,7 @@ export function InvoiceItemsTable({ items, products = [], suggestions, onItemCha
               </td>
               <td className="border" style={BORDER}>
                 <input
+                  autoComplete="off"
                   type="number"
                   ref={(el) => {
                     qtyInputs.current[index] = el;
@@ -83,6 +85,7 @@ export function InvoiceItemsTable({ items, products = [], suggestions, onItemCha
               </td>
               <td className="border" style={BORDER}>
                 <input
+                  autoComplete="off"
                   type="number"
                   value={item.price}
                   onChange={(e) => onItemChange(index, "price", e.target.value)}

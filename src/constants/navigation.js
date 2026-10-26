@@ -18,6 +18,9 @@ import {
   Shirt,
   HardHat,
   Banknote,
+  Scroll,
+  ClipboardList,
+  CalendarCheck,
 } from "lucide-react";
 import { ROLES, normalizeRole } from "@/constants/roles";
 import { isModuleVisible } from "@/constants/modules";
@@ -43,12 +46,17 @@ export const NAV_ITEMS = [
   { name: "Lots", icon: Layers, path: "/lots", roles: ADMIN, section: "production" },
   { name: "Stitching", icon: Shirt, path: "/stitching", roles: ADMIN, section: "production" },
   { name: "Lot Report", icon: FileBarChart, path: "/lots/report", roles: ADMIN, section: "production" },
+  { name: "Fabric Khata", icon: Scroll, path: "/fabric", roles: ADMIN, section: "production" },
+  { name: "Cutting Report", icon: ClipboardList, path: "/fabric/report", roles: ADMIN, section: "production" },
   { name: "Ledger", icon: BookOpen, path: "/ledger", roles: ADMIN, section: "production" },
   { name: "Workers", icon: HardHat, path: "/workers", roles: ADMIN, section: "production" },
+  { name: "Attendance", icon: CalendarCheck, path: "/attendance", roles: ADMIN, section: "production" },
   { name: "Wages", icon: Banknote, path: "/wages", roles: ADMIN, section: "production" },
   { name: "Users", icon: UserCog, path: "/users", roles: ADMIN, section: "production" },
   { name: "My Lots", icon: Scissors, path: "/cutting", roles: CUTTING, section: "main" },
   { name: "New Cutting", icon: PlusSquare, path: "/cutting/new", roles: CUTTING, section: "main" },
+  { name: "Fabric Khata", icon: Scroll, path: "/fabric", roles: CUTTING, section: "main" },
+  { name: "Cutting Report", icon: ClipboardList, path: "/fabric/report", roles: CUTTING, section: "main" },
 ];
 
 /** Admin links only (kept for callers that still want the flat list). */

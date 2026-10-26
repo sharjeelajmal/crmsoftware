@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/mongodb";
 import { route, ok, parseBody, requireObjectId, notFound, conflict } from "@/lib/api";
 import { operationUpdateSchema } from "@/lib/validation";
+import { OPERATION_SETS } from "@/lib/operations";
 
 /** PUT /api/operations/:id — rename, change the rate (future entries only) or (de)activate. */
 export const PUT = route(async (request, context) => {
@@ -18,7 +19,7 @@ export const PUT = route(async (request, context) => {
   return ok({ updated: true });
 });
 
-/** DELETE /api/operations/:id — only while no work entry uses it; otherwise deactivate. */
+/** DELETE /api/operations/:id — only while no work entry uses it (it leaves every rate card too); else deactivate. */
 export const DELETE = route(async (_request, context) => {
   const _id = await requireObjectId(context);
   const db = await getDb();
@@ -26,5 +27,6 @@ export const DELETE = route(async (_request, context) => {
   if (used > 0) throw conflict(`This operation is used by ${used} work entries. Mark it inactive instead.`);
   const { deletedCount } = await db.collection("operations").deleteOne({ _id });
   if (deletedCount === 0) throw notFound("Operation");
+  await db.collection(OPERATION_SETS).updateMany({}, { $pull: { items: { operationId: _id } } });
   return ok({ deleted: true });
 });

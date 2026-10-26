@@ -25,8 +25,10 @@ export const ROLE_HOME = Object.freeze({
  */
 export const CUTTING_MASTER_PATHS = Object.freeze([
   "/cutting",
+  "/fabric", // fabric khata + daily cutting report (own fabric and lots only)
   "/profile",
   "/api/lots",
+  "/api/fabric",
   "/api/products", // read-only article list for the cutting form (route itself allows GET only)
   "/api/profile",
   "/api/auth",

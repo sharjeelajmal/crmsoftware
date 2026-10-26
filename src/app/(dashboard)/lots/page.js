@@ -76,7 +76,7 @@ export default function LotsPage({ searchParams }) {
                     <span className="hidden sm:inline">{label}</span>
                   </>
                 }
-                title={label}
+                data-tip={label}
                 wrap
                 active={stage === value}
                 aria-pressed={stage === value}
@@ -88,6 +88,7 @@ export default function LotsPage({ searchParams }) {
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
+              autoComplete="off"
               type="text"
               placeholder="Search lot, article or user..."
               value={searchTerm}

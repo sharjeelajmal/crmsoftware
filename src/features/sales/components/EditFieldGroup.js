@@ -18,6 +18,7 @@ export function EditFieldGroup({ label, icon: Icon, value, onChange, type = "tex
           />
         )}
         <input
+          autoComplete="off"
           type={type}
           value={value}
           onChange={onChange}

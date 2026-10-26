@@ -58,6 +58,14 @@ function expect(actual, message) {
       if (!String(actual).includes(part))
         throw new Error(`${message}: expected to contain ${JSON.stringify(part)}, got ${JSON.stringify(actual)}`);
     },
+    // Plain data (arrays / objects of numbers and strings): equal when they serialise the same.
+    toEqual(expected) {
+      if (JSON.stringify(actual) !== JSON.stringify(expected))
+        throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    },
+    toBeUndefined() {
+      if (actual !== undefined) throw new Error(`${message}: expected undefined, got ${JSON.stringify(actual)}`);
+    },
   };
 }
 
@@ -141,6 +149,13 @@ async function login(username, password) {
 }
 
 // ---------- shared state ----------
+/** "yyyy-mm-dd" of today + `offset` days in local time (the server runs on this machine, same time zone). */
+const localDay = (offset = 0) => {
+  const at = new Date();
+  at.setDate(at.getDate() + offset);
+  return `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
+};
+
 const S = {
   admin: null,
   cutter: null,
@@ -246,6 +261,9 @@ test("cutting master creates, reads and edits a lot; events are recorded", async
   expect(detail.status, "detail").toBe(200);
   expect(detail.body.events.map((e) => e.type).join(","), "events").toBe("created");
 
+  expect(created.body.gatePasses?.[0]?.type, "cutting pass with the entry").toBe("cutting");
+  expect(created.body.gatePasses[0].pieces, "cutting pass pieces").toBe(70);
+
   const edited = await api(S.cutter, "PUT", `/api/lots/${S.lotId}`, {
     sizes: [
       { size: "30", qty: 30 },
@@ -254,8 +272,15 @@ test("cutting master creates, reads and edits a lot; events are recorded", async
   });
   expect(edited.status, "edit").toBe(200);
   expect(edited.body.cutQty, "cut qty after edit").toBe(75);
+  expect(edited.body.gatePasses.map((p) => `${p.type}:${p.pieces}`).join(), "fresh cutting pass").toBe("cutting:75");
+  const noteOnly = await api(S.cutter, "PUT", `/api/lots/${S.lotId}`, { note: "note only" });
+  expect(noteOnly.body.gatePasses.length, "note edit keeps the pass").toBe(0);
+  const cuttingPasses = (await api(S.cutter, "GET", `/api/lots/${S.lotId}/gate-passes`)).body;
+  expect(cuttingPasses.map((p) => `${p.type}:${p.pieces}`).join(), "both cutting passes kept").toBe(
+    "cutting:70,cutting:75"
+  );
   const after = await api(S.cutter, "GET", `/api/lots/${S.lotId}`);
-  expect(after.body.events.map((e) => e.type).join(","), "events after edit").toBe("created,edited");
+  expect(after.body.events.map((e) => e.type).join(","), "events after edit").toBe("created,edited,edited");
 
   const second = await api(S.cutter, "POST", "/api/lots", {
     productId: S.productId,
@@ -323,6 +348,42 @@ test("sales deduct per size and restore on delete; purchases add per size", asyn
   product = (await api(S.admin, "GET", "/api/products")).body.find((p) => p._id === S.productId);
   expect(product.remaining, "total after purchase").toBe(15);
   expect(product.sizes.find((s) => s.size === "34").remaining, "new size 34").toBe(3);
+});
+
+test("Purchasing ledger: purchases and vendor payments with a running balance", async () => {
+  const vendorId = S.ids.vendors[0]; // "E2E Vendor" with one purchase of 3 × 800 = 2,400
+  expect((await api(S.cutter, "GET", "/api/purchases/ledger")).status, "cutter forbidden").toBe(403);
+  expect((await api(S.admin, "POST", "/api/vendor-payments", { vendorId, amount: 0 })).status, "zero payment").toBe(
+    400
+  );
+  const pay = await api(S.admin, "POST", "/api/vendor-payments", {
+    vendorId,
+    amount: 1000,
+    method: "cheque",
+    note: "chq 12",
+  });
+  expect(pay.status, "payment").toBe(201);
+  expect(pay.body.vendorName, "vendor name snapshot").toBe("E2E Vendor");
+
+  const ledger = await api(S.admin, "GET", `/api/purchases/ledger?vendorId=${vendorId}`);
+  expect(ledger.status, "ledger").toBe(200);
+  expect(ledger.body.rows.map((r) => `${r.kind}:${r.balance}`).join(","), "running balance").toBe(
+    "purchase:2400,payment:1400"
+  );
+  expect(ledger.body.totals.closing, "payable").toBe(1400);
+  const balance = ledger.body.balances.find((b) => b.vendorId === vendorId);
+  expect(balance.balance, "vendor balance").toBe(1400);
+
+  // A period after today: everything moves into the opening balance.
+  const later = await api(S.admin, "GET", `/api/purchases/ledger?vendorId=${vendorId}&from=2099-01-01&to=2099-01-31`);
+  expect(later.body.opening, "opening").toBe(1400);
+  expect(later.body.rows.length, "no rows in the future").toBe(0);
+  expect((await api(S.admin, "GET", "/api/purchases/ledger?from=26-10-2026")).status, "bad date").toBe(400);
+
+  expect((await api(S.admin, "DELETE", `/api/vendors/${vendorId}`)).status, "vendor with payments").toBe(409);
+  expect((await api(S.admin, "DELETE", `/api/vendor-payments/${pay.body._id}`)).status, "delete payment").toBe(200);
+  const after = await api(S.admin, "GET", `/api/purchases/ledger?vendorId=${vendorId}`);
+  expect(after.body.totals.closing, "payable after delete").toBe(2400);
 });
 
 test("admin account protections", async () => {
@@ -719,6 +780,173 @@ test("Phase 6: operations with rates, workers, work assignment per lot and the w
   expect((await api(S.admin, "GET", `/api/work-entries?lotId=${lotId}`)).body.length, "entries gone").toBe(0);
 });
 
+test("Attendance: present / absent / leave per day; absent and leave cut a day of the per-day salary", async () => {
+  const today = localDay();
+  const yesterday = localDay(-1);
+  const workers = (await api(S.admin, "GET", "/api/workers")).body;
+  const akram = workers.find((w) => w.name === "E2E Akram");
+  const bilal = workers.find((w) => w.name === "E2E Bilal"); // per-day salary 100
+  expect((await api(S.cutter, "GET", `/api/attendance?day=${today}`)).status, "cutter forbidden").toBe(403);
+
+  const saved = await api(S.admin, "PUT", "/api/attendance", {
+    day: today,
+    marks: [
+      { workerId: akram._id, status: "present" },
+      { workerId: bilal._id, status: "absent" },
+    ],
+  });
+  expect(saved.status, "mark").toBe(200);
+  const bilalRow = saved.body.rows.find((r) => r.workerId === bilal._id);
+  expect([bilalRow.status, bilalRow.cut], "absent cuts a day").toEqual(["absent", 100]);
+  expect(saved.body.counts.present >= 1 && saved.body.counts.absent >= 1, "counts").toBe(true);
+  expect(
+    (
+      await api(S.admin, "PUT", "/api/attendance", {
+        day: yesterday,
+        marks: [{ workerId: bilal._id, status: "leave" }],
+      })
+    ).status,
+    "leave yesterday"
+  ).toBe(200);
+
+  const sheet = await api(S.admin, "GET", `/api/attendance?day=${today}`);
+  expect(sheet.body.rows.find((r) => r.workerId === akram._id).status, "sheet keeps the marks").toBe("present");
+
+  const report = await api(
+    S.admin,
+    "GET",
+    `/api/wages/report?filter=custom&from=${yesterday}&to=${today}&workerId=${bilal._id}`
+  );
+  const b = report.body.workers[0];
+  expect([b.absentDays, b.absents, b.leaveDays, b.leaves], "absent and leave days in the wages").toEqual([
+    1, 100, 1, 100,
+  ]);
+  expect(b.net, "both days cut").toBe(b.amount - 200);
+  const csv = await S.admin.fetch(`${BASE}/api/wages/report?filter=custom&from=${yesterday}&to=${today}&format=csv`);
+  expect(await csv.text(), "csv has the absent column").toContain('"Absent cut"');
+
+  const register = await api(S.admin, "GET", `/api/attendance/month?month=${yesterday.slice(0, 7)}`);
+  expect(register.status, "month register").toBe(200);
+  const row = register.body.rows.find((r) => r.workerId === bilal._id);
+  expect(row.marks[yesterday], "register shows the leave").toBe("leave");
+  expect((await api(S.admin, "GET", "/api/attendance/month?month=2026-13")).status, "bad month").toBe(400);
+
+  // clearing a mark removes the cut
+  const cleared = await api(S.admin, "PUT", "/api/attendance", {
+    day: today,
+    marks: [
+      { workerId: akram._id, status: "" },
+      { workerId: bilal._id, status: "" },
+    ],
+  });
+  expect(cleared.body.rows.find((r) => r.workerId === bilal._id).status, "cleared").toBe("");
+  await api(S.admin, "PUT", "/api/attendance", { day: yesterday, marks: [{ workerId: bilal._id, status: "" }] });
+  const after = await api(
+    S.admin,
+    "GET",
+    `/api/wages/report?filter=custom&from=${yesterday}&to=${today}&workerId=${bilal._id}`
+  );
+  expect((after.body.workers[0]?.absents ?? 0) + (after.body.workers[0]?.leaves ?? 0), "no cuts left").toBe(0);
+
+  expect(
+    (await api(S.admin, "PUT", "/api/attendance", { day: today, marks: [{ workerId: bilal._id, status: "sick" }] }))
+      .status,
+    "unknown status"
+  ).toBe(400);
+  expect(
+    (
+      await api(S.admin, "PUT", "/api/attendance", {
+        day: today,
+        marks: [{ workerId: "64b000000000000000000099", status: "present" }],
+      })
+    ).status,
+    "unknown worker"
+  ).toBe(400);
+});
+
+test("Rate cards: operations sit under main operations; a category's card decides what a lot offers and at which rate", async () => {
+  const overlock = await api(S.admin, "POST", "/api/operations", { name: "E2E Overlock", rate: 3, stage: "stitching" });
+  const wash = await api(S.admin, "POST", "/api/operations", { name: "E2E Wash", rate: 5, stage: "washing" });
+  expect(overlock.status, "create operation").toBe(201);
+  expect(wash.body.stage, "main operation stored").toBe("washing");
+  S.ids.operations.push(overlock.body._id, wash.body._id);
+  expect(
+    (await api(S.admin, "POST", "/api/operations", { name: "E2E Odd", rate: 1, stage: "dancing" })).status,
+    "unknown main operation"
+  ).toBe(400);
+
+  const product = (await api(S.admin, "GET", "/api/products")).body.find((p) => p._id === S.productId);
+  const category = product.category;
+  const cards = await api(S.admin, "GET", "/api/operation-sets");
+  expect(cards.status, "cards").toBe(200);
+  expect(cards.body.categories.find((c) => c.category === category)?.items.length, "no card yet").toBe(0);
+  expect((await api(S.cutter, "GET", "/api/operation-sets")).status, "cutter forbidden").toBe(403);
+
+  const lotId = S.stageLotId;
+  const before = await api(S.admin, "GET", `/api/lots/${lotId}/operations`);
+  expect(before.body.fromCard, "no card: every operation").toBe(false);
+  expect(
+    before.body.operations.some((o) => o.name === "E2E Wash"),
+    "all active offered"
+  ).toBe(true);
+  expect((await api(S.cutter, "GET", `/api/lots/${lotId}/operations`)).status, "cutter can't").toBe(403);
+
+  const card = await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent(category)}`, {
+    items: [
+      { operationId: overlock.body._id, rate: 3.5 },
+      { operationId: wash.body._id, rate: 6 },
+    ],
+  });
+  expect(card.status, "save card").toBe(200);
+  expect(card.body.perPiece, "labour per piece on the card").toBe(9.5);
+
+  const offered = await api(S.admin, "GET", `/api/lots/${lotId}/operations`);
+  expect(offered.body.fromCard, "card used").toBe(true);
+  expect(offered.body.category, "the article's category").toBe(category);
+  expect(
+    offered.body.operations.map((o) => `${o.name}:${o.stage}:${o.rate}`).join(","),
+    "card operations with card rates"
+  ).toBe("E2E Overlock:stitching:3.5,E2E Wash:washing:6");
+
+  const workers = (await api(S.admin, "GET", "/api/workers")).body;
+  const akram = workers.find((w) => w.name === "E2E Akram");
+  const work = await api(S.admin, "POST", "/api/work-entries", {
+    lotId,
+    operationId: overlock.body._id,
+    rows: [{ workerId: akram._id, pieces: 10 }],
+  });
+  expect(work.body[0].rate, "no rate sent: the card's rate").toBe(3.5);
+  expect(work.body[0].amount, "10 x 3.5").toBe(35);
+  await api(S.admin, "DELETE", `/api/work-entries/${work.body[0]._id}`);
+
+  // a deleted operation leaves the card; an empty card is removed
+  expect((await api(S.admin, "DELETE", `/api/operations/${wash.body._id}`)).status, "delete wash").toBe(200);
+  const afterDelete = (await api(S.admin, "GET", "/api/operation-sets")).body.categories.find(
+    (c) => c.category === category
+  );
+  expect(afterDelete.items.map((i) => i.name).join(), "wash left the card").toBe("E2E Overlock");
+  const baggy = await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent("E2E Baggy Pent")}`, {
+    items: [{ operationId: overlock.body._id, rate: 4 }],
+  });
+  expect(baggy.body.category, "category with a space").toBe("E2E Baggy Pent");
+  expect(
+    (
+      await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent(category)}`, {
+        items: [{ operationId: "64b000000000000000000099", rate: 1 }],
+      })
+    ).status,
+    "unknown operation"
+  ).toBe(400);
+  expect(
+    (await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent(category)}`, { items: [] })).status,
+    "remove card"
+  ).toBe(200);
+  await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent("E2E Baggy Pent")}`, { items: [] });
+  expect((await api(S.admin, "GET", `/api/lots/${lotId}/operations`)).body.fromCard, "back to every operation").toBe(
+    false
+  );
+});
+
 test("Phase 7: gate passes are issued with the stage changes and carry bundle, sizes, shrinkage and wash", async () => {
   const created = await api(S.cutter, "POST", "/api/lots", {
     productId: S.productId,
@@ -737,15 +965,20 @@ test("Phase 7: gate passes are issued with the stage changes and carry bundle, s
   const id = created.body._id;
   S.ids.lots.push(id);
 
-  expect((await api(S.cutter, "GET", `/api/lots/${id}/gate-passes`)).body.length, "no pass yet").toBe(0);
+  const atCutting = (await api(S.cutter, "GET", `/api/lots/${id}/gate-passes`)).body;
+  expect(atCutting.map((p) => p.type).join(","), "cutting pass only").toBe("cutting");
+  expect(atCutting[0].bundleNumber, "bundle on cutting pass").toBe("B-7");
+  expect(atCutting[0].shrinkage, "shrinkage on cutting pass").toBe(12);
+  expect(atCutting[0].sizeRange, "sizes on cutting pass").toBe("30 – 32");
+  expect(atCutting[0].pieces, "pieces on cutting pass").toBe(100);
   expect((await api(S.admin, "POST", `/api/lots/${id}/gate-passes`, { type: "stitching" })).status, "too early").toBe(
     409
   );
 
   const sent = await api(S.admin, "POST", `/api/lots/${id}/stage`, { action: "send_stitching" });
   expect(sent.status, "send_stitching").toBe(200);
-  expect(sent.body.gatePasses.length, "stitching pass issued").toBe(1);
-  const stitchingPass = sent.body.gatePasses[0];
+  expect(sent.body.gatePasses.map((p) => p.type).join(","), "stitching pass issued").toBe("cutting,stitching");
+  const stitchingPass = sent.body.gatePasses[1];
   expect(/^GP-\d{4,}$/.test(stitchingPass.number), "numbered").toBe(true);
   expect(stitchingPass.type, "type").toBe("stitching");
   expect(stitchingPass.pieces, "cut pieces").toBe(100);
@@ -766,7 +999,7 @@ test("Phase 7: gate passes are issued with the stage changes and carry bundle, s
 
   const list = await api(S.cutter, "GET", `/api/lots/${id}/gate-passes`);
   expect(list.status, "owner can read").toBe(200);
-  expect(list.body.map((p) => p.type).join(","), "both passes").toBe("stitching,washing");
+  expect(list.body.map((p) => p.type).join(","), "three separate passes").toBe("cutting,stitching,washing");
   expect((await api(S.cutter2, "GET", `/api/lots/${id}/gate-passes`)).status, "other cutter").toBe(403);
   expect((await api(S.cutter, "POST", `/api/lots/${id}/gate-passes`, { type: "washing" })).status, "cutter issue").toBe(
     403
@@ -878,6 +1111,13 @@ const uiTest = (name, fn) =>
     const page = await context.newPage();
     try {
       await fn(page);
+    } catch (err) {
+      // E2E_SHOTS=<dir> keeps a screenshot of every failing UI test.
+      if (process.env.E2E_SHOTS) {
+        const file = path.join(process.env.E2E_SHOTS, `${name.replace(/[^a-z0-9]+/gi, "-").slice(0, 80)}.png`);
+        await page.screenshot({ path: file, fullPage: true }).catch(() => {});
+      }
+      throw err;
     } finally {
       await context.close();
     }
@@ -912,6 +1152,252 @@ uiTest("UI: cutting master creates a lot from the form and lands on its detail p
   await page.waitForSelector('[data-testid="lot-detail"]', { timeout: 60_000 });
   expect(await page.locator('[data-testid="lot-history-item"]').count(), "history").toBe(1);
   S.ids.lots.push(new URL(page.url()).pathname.split("/").pop());
+  // the cutting gate pass is there right away, for the cutting master to print
+  await page.waitForSelector('[data-testid="gate-pass-row"][data-type="cutting"]', { timeout: 60_000 });
+  expect(await page.locator('[data-testid="gate-pass-row"]').count(), "one cutting pass").toBe(1);
+  expect(await page.locator('[data-testid="gate-pass-replaced"]').count(), "nothing replaced").toBe(0);
+
+  // the first lot's sizes were edited: its first cutting pass is marked old
+  await page.goto(`${BASE}/cutting/${S.lotId}`);
+  await page.waitForSelector('[data-testid="gate-pass-row"][data-type="cutting"]', { timeout: 60_000 });
+  expect(await page.locator('[data-testid="gate-pass-row"]').count(), "two cutting passes").toBe(2);
+  const latest = await page.locator('[data-testid="gate-pass-row"]').nth(1).getAttribute("data-number");
+  expect(await page.locator('[data-testid="gate-pass-row"]').first().getAttribute("data-replaced"), "old").toBe("true");
+  expect(await page.locator('[data-testid="gate-pass-replaced"]').innerText(), "points to the new pass").toContain(
+    latest
+  );
+});
+
+test("partial updates keep the fields that were not sent (customer city, product stock, lot bundle)", async () => {
+  const customer = await api(S.admin, "POST", "/api/customers", {
+    name: "E2E Partial",
+    phone: "0300-1112223",
+    city: "Lahore",
+  });
+  expect(customer.status, "create customer").toBe(201);
+  const customerId = customer.body._id;
+  expect((await api(S.admin, "PUT", `/api/customers/${customerId}`, { openingBalance: 250 })).status, "balance").toBe(
+    200
+  );
+  const savedCustomer = (await api(S.admin, "GET", "/api/customers")).body.find((c) => c._id === customerId);
+  expect(savedCustomer.city, "city kept after a balance edit").toBe("Lahore");
+  expect(savedCustomer.openingBalance, "balance saved").toBe(250);
+  await api(S.admin, "DELETE", `/api/customers/${customerId}`);
+
+  const product = await api(S.admin, "POST", "/api/products", {
+    name: "E2E Partial Shirt",
+    category: "Shirts",
+    purchasePrice: 400,
+    salePrice: 700,
+    remaining: 9,
+  });
+  expect(product.status, "create product").toBe(201);
+  const edit = { name: "E2E Partial Shirt 2", category: "Shirts", purchasePrice: 450, salePrice: 750 };
+  expect((await api(S.admin, "PUT", `/api/products/${product.body._id}`, edit)).status, "edit product").toBe(200);
+  const savedProduct = (await api(S.admin, "GET", "/api/products")).body.find((p) => p._id === product.body._id);
+  expect(savedProduct.remaining, "stock kept after a name/price edit").toBe(9);
+  expect(savedProduct.salePrice, "price saved").toBe(750);
+  await api(S.admin, "DELETE", `/api/products/${product.body._id}`);
+
+  const lot = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "Denim", qty: 20 },
+    sizes: [{ size: "30", qty: 10 }],
+    bundleNumber: "B-9",
+    shrinkage: 5,
+    note: "partial",
+  });
+  const sizesOnly = await api(S.cutter, "PUT", `/api/lots/${lot.body._id}`, { sizes: [{ size: "30", qty: 12 }] });
+  expect(sizesOnly.body.bundleNumber, "bundle kept after a sizes edit").toBe("B-9");
+  expect(sizesOnly.body.note, "note kept").toBe("partial");
+  expect(sizesOnly.body.gatePasses[0].bundleNumber, "fresh cutting pass keeps the bundle").toBe("B-9");
+  expect(sizesOnly.body.gatePasses[0].pieces, "fresh cutting pass pieces").toBe(12);
+  expect((await api(S.admin, "DELETE", `/api/lots/${lot.body._id}`)).status, "delete lot").toBe(200);
+});
+
+test("fabric khata: fabric in, cutting entries out, balance per fabric, day by day and the daily cutting report", async () => {
+  const today = localDay();
+  const yesterday = localDay(-1);
+  const KEY = "e2e 15-14 kz|m";
+  const balanceOf = async (session, query = "") =>
+    (await api(session, "GET", `/api/fabric${query}`)).body.balances.find((b) => b.key === KEY);
+
+  const first = await api(S.cutter, "POST", "/api/fabric/receipts", { day: yesterday, name: "E2E 15-14 KZ", qty: 500 });
+  expect(first.status, "receive").toBe(201);
+  const cutterId = first.body.holder.id;
+  expect(Boolean(cutterId), "held by the cutting master").toBe(true);
+  const second = await api(S.cutter, "POST", "/api/fabric/receipts", {
+    day: today,
+    name: " e2e 15-14  kz ",
+    qty: 200,
+    note: "4 rolls",
+  });
+  expect(second.status, "receive again (same fabric, other spelling)").toBe(201);
+
+  const lot = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "E2E 15-14 KZ", qty: 120 },
+    sizes: [{ size: "30", qty: 40 }],
+    bundleNumber: "B-50",
+    note: "Double stitch on pockets",
+  });
+  expect(lot.status, "cutting entry").toBe(201);
+  S.ids.lots.push(lot.body._id);
+
+  const khata = await api(S.cutter, "GET", "/api/fabric");
+  expect(khata.status, "khata").toBe(200);
+  expect(khata.body.admin, "cutter is not admin").toBe(false);
+  const row = khata.body.balances.find((b) => b.key === KEY);
+  expect([row.received, row.used, row.balance], "received / used / in hand").toEqual([700, 120, 580]);
+
+  const days = await api(S.cutter, "GET", `/api/fabric?fabric=${encodeURIComponent(KEY)}`);
+  expect(
+    days.body.ledger[0].days.map((d) => [d.day, d.received, d.used, d.balance]),
+    "day by day"
+  ).toEqual([
+    [yesterday, 500, 0, 500],
+    [today, 200, 120, 580],
+  ]);
+  const period = await api(S.cutter, "GET", `/api/fabric?fabric=${encodeURIComponent(KEY)}&from=${today}&to=${today}`);
+  expect(period.body.ledger[0].opening, "opening before the period").toBe(500);
+  expect(
+    period.body.receipts.map((r) => r.qty),
+    "receipts in the period"
+  ).toEqual([200]);
+
+  const edited = await api(S.cutter, "PUT", `/api/lots/${lot.body._id}`, {
+    fabric: { name: "E2E 15-14 KZ", qty: 100 },
+  });
+  expect(edited.status, "edit cutting entry").toBe(200);
+  expect((await balanceOf(S.cutter)).balance, "edit corrects the balance").toBe(600);
+
+  const report = await api(S.cutter, "GET", `/api/fabric/report?day=${today}`);
+  expect(report.status, "report").toBe(200);
+  const reportLot = report.body.lots.find((l) => l._id === lot.body._id);
+  expect(reportLot.note, "remarks on the report").toBe("Double stitch on pockets");
+  expect(reportLot.bundleNumber, "bundle on the report").toBe("B-50");
+  const reportFabric = report.body.fabrics.find((f) => f.key === KEY);
+  expect(
+    [reportFabric.opening, reportFabric.received, reportFabric.used, reportFabric.closing],
+    "opening / received / used / in hand"
+  ).toEqual([500, 200, 100, 600]);
+  expect((await api(S.cutter, "GET", "/api/fabric/report?day=26-10-2026")).status, "bad day").toBe(400);
+
+  // the other cutting master sees none of it and can't touch it
+  expect(await balanceOf(S.cutter2), "other cutter's khata").toBeUndefined();
+  expect(
+    (await api(S.cutter2, "PUT", `/api/fabric/receipts/${first.body._id}`, { qty: 1 })).status,
+    "other cutter edit"
+  ).toBe(403);
+  expect((await api(S.cutter2, "DELETE", `/api/fabric/receipts/${first.body._id}`)).status, "other cutter delete").toBe(
+    403
+  );
+
+  // admin sees everyone, filters by cutting master and records fabric for them
+  const adminView = await api(S.admin, "GET", `/api/fabric?holderId=${cutterId}`);
+  expect(adminView.body.admin, "admin flag").toBe(true);
+  expect(
+    adminView.body.holders.some((h) => h.id === cutterId),
+    "cutting masters listed"
+  ).toBe(true);
+  expect(adminView.body.balances.find((b) => b.key === KEY).balance, "admin view of the cutter").toBe(600);
+  const forCutter = await api(S.admin, "POST", "/api/fabric/receipts", {
+    day: today,
+    name: "E2E 15-14 KZ",
+    qty: 50,
+    holderId: cutterId,
+  });
+  expect(forCutter.body.holder.id, "recorded for the cutting master").toBe(cutterId);
+  expect((await balanceOf(S.cutter)).balance, "cutter sees what admin gave").toBe(650);
+
+  // correcting and deleting receipts
+  expect((await api(S.cutter, "PUT", `/api/fabric/receipts/${second.body._id}`, { qty: 150 })).status, "edit").toBe(
+    200
+  );
+  expect((await balanceOf(S.cutter)).balance, "after correcting a receipt").toBe(600);
+  expect((await api(S.cutter, "DELETE", `/api/fabric/receipts/${forCutter.body._id}`)).status, "delete").toBe(200);
+  expect((await balanceOf(S.cutter)).balance, "after deleting a receipt").toBe(550);
+
+  expect((await api(S.cutter, "POST", "/api/fabric/receipts", { day: today, name: "x", qty: 0 })).status, "qty 0").toBe(
+    400
+  );
+  expect(
+    (await api(S.cutter, "POST", "/api/fabric/receipts", { day: "today", name: "x", qty: 5 })).status,
+    "bad day"
+  ).toBe(400);
+});
+
+uiTest(
+  "UI: cutting master receives fabric, sees what is left while cutting, and the report shows the remarks",
+  async (page) => {
+    await browserLogin(page, "e2e-cutter", "cutter123");
+    await page.goto(`${BASE}/fabric`);
+    await page.waitForSelector('[data-testid="fabric-page"]', { timeout: 60_000 });
+    await page.click('[data-testid="fabric-receive"]');
+    await page.waitForSelector('[data-testid="fabric-receipt-form"]');
+    await page.fill('[data-testid="fabric-receipt-name"]', "UI Fabric 77");
+    await page.fill('[data-testid="fabric-receipt-qty"]', "300");
+    await page.click('[data-testid="fabric-receipt-submit"]');
+    await page.waitForSelector('[data-testid="fabric-receipt-form"]', { state: "detached", timeout: 60_000 });
+    const card = page.locator('[data-testid="fabric-balance-card"][data-key="ui fabric 77|m"]');
+    await card.waitFor({ timeout: 60_000 });
+    expect(await card.getAttribute("data-balance"), "in hand after receiving").toBe("300");
+
+    // cutting form: pick the fabric from our own suggestion list; what is left after this cutting shows live
+    await page.goto(`${BASE}/cutting/new`);
+    const form = page.locator('[data-testid="lot-form"]');
+    await form.waitFor({ timeout: 60_000 });
+    await page.click('[data-testid="lot-form-product"]');
+    await page.getByText("E2E Slim Fit Denim", { exact: true }).first().click();
+    await page.fill('[data-testid="lot-form-fabric-name"]', "ui fabric");
+    await page.locator('[data-testid="lot-form-fabric-name-option"]', { hasText: "UI Fabric 77" }).click();
+    expect(await page.inputValue('[data-testid="lot-form-fabric-name"]'), "picked fabric").toBe("UI Fabric 77");
+    await page.fill('[data-testid="lot-form-fabric-qty"]', "120");
+    const hint = page.locator('[data-testid="lot-form-fabric-balance"][data-after]');
+    await hint.waitFor();
+    expect(await hint.getAttribute("data-after"), "left after this cutting").toBe("180");
+    await form.locator('[data-testid="lot-form-size-row"] input[type="number"]').first().fill("30");
+    await page.fill('[data-testid="lot-form-note"]', "Use blue thread");
+    await page.click('[data-testid="lot-form-submit"]');
+    await page.waitForURL((url) => /^\/cutting\/[a-f0-9]{24}$/.test(url.pathname), { timeout: 60_000 });
+    S.ids.lots.push(new URL(page.url()).pathname.split("/").pop());
+
+    // My Lots shows the fabric in hand up front
+    await page.goto(`${BASE}/cutting`);
+    const strip = page.locator('[data-testid="fabric-strip-row"]', { hasText: "UI Fabric 77" });
+    await strip.waitFor({ timeout: 60_000 });
+    expect(await strip.innerText(), "in hand on My Lots").toContain("180 m");
+
+    // daily cutting report: today's entry with its remarks, and the fabric left
+    await page.goto(`${BASE}/fabric/report`);
+    await page.waitForSelector('[data-testid="report-lot-row"]', { timeout: 60_000 });
+    expect(
+      await page.locator('[data-testid="report-lot-row"]', { hasText: "Use blue thread" }).count(),
+      "remarks shown"
+    ).toBe(1);
+    expect(
+      await page.locator('[data-testid="report-fabric-row"][data-key="ui fabric 77|m"]').getAttribute("data-closing"),
+      "in hand at the end of the day"
+    ).toBe("180");
+    await page.click('[data-testid="report-prev-day"]');
+    await page.waitForSelector('[data-testid="report-no-lots"]', { timeout: 60_000 });
+    expect(await page.getAttribute('[data-testid="report-day"]', "data-value"), "moved a day back").toBe(localDay(-1));
+  }
+);
+
+test("deleting a lot at cutting also removes its cutting gate pass", async () => {
+  const lot = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "Denim" },
+    sizes: [{ size: "30", qty: 5 }],
+  });
+  expect(lot.body.gatePasses.length, "pass issued").toBe(1);
+  expect((await api(S.admin, "DELETE", `/api/lots/${lot.body._id}`)).status, "delete").toBe(200);
+  const dash = await api(S.admin, "GET", "/api/dashboard");
+  expect(
+    dash.body.gatePasses.some((p) => String(p.lotId) === lot.body._id),
+    "deleted lot's pass gone"
+  ).toBe(false);
 });
 
 uiTest("UI: admin sees the dashboard, the lots list and the users page", async (page) => {
@@ -1137,7 +1623,11 @@ uiTest("UI (Phase 5): admin enables sizes on an existing product from the edit p
   await row.locator('[data-testid="product-edit"]').click();
   const form = page.locator('[data-testid="product-edit-form"]');
   await form.waitFor({ timeout: 60_000 });
-  await form.locator('[data-testid="product-track-sizes"]').check();
+  await form.locator('[data-testid="product-track-sizes"]').click();
+  expect(
+    await form.locator('[data-testid="product-track-sizes"]').getAttribute("aria-checked"),
+    "size tracking switched on"
+  ).toBe("true");
   const qtyInputs = form.locator('[data-testid="product-size-row"] input[type="number"]');
   await qtyInputs.nth(0).fill("10");
   await qtyInputs.nth(1).fill("20");
@@ -1197,14 +1687,24 @@ uiTest(
     ).toBe("196");
     expect(await page.locator('[data-testid="wages-total"]').getAttribute("data-net"), "total").toBe("392");
 
-    // one day of leave for Bilal from the "Leave / Advance" popup: cut at his per-day salary (100)
-    await page.click('[data-testid="wages-add-adjustment"]');
-    await page.waitForSelector('[data-testid="adjustment-form"]', { timeout: 60_000 });
-    await page.locator('[data-testid="adjustment-worker"] button').click();
-    await page.locator('[data-testid="adjustment-worker"] li', { hasText: "E2E Bilal" }).click();
-    expect(await page.locator('[data-testid="adjustment-rate"]').inputValue(), "rate prefilled").toBe("100");
-    await page.click('[data-testid="adjustment-submit"]');
-    await page.waitForSelector('[data-testid="adjustment-row"][data-type="leave"]', { timeout: 60_000 });
+    // one day of leave for Bilal on the Attendance page: cut at his per-day salary (100)
+    await page.goto(`${BASE}/attendance`);
+    const bilalRow = page.locator('[data-testid="attendance-row"][data-worker="E2E Bilal"]');
+    await bilalRow.waitFor({ timeout: 60_000 });
+    const saved = page.waitForResponse((r) => r.url().includes("/api/attendance") && r.request().method() === "PUT");
+    await bilalRow.locator('[data-testid="attendance-leave"]').click();
+    expect((await saved).status(), "attendance saved").toBe(200);
+    expect(await bilalRow.getAttribute("data-status"), "marked leave").toBe("leave");
+    expect(await bilalRow.locator('[data-testid="attendance-row-cut"]').innerText(), "one day cut").toContain("100");
+    await page.click('[data-testid="attendance-tab-month"]');
+    const registerRow = page.locator('[data-testid="attendance-month-row"][data-worker="E2E Bilal"]');
+    await registerRow.waitFor({ timeout: 60_000 });
+    expect(
+      await registerRow.locator(`td[data-day="${localDay()}"]`).getAttribute("data-status"),
+      "register shows the leave"
+    ).toBe("leave");
+    await page.goto(`${BASE}/wages`);
+    await page.waitForSelector('[data-testid="wages-row"]', { timeout: 60_000 });
     await page.waitForFunction(
       () => document.querySelector('[data-testid="wages-row"][data-worker="E2E Bilal"]')?.dataset.net === "96",
       null,
@@ -1260,6 +1760,63 @@ uiTest(
     // clean the UI entries so the cleanup can delete the workers/operations
     const entries = (await api(S.admin, "GET", `/api/work-entries?lotId=${id}`)).body;
     for (const entry of entries) await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
+    const bilal = (await api(S.admin, "GET", "/api/workers")).body.find((w) => w.name === "E2E Bilal");
+    await api(S.admin, "PUT", "/api/attendance", { day: localDay(), marks: [{ workerId: bilal._id, status: "" }] });
+  }
+);
+
+uiTest(
+  "UI: an operation goes under its main operation; a category rate card decides what the lot offers",
+  async (page) => {
+    await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+    await page.goto(`${BASE}/workers`);
+    await page.waitForSelector('[data-testid="workers-page"]', { timeout: 60_000 });
+
+    // new operation under Washing
+    await page.click('[data-testid="workers-tab-operations"]');
+    await page.click('[data-testid="operations-add"]');
+    await page.waitForSelector('[data-testid="operation-form"]');
+    await page.fill('[data-testid="operation-form-name"]', "E2E UI Wash");
+    await page.fill('[data-testid="operation-form-rate"]', "6");
+    await page.click('[data-testid="operation-form-stage-washing"]');
+    await page.click('[data-testid="operation-form-submit"]');
+    await page.waitForSelector(
+      '[data-testid="operation-group"][data-stage="washing"] [data-testid="operation-row"][data-operation-name="E2E UI Wash"]',
+      { timeout: 60_000 }
+    );
+    const uiWash = (await api(S.admin, "GET", "/api/operations")).body.operations.find((o) => o.name === "E2E UI Wash");
+    S.ids.operations.push(uiWash._id);
+
+    // the article's category gets a card: E2E Pocket at Rs 5
+    const product = (await api(S.admin, "GET", "/api/products")).body.find((p) => p._id === S.productId);
+    await page.click('[data-testid="workers-tab-cards"]');
+    const card = page.locator(`[data-testid="rate-card"][data-category="${product.category}"]`);
+    await card.waitFor({ timeout: 60_000 });
+    await card.locator('[data-testid="rate-card-edit"]').click();
+    await page.waitForSelector('[data-testid="rate-card-form"]');
+    const pocket = page.locator('[data-testid="rate-card-row"][data-operation="E2E Pocket"]');
+    await pocket.locator('[data-testid="rate-card-check"]').click();
+    await pocket.locator('[data-testid="rate-card-rate"]').fill("5");
+    expect(await page.getAttribute('[data-testid="rate-card-total"]', "data-total"), "total per piece").toBe("5");
+    await page.click('[data-testid="rate-card-submit"]');
+    await page.waitForSelector('[data-testid="rate-card-form"]', { state: "detached", timeout: 60_000 });
+    await page.waitForFunction(
+      (name) => document.querySelector(`[data-testid="rate-card"][data-category="${name}"]`)?.dataset.total === "5",
+      product.category,
+      { timeout: 60_000 }
+    );
+
+    // the lot only offers the card's operation, at the card's rate, and shows its progress
+    await page.goto(`${BASE}/lots/${S.uiLotId}`);
+    await page.waitForSelector('[data-testid="lot-work-op"][data-operation="E2E Pocket"]', { timeout: 60_000 });
+    await page.click('[data-testid="lot-assign-work"]');
+    await page.waitForSelector('[data-testid="assign-rate-card"][data-from-card="true"]', { timeout: 60_000 });
+    await page.locator('[data-testid="assign-operation"] button').click();
+    expect(await page.locator('[data-testid="assign-operation"] li').count(), "only the card's operation").toBe(1);
+    await page.locator('[data-testid="assign-operation"] li', { hasText: "E2E Pocket" }).click();
+    expect(await page.locator('[data-testid="assign-rate"]').inputValue(), "card rate prefilled").toBe("5");
+
+    await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent(product.category)}`, { items: [] });
   }
 );
 
@@ -1268,7 +1825,19 @@ uiTest("UI (Phase 7): the lot page lists gate passes and the preview shows both 
   await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
   await page.goto(`${BASE}/lots/${lot._id}`);
   await page.waitForSelector('[data-testid="gate-pass-row"]', { timeout: 60_000 });
-  expect(await page.locator('[data-testid="gate-pass-row"]').count(), "three passes").toBe(3);
+  expect(await page.locator('[data-testid="gate-pass-row"]').count(), "four passes").toBe(4);
+  expect(
+    await page.locator('[data-testid="gate-pass-row"]').evaluateAll((rows) => rows.map((r) => r.dataset.type).join()),
+    "cutting, stitching, washing, reissued washing"
+  ).toBe("cutting,stitching,washing,washing");
+  await page.locator('[data-testid="gate-pass-row"][data-type="cutting"] [data-testid="gate-pass-open"]').click();
+  await page.waitForSelector('[data-testid="gate-pass-document"][data-type="cutting"]', { timeout: 60_000 });
+  expect((await page.locator('[data-testid="gate-pass-title"]').innerText()).toLowerCase(), "cutting title").toBe(
+    "cutting gate pass"
+  );
+  expect(await page.locator('[data-testid="gate-pass-bundle"]').innerText(), "bundle on cutting pass").toBe("B-7");
+  await page.click('button[aria-label="Close"]');
+  await page.waitForSelector('[data-testid="gate-pass-document"]', { state: "detached", timeout: 60_000 });
   expect(await page.locator('[data-testid="lot-cutting-details"]').innerText(), "bundle shown").toContain("B-7");
   await page.locator('[data-testid="gate-pass-row"][data-type="stitching"] [data-testid="gate-pass-open"]').click();
   await page.waitForSelector('[data-testid="gate-pass-document"]', { timeout: 60_000 });
@@ -1332,6 +1901,53 @@ uiTest("UI (Phase 7b): the stitching page shows what is lying and sends a part o
   );
 });
 
+uiTest("UI: purchasing ledger records a vendor payment and shows the balance", async (page) => {
+  await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+  await page.goto(`${BASE}/purchasing`);
+  await page.click('[data-testid="purchasing-tab-ledger"]');
+  await page.waitForSelector('[data-testid="purchase-ledger"]', { timeout: 60_000 });
+  await page.locator('[data-testid="ledger-vendor"] button').click();
+  await page.locator('[data-testid="ledger-vendor"] li', { hasText: "E2E Vendor" }).click();
+  await page.waitForFunction(
+    () => document.querySelectorAll('[data-testid="purchase-ledger-row"]').length === 1,
+    null,
+    { timeout: 60_000 }
+  );
+  await page.click('[data-testid="ledger-record-payment"]');
+  await page.waitForSelector('[data-testid="payment-form"]', { timeout: 60_000 });
+  expect(await page.getAttribute('[data-testid="payment-payable"]', "data-payable"), "payable shown").toBe("2400");
+  await page.fill('[data-testid="payment-amount"]', "400");
+  // The custom date field: open the calendar, take "Yesterday", the field shows it and the calendar closes.
+  await page.click('[data-testid="payment-date"]');
+  await page.waitForSelector('[data-testid="payment-date-panel"]', { timeout: 60_000 });
+  await page.locator('[data-testid="payment-date-panel"] button', { hasText: "Yesterday" }).click();
+  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleDateString("en-CA");
+  await page.waitForFunction(
+    (day) =>
+      document.querySelector('[data-testid="payment-date"]')?.dataset.value === day &&
+      !document.querySelector('[data-testid="payment-date-panel"]'),
+    yesterday,
+    { timeout: 60_000 }
+  );
+  await page.click('[data-testid="payment-submit"]');
+  await page.waitForFunction(
+    () => {
+      const rows = document.querySelectorAll('[data-testid="purchase-ledger-row"]');
+      return rows.length === 2 && rows[1].dataset.balance === "2000";
+    },
+    null,
+    { timeout: 60_000 }
+  );
+  // Remove it again from the row (confirmation popup) so the vendor stays clean for the cleanup.
+  await page.click('[data-testid="ledger-payment-delete"]');
+  await page.click('[data-testid="ledger-payment-delete-confirm"]');
+  await page.waitForFunction(
+    () => document.querySelectorAll('[data-testid="purchase-ledger-row"]').length === 1,
+    null,
+    { timeout: 60_000 }
+  );
+});
+
 uiTest("UI: inventory shows size chips for the sized product", async (page) => {
   await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
   await page.goto(`${BASE}/inventory`);
@@ -1341,7 +1957,7 @@ uiTest("UI: inventory shows size chips for the sized product", async (page) => {
 
   // Increase-stock popup: the quantity box starts empty and the button stays disabled until a quantity is typed.
   const before = (await api(S.admin, "GET", "/api/products")).body.find((p) => p._id === S.productId);
-  await row.locator('button[title="Increase stock"]').click();
+  await row.locator('button[aria-label="Increase stock"]').click();
   const qty = page.locator('[data-testid="stock-update-qty"]');
   await qty.waitFor({ timeout: 60_000 });
   expect(await qty.inputValue(), "quantity starts empty").toBe("");

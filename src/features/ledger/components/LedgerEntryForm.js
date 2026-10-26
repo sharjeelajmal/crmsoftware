@@ -48,7 +48,7 @@ export function LedgerEntryForm({ initialData = null, onSave, onCancel, isSaving
 
   return (
     <Modal onClose={isSaving ? undefined : onCancel} size="lg">
-      <form onSubmit={handleSubmit} className="space-y-5" data-testid="ledger-form">
+      <form noValidate onSubmit={handleSubmit} className="space-y-5" data-testid="ledger-form">
         <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
           <BookOpen size={22} className="text-primary" />
           {isEditing ? "Edit Entry" : "New Register Entry"}
@@ -64,6 +64,7 @@ export function LedgerEntryForm({ initialData = null, onSave, onCancel, isSaving
             Item <span className="text-danger">*</span>
           </label>
           <input
+            autoComplete="off"
             id="ledger-item"
             name="item"
             type="text"
@@ -84,6 +85,7 @@ export function LedgerEntryForm({ initialData = null, onSave, onCancel, isSaving
               Quantity <span className="text-danger">*</span>
             </label>
             <input
+              autoComplete="off"
               id="ledger-qty"
               name="qty"
               type="number"
@@ -127,6 +129,7 @@ export function LedgerEntryForm({ initialData = null, onSave, onCancel, isSaving
             Note <span className="text-gray-400">(optional)</span>
           </label>
           <input
+            autoComplete="off"
             id="ledger-note"
             name="note"
             type="text"

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  customerUpdateSchema,
+  expenseUpdateSchema,
   lotCreateSchema,
+  lotUpdateSchema,
   productSchema,
+  productUpdateSchema,
+  saleUpdateSchema,
+  salesmanUpdateSchema,
   purchaseSchema,
   saleItemSchema,
   userCreateSchema,
@@ -102,5 +108,25 @@ describe("user schemas", () => {
   it("allows partial updates", () => {
     expect(userUpdateSchema.parse({ active: false })).toEqual({ active: false });
     expect(() => userUpdateSchema.parse({ email: "not-an-email" })).toThrow();
+  });
+});
+
+describe("update schemas", () => {
+  it("only return the fields that were sent (no defaults for the rest)", () => {
+    expect(customerUpdateSchema.parse({ openingBalance: "500" })).toEqual({ openingBalance: 500 });
+    expect(productUpdateSchema.parse({ name: "Jeans", salePrice: "150" })).toEqual({ name: "Jeans", salePrice: 150 });
+    expect(productUpdateSchema.parse({ remaining: "7" })).toEqual({ remaining: 7 });
+    expect(lotUpdateSchema.parse({ sizes: [{ size: "30", qty: "5" }] })).toEqual({ sizes: [{ size: "30", qty: 5 }] });
+    expect(lotUpdateSchema.parse({ note: "x" })).toEqual({ note: "x" });
+    expect(saleUpdateSchema.parse({ receivedAmount: "100" })).toEqual({ receivedAmount: 100 });
+    expect(Object.keys(salesmanUpdateSchema.parse({ name: "Ali" }))).toEqual(["name"]);
+    expect(Object.keys(expenseUpdateSchema.parse({}))).toEqual([]);
+  });
+
+  it("still validate and default inside the fields that were sent", () => {
+    expect(() => productUpdateSchema.parse({ salePrice: -1 })).toThrow();
+    expect(() => lotUpdateSchema.parse({ sizes: [{ size: "30", qty: 0 }] })).toThrow();
+    expect(lotUpdateSchema.parse({ fabric: { name: "Denim" } }).fabric).toEqual({ name: "Denim", qty: 0, unit: "m" });
+    expect(lotUpdateSchema.parse({ bundleNumber: " B-7 " }).bundleNumber).toBe("B-7");
   });
 });

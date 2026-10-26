@@ -13,7 +13,12 @@ const ROW_CLASS = "rounded-xl text-white shadow-md bg-primary overflow-hidden";
 function WorkerWages({ row, entries }) {
   const [open, setOpen] = useState(false);
   const mine = entries.filter((e) => String(e.workerId) === row.workerId);
-  const hasAdjustments = row.leaves || row.recoveries || row.deductions || row.bonuses;
+  const hasAdjustments =
+    row.leaveDays || row.absentDays || row.leaves || row.absents || row.recoveries || row.deductions || row.bonuses;
+  const days = (n) => `${n} day${n === 1 ? "" : "s"}`;
+  // Days off are listed even when nothing is cut (piece-rate workers have no per-day salary).
+  const daysOff = (label, amount, n) =>
+    n ? (amount ? ` − ${label} ${formatMoney(amount)} (${days(n)})` : ` · ${label} ${days(n)}`) : "";
   return (
     <motion.div
       variants={itemVariants}
@@ -36,7 +41,8 @@ function WorkerWages({ row, entries }) {
             {row.entries} entries · {row.pieces} pcs
             {hasAdjustments
               ? ` · wages ${formatMoney(row.amount)}${row.bonuses ? ` + bonus ${formatMoney(row.bonuses)}` : ""}` +
-                `${row.leaves ? ` − leave ${formatMoney(row.leaves)} (${row.leaveDays} day${row.leaveDays === 1 ? "" : "s"})` : ""}` +
+                daysOff("leave", row.leaves, row.leaveDays) +
+                daysOff("absent", row.absents, row.absentDays) +
                 `${row.recoveries ? ` − advance cut ${formatMoney(row.recoveries)}` : ""}` +
                 `${row.deductions ? ` − deduction ${formatMoney(row.deductions)}` : ""}`
               : ""}

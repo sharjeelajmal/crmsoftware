@@ -78,7 +78,8 @@ export function LedgerRow({ entry, onEdit, onDelete, onHistory }) {
         <button
           type="button"
           onClick={() => onHistory(entry)}
-          title={edits ? `History (${edits} edits)` : "History"}
+          data-tip={edits ? `History (${edits} edits)` : "History"}
+          aria-label={edits ? `History (${edits} edits)` : "History"}
           className={`${ICON_BUTTON_CLASS} ${edits ? "hover:text-yellow-300" : "text-white/50 hover:text-white"}`}
           data-testid="ledger-row-history"
         >
@@ -87,7 +88,8 @@ export function LedgerRow({ entry, onEdit, onDelete, onHistory }) {
         <button
           type="button"
           onClick={() => onEdit(entry)}
-          title="Edit"
+          data-tip="Edit"
+          aria-label="Edit"
           className={`${ICON_BUTTON_CLASS} hover:text-yellow-300`}
           data-testid="ledger-row-edit"
         >
@@ -96,7 +98,8 @@ export function LedgerRow({ entry, onEdit, onDelete, onHistory }) {
         <button
           type="button"
           onClick={() => onDelete(entry._id)}
-          title="Delete"
+          data-tip="Delete"
+          aria-label="Delete"
           className={`${ICON_BUTTON_CLASS} hover:text-red-400`}
           data-testid="ledger-row-delete"
         >

@@ -2,21 +2,37 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { HardHat, Trash2, UserPlus } from "lucide-react";
+import { Check, HardHat, Trash2, UserPlus } from "lucide-react";
 import { itemVariants } from "@/constants/animations";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialogs";
 import { Loader } from "@/components/ui/Loader";
 import { formatDate, formatMoney } from "@/lib/format";
+import { operationProgress } from "@/constants/operations";
+import { workPiecesOf } from "@/constants/wages";
 import { useLotWork } from "../hooks/useLotWork";
+import { useLotOperations } from "../hooks/useLotOperations";
 import { groupByOperation } from "../utils";
 import { AssignWorkModal } from "./AssignWorkModal";
 
 const CARD_CLASS = "bg-white p-4 sm:p-6 rounded-2xl shadow-sm";
 
-/** Admin card on the lot page: who did which operation on this lot, what it cost, and the assign action. */
+const chipClass = (op) =>
+  op.complete
+    ? "bg-success-soft text-success"
+    : op.pieces > 0
+      ? "bg-yellow-50 text-yellow-800"
+      : "bg-surface-muted text-gray-600";
+
+/**
+ * Admin card on the lot page: who did which operation on this lot, what it cost, the assign action, and — when the
+ * lot's category has a rate card — how far each of its operations has got (pieces assigned out of the lot's pieces).
+ */
 export function WorkPanel({ lot }) {
   const { entries, totals, isLoading, isSaving, assign, removeEntry } = useLotWork(lot);
+  const offer = useLotOperations(lot?._id);
+  const lotPieces = workPiecesOf(lot);
+  const progress = offer.fromCard ? operationProgress(offer.operations, entries, lotPieces) : [];
   const [popup, setPopup] = useState(null); // "assign" | { remove: entry }
   const groups = groupByOperation(entries);
 
@@ -68,6 +84,29 @@ export function WorkPanel({ lot }) {
         </Button>
       </div>
 
+      {progress.length > 0 && (
+        <div className="mb-4" data-testid="lot-work-progress">
+          <p className="text-xs font-semibold text-gray-500 mb-1.5">
+            {offer.category} operations · pieces done out of {lotPieces}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {progress.map((op) => (
+              <span
+                key={op.operationId}
+                className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium ${chipClass(op)}`}
+                data-testid="lot-work-op"
+                data-operation={op.name}
+                data-pieces={op.pieces}
+                data-complete={op.complete}
+              >
+                {op.complete && <Check size={12} strokeWidth={3} />}
+                {op.name} {op.pieces}/{lotPieces}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isLoading ? (
         <Loader inline />
       ) : groups.length === 0 ? (
@@ -103,7 +142,8 @@ export function WorkPanel({ lot }) {
                     <button
                       type="button"
                       onClick={() => setPopup({ remove: entry })}
-                      title="Remove"
+                      data-tip="Remove"
+                      aria-label="Remove"
                       className="text-gray-400 hover:text-danger cursor-pointer"
                       data-testid="lot-work-remove"
                     >

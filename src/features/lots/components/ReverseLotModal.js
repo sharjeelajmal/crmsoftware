@@ -25,7 +25,7 @@ export function ReverseLotModal({ lot, onReversed, onCancel }) {
 
   return (
     <Modal onClose={isReversing ? undefined : onCancel} size="md">
-      <form onSubmit={handleSubmit} data-testid="lot-reverse-form">
+      <form noValidate onSubmit={handleSubmit} data-testid="lot-reverse-form">
         <h3 className="flex items-center gap-2 text-xl font-bold text-gray-800">
           <Undo2 size={20} className="text-danger" />
           Reverse {lot.lotNumber}?
@@ -38,6 +38,7 @@ export function ReverseLotModal({ lot, onReversed, onCancel }) {
           Reason <span className="text-danger">*</span>
         </label>
         <textarea
+          autoComplete="off"
           id="lot-reverse-reason"
           rows={3}
           maxLength={500}

@@ -27,6 +27,7 @@ export function LedgerToolbar({ search, onSearch, type, onType, filter, appliedR
         <div className="relative w-full lg:w-72">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
+            autoComplete="off"
             type="text"
             placeholder="Search item, note or lot…"
             value={search}

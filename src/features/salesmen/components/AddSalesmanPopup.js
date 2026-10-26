@@ -1,12 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { format } from "date-fns";
-import { Calendar } from "lucide-react";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/dist/style.css";
 import { Modal } from "@/components/ui/Modal";
+import { DatePickerField, dateToValue, valueToDate } from "@/components/ui/DatePickerField";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/ui/ToastProvider";
 
@@ -26,7 +22,6 @@ const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none";
 export function AddSalesmanPopup({ onSave, onCancel }) {
   const toast = useToast();
   const [salesman, setSalesman] = useState(EMPTY_SALESMAN);
-  const [showCalendar, setShowCalendar] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleChange = (e) => setSalesman((current) => ({ ...current, [e.target.name]: e.target.value }));
@@ -49,6 +44,7 @@ export function AddSalesmanPopup({ onSave, onCancel }) {
       <h3 className="text-2xl font-bold mb-6 text-center text-gray-800">Add New Salesman</h3>
       <div className="space-y-4">
         <input
+          autoComplete="off"
           type="text"
           name="name"
           value={salesman.name}
@@ -58,6 +54,7 @@ export function AddSalesmanPopup({ onSave, onCancel }) {
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
+            autoComplete="off"
             type="tel"
             name="phone"
             value={salesman.phone}
@@ -66,6 +63,7 @@ export function AddSalesmanPopup({ onSave, onCancel }) {
             className={INPUT_CLASS}
           />
           <input
+            autoComplete="off"
             type="tel"
             name="secondaryPhone"
             value={salesman.secondaryPhone}
@@ -75,6 +73,7 @@ export function AddSalesmanPopup({ onSave, onCancel }) {
           />
         </div>
         <input
+          autoComplete="off"
           type="text"
           name="address"
           value={salesman.address}
@@ -83,6 +82,7 @@ export function AddSalesmanPopup({ onSave, onCancel }) {
           className={INPUT_CLASS}
         />
         <input
+          autoComplete="off"
           type="text"
           name="cnic"
           value={salesman.cnic}
@@ -92,6 +92,7 @@ export function AddSalesmanPopup({ onSave, onCancel }) {
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <input
+            autoComplete="off"
             type="number"
             name="salary"
             value={salesman.salary}
@@ -99,17 +100,13 @@ export function AddSalesmanPopup({ onSave, onCancel }) {
             placeholder="Salary"
             className={INPUT_CLASS}
           />
-          <div className="relative">
-            <input
-              type="text"
-              readOnly
-              value={format(salesman.joiningDate, "dd MMM, yyyy")}
-              onClick={() => setShowCalendar((open) => !open)}
-              placeholder="Joining Date"
-              className={`${INPUT_CLASS} cursor-pointer focus:scale-105 transition-transform duration-300 shadow-inner`}
-            />
-            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          </div>
+          <DatePickerField
+            id="salesman-joining-date"
+            value={dateToValue(salesman.joiningDate)}
+            onChange={(value) => setSalesman((current) => ({ ...current, joiningDate: valueToDate(value) }))}
+            placeholder="Joining Date"
+            testId="salesman-joining-date"
+          />
         </div>
       </div>
       <div className="flex justify-end mt-8">
@@ -117,22 +114,6 @@ export function AddSalesmanPopup({ onSave, onCancel }) {
           Save Salesman
         </Button>
       </div>
-      {showCalendar && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 bg-white p-2 rounded-lg shadow-2xl border"
-        >
-          <DayPicker
-            mode="single"
-            selected={salesman.joiningDate}
-            onSelect={(date) => {
-              if (date) setSalesman((current) => ({ ...current, joiningDate: date }));
-              setShowCalendar(false);
-            }}
-          />
-        </motion.div>
-      )}
     </Modal>
   );
 }

@@ -45,7 +45,8 @@ export function PurchaseCard({ purchase, product, vendor, onDelete }) {
           type="button"
           onClick={() => onDelete(purchase._id)}
           className="p-2 text-gray-400 hover:text-red-600 cursor-pointer"
-          title="Delete Purchase"
+          data-tip="Delete Purchase"
+          aria-label="Delete Purchase"
         >
           <Trash2 size={18} />
         </button>

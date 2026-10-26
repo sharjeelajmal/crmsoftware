@@ -11,6 +11,7 @@ export function AddCategoryPopup({ onSave, onCancel }) {
     <Modal onClose={onCancel}>
       <h3 className="text-2xl font-bold mb-6 text-center text-gray-800">Add New Category</h3>
       <input
+        autoComplete="off"
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}

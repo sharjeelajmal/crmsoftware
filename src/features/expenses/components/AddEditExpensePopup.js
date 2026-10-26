@@ -1,12 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Calendar } from "lucide-react";
-import { format } from "date-fns";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/dist/style.css";
 import { Modal } from "@/components/ui/Modal";
+import { DatePickerField, dateToValue, valueToDate } from "@/components/ui/DatePickerField";
 import { Button } from "@/components/ui/Button";
 import { CustomDropdown } from "@/components/ui/CustomDropdown";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -26,14 +22,8 @@ export function AddEditExpensePopup({ categories, defaultCategory, initialData =
   );
   // Kept as text so the user can clear the field while typing.
   const [amount, setAmount] = useState(initialData?.amount?.toString() || "");
-  const [showCalendar, setShowCalendar] = useState(false);
 
   const handleChange = (e) => setExpense((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-
-  const handleDateSelect = (date) => {
-    if (date) setExpense((prev) => ({ ...prev, date }));
-    setShowCalendar(false);
-  };
 
   const handleSave = () => {
     if (!expense.name || !amount || !expense.category) {
@@ -50,6 +40,7 @@ export function AddEditExpensePopup({ categories, defaultCategory, initialData =
       </h3>
       <div className="space-y-4">
         <input
+          autoComplete="off"
           type="text"
           name="name"
           value={expense.name}
@@ -58,6 +49,7 @@ export function AddEditExpensePopup({ categories, defaultCategory, initialData =
           className={INPUT_CLASS}
         />
         <input
+          autoComplete="off"
           type="number"
           name="amount"
           value={amount}
@@ -75,6 +67,7 @@ export function AddEditExpensePopup({ categories, defaultCategory, initialData =
           searchPlaceholder="Search category..."
         />
         <input
+          autoComplete="off"
           type="text"
           name="note"
           value={expense.note ?? ""}
@@ -82,31 +75,18 @@ export function AddEditExpensePopup({ categories, defaultCategory, initialData =
           placeholder="Notes (Optional)"
           className={INPUT_CLASS}
         />
-        <div className="relative">
-          <input
-            type="text"
-            readOnly
-            value={expense.date ? format(new Date(expense.date), "dd MMM, yyyy") : ""}
-            onClick={() => setShowCalendar((open) => !open)}
-            className={`${INPUT_CLASS} cursor-pointer focus:scale-105 transition-transform duration-300 shadow-inner`}
-          />
-          <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        </div>
+        <DatePickerField
+          id="expense-date"
+          value={dateToValue(expense.date)}
+          onChange={(value) => setExpense((prev) => ({ ...prev, date: valueToDate(value) }))}
+          testId="expense-date"
+        />
       </div>
       <div className="flex justify-end mt-8">
         <Button size="lg" className="w-full sm:w-auto" onClick={handleSave}>
           {isEditing ? "Save Changes" : "Record Expense"}
         </Button>
       </div>
-      {showCalendar && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 bg-white p-2 rounded-lg shadow-2xl border"
-        >
-          <DayPicker mode="single" selected={new Date(expense.date)} onSelect={handleDateSelect} />
-        </motion.div>
-      )}
     </Modal>
   );
 }

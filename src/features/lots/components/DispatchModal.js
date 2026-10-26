@@ -32,7 +32,7 @@ export function DispatchModal({ lot, onDone, onCancel }) {
 
   return (
     <Modal onClose={isDispatching ? undefined : onCancel} size="md">
-      <form onSubmit={handleSubmit} className="space-y-5" data-testid="dispatch-form">
+      <form noValidate onSubmit={handleSubmit} className="space-y-5" data-testid="dispatch-form">
         <div>
           <h3 className="flex items-center gap-2 text-2xl font-bold text-gray-800">
             <Send size={22} className="text-primary" /> Gate pass out
@@ -64,6 +64,7 @@ export function DispatchModal({ lot, onDone, onCancel }) {
               Pieces going out <span className="text-gray-400">(max {balance})</span>
             </label>
             <input
+              autoComplete="off"
               id="dispatch-pieces"
               type="number"
               inputMode="numeric"
@@ -82,6 +83,7 @@ export function DispatchModal({ lot, onDone, onCancel }) {
               Wash type
             </label>
             <input
+              autoComplete="off"
               id="dispatch-wash"
               type="text"
               maxLength={80}
@@ -99,6 +101,7 @@ export function DispatchModal({ lot, onDone, onCancel }) {
             Note <span className="text-gray-400">(optional)</span>
           </label>
           <input
+            autoComplete="off"
             id="dispatch-note"
             type="text"
             maxLength={500}

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   GATE_PASS_FOR_ACTION,
+  GATE_PASS_LABELS,
+  GATE_PASS_TYPES,
   canIssueGatePass,
+  cuttingPassChanged,
   formatGatePassNumber,
   formatShrinkage,
   gatePassPiecesFor,
@@ -39,6 +42,13 @@ describe("gate pass rules", () => {
     expect(GATE_PASS_FOR_ACTION.washed).toBeUndefined();
   });
 
+  it("keeps cutting, stitching and washing as three separate passes", () => {
+    expect([...GATE_PASS_TYPES]).toEqual(["cutting", "stitching", "washing"]);
+    expect(GATE_PASS_LABELS.cutting).toBe("Cutting gate pass");
+    expect(GATE_PASS_LABELS.stitching).toBe("Stitching gate pass");
+    expect(GATE_PASS_LABELS.washing).toBe("Washing gate pass");
+  });
+
   it("derives the size range from sizes that have pieces", () => {
     expect(sizeRangeOf(lot.sizes)).toBe("30 – 32");
     expect(sizeRangeOf([{ size: "L", qty: 5 }])).toBe("L");
@@ -52,7 +62,8 @@ describe("gate pass rules", () => {
     expect(sizeRangeOf([])).toBe("");
   });
 
-  it("prints cut pieces on the stitching pass and stitched pieces on the washing pass", () => {
+  it("prints cut pieces on the cutting and stitching passes and stitched pieces on the washing pass", () => {
+    expect(gatePassPiecesFor(lot, "cutting")).toBe(120);
     expect(gatePassPiecesFor(lot, "stitching")).toBe(120);
     expect(gatePassPiecesFor(lot, "washing")).toBe(120);
     expect(gatePassPiecesFor({ ...lot, stitchedQty: 118 }, "washing")).toBe(118);
@@ -60,11 +71,24 @@ describe("gate pass rules", () => {
   });
 
   it("only issues a pass once the lot reached that unit", () => {
+    expect(canIssueGatePass({ stage: "cutting" }, "cutting")).toBe(true);
+    expect(canIssueGatePass({ stage: "washing" }, "cutting")).toBe(true);
     expect(canIssueGatePass({ stage: "cutting" }, "stitching")).toBe(false);
     expect(canIssueGatePass({ stage: "stitching" }, "stitching")).toBe(true);
     expect(canIssueGatePass({ stage: "stitching" }, "washing")).toBe(false);
     expect(canIssueGatePass({ stage: "packing" }, "washing")).toBe(true);
     expect(canIssueGatePass({ stage: "ready" }, "other")).toBe(false);
+  });
+
+  it("needs a fresh cutting pass only when something printed on it changed", () => {
+    const cut = { ...lot, stage: "cutting", note: "first" };
+    expect(cuttingPassChanged(cut, { ...cut, note: "only the note" })).toBe(false);
+    expect(cuttingPassChanged(cut, { ...cut, updatedAt: new Date() })).toBe(false);
+    expect(cuttingPassChanged(cut, { ...cut, sizes: [{ size: "30", qty: 50 }] })).toBe(true);
+    expect(cuttingPassChanged(cut, { ...cut, bundleNumber: "B-13" })).toBe(true);
+    expect(cuttingPassChanged(cut, { ...cut, shrinkage: 10 })).toBe(true);
+    expect(cuttingPassChanged(cut, { ...cut, fabric: { ...cut.fabric, qty: 60 } })).toBe(true);
+    expect(cuttingPassChanged(cut, { ...cut, productName: "Regular Denim" })).toBe(true);
   });
 
   it("formats shrinkage", () => {
@@ -94,6 +118,21 @@ describe("buildGatePass", () => {
       issuedAt: now,
     });
     expect(String(pass.lotId)).toBe(lot._id);
+  });
+
+  it("snapshots the cutting pass with the same cutting details", () => {
+    const pass = buildGatePass({ lot: { ...lot, stage: "cutting" }, type: "cutting", seq: 1004, session, now });
+    expect(pass).toMatchObject({
+      number: "GP-1004",
+      type: "cutting",
+      productName: "Slim Fit Denim",
+      bundleNumber: "B-12",
+      shrinkage: 12,
+      sizeRange: "30 – 32",
+      pieces: 120,
+      washType: "",
+      fabric: { name: "Denim 12oz", qty: 62, unit: "m" },
+    });
   });
 
   it("snapshots the washing pass with the stitched pieces and wash type", () => {
@@ -136,6 +175,7 @@ describe("gate pass schemas", () => {
       type: "washing",
       washType: "Random",
     });
+    expect(gatePassIssueSchema.parse({ type: "cutting" }).type).toBe("cutting");
     expect(() => gatePassIssueSchema.parse({ type: "packing" })).toThrow();
   });
 });

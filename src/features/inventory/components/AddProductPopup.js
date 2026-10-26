@@ -7,6 +7,7 @@ import { CustomDropdown } from "@/components/ui/CustomDropdown";
 import { Collapse } from "@/components/ui/Collapse";
 import { blankSizeRows, sumSizes } from "../utils";
 import { SizeRowsEditor } from "./SizeRowsEditor";
+import { Switch } from "@/components/ui/Switch";
 
 const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none";
 
@@ -43,6 +44,7 @@ export function AddProductPopup({ categories, initialCategory, onSave, onCancel 
           buttonClassName="bg-gray-100"
         />
         <input
+          autoComplete="off"
           type="text"
           name="name"
           value={product.name}
@@ -52,6 +54,7 @@ export function AddProductPopup({ categories, initialCategory, onSave, onCancel 
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
+            autoComplete="off"
             type="number"
             name="purchasePrice"
             value={product.purchasePrice}
@@ -60,6 +63,7 @@ export function AddProductPopup({ categories, initialCategory, onSave, onCancel 
             className={INPUT_CLASS}
           />
           <input
+            autoComplete="off"
             type="number"
             name="salePrice"
             value={product.salePrice}
@@ -69,16 +73,12 @@ export function AddProductPopup({ categories, initialCategory, onSave, onCancel 
           />
         </div>
         <div>
-          <label className="flex items-center justify-between gap-3 p-3 bg-gray-100 rounded-xl cursor-pointer">
-            <span className="text-sm font-semibold text-gray-700">Track stock per size</span>
-            <input
-              type="checkbox"
-              data-testid="product-track-sizes"
-              checked={trackSizes}
-              onChange={(e) => setTrackSizes(e.target.checked)}
-              className="w-5 h-5 accent-primary cursor-pointer"
-            />
-          </label>
+          <Switch
+            label="Track stock per size"
+            checked={trackSizes}
+            onChange={setTrackSizes}
+            testId="product-track-sizes"
+          />
           <Collapse open={trackSizes} testId="product-sizes-section">
             <div className="pt-4">
               <SizeRowsEditor rows={sizes} onChange={setSizes} quantityLabel="Starting qty" />
@@ -86,13 +86,14 @@ export function AddProductPopup({ categories, initialCategory, onSave, onCancel 
           </Collapse>
         </div>
         <input
+          autoComplete="off"
           type="number"
           name="remaining"
           value={trackSizes ? sumSizes(sizes) : product.remaining}
           onChange={handleChange}
           readOnly={trackSizes}
           placeholder="Enter Quantity"
-          title={trackSizes ? "Total is the sum of the sizes" : undefined}
+          data-tip={trackSizes ? "Total is the sum of the sizes" : undefined}
           className={`${INPUT_CLASS} transition-colors duration-300 ${trackSizes ? "text-gray-500 cursor-not-allowed" : ""}`}
         />
       </div>

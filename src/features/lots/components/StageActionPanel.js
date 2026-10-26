@@ -60,7 +60,7 @@ function StageStepForm({ lot, actionKey, onUpdated }) {
   };
 
   return (
-    // The partial-pass panel has its own form (in a modal), so it sits outside this step's <form>.
+    // The partial-pass panel has its own form (in a modal), so it sits outside this step's <form noValidate>.
     <div className={CARD_CLASS} data-testid="lot-stage-panel" data-action={actionKey}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <Title icon={ArrowRightCircle}>Next step</Title>
@@ -77,7 +77,7 @@ function StageStepForm({ lot, actionKey, onUpdated }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form noValidate onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           {action.needsQty && (
             <div>
@@ -85,6 +85,7 @@ function StageStepForm({ lot, actionKey, onUpdated }) {
                 Pieces received <span className="text-gray-400">(max {max})</span>
               </label>
               <input
+                autoComplete="off"
                 id="lot-stage-qty"
                 type="number"
                 inputMode="numeric"
@@ -118,6 +119,7 @@ function StageStepForm({ lot, actionKey, onUpdated }) {
                 Wash type <span className="text-gray-400">(for the washing gate pass)</span>
               </label>
               <input
+                autoComplete="off"
                 id="lot-stage-wash"
                 type="text"
                 maxLength={80}
@@ -134,6 +136,7 @@ function StageStepForm({ lot, actionKey, onUpdated }) {
               Note <span className="text-gray-400">(optional)</span>
             </label>
             <input
+              autoComplete="off"
               id="lot-stage-note"
               type="text"
               maxLength={500}

@@ -16,6 +16,7 @@ export function InvoiceTotals({ totals, charges, onChargeChange }) {
             <td className="font-semibold pr-4">Others:</td>
             <td>
               <input
+                autoComplete="off"
                 type="number"
                 value={charges.others}
                 onChange={(e) => onChargeChange("others", e.target.value)}
@@ -27,6 +28,7 @@ export function InvoiceTotals({ totals, charges, onChargeChange }) {
             <td className="font-semibold pr-4">Discount:</td>
             <td>
               <input
+                autoComplete="off"
                 type="number"
                 value={charges.discount}
                 onChange={(e) => onChargeChange("discount", e.target.value)}
@@ -42,6 +44,7 @@ export function InvoiceTotals({ totals, charges, onChargeChange }) {
             <td className="font-semibold pr-4 pt-2">Received:</td>
             <td>
               <input
+                autoComplete="off"
                 type="number"
                 value={charges.receivedAmount}
                 onChange={(e) => onChargeChange("receivedAmount", e.target.value)}

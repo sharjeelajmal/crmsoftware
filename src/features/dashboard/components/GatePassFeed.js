@@ -3,21 +3,22 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Droplets, Spool, Ticket } from "lucide-react";
+import { Droplets, Scissors, Spool, Ticket } from "lucide-react";
 import { Panel, PanelEmpty } from "./Panel";
 
 const TYPE_STYLE = {
+  cutting: { label: "Cutting pass", icon: Scissors, tint: "bg-gray-100 text-gray-700" },
   stitching: { label: "To stitching", icon: Spool, tint: "bg-yellow-100 text-yellow-800" },
   washing: { label: "To washing", icon: Droplets, tint: "bg-primary-soft text-primary" },
 };
 
-/** The latest gate passes (pieces leaving for stitching or washing), newest first. */
+/** The latest gate passes (cutting entries, pieces leaving for stitching or washing), newest first. */
 export function GatePassFeed({ passes, className = "" }) {
   return (
     <Panel
       icon={Ticket}
       title="Recent gate passes"
-      subtitle="Pieces sent out of the factory"
+      subtitle="Cutting, stitching and washing"
       href="/stitching"
       linkLabel="Stitching"
       className={className}
@@ -27,7 +28,7 @@ export function GatePassFeed({ passes, className = "" }) {
         <PanelEmpty
           icon={Ticket}
           title="No gate passes yet"
-          hint="A pass is issued when a lot goes to stitching or washing."
+          hint="A pass is made at the cutting entry and when a lot goes to stitching or washing."
         />
       ) : (
         <ul className="divide-y divide-border/70">

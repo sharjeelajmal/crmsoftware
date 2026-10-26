@@ -25,6 +25,7 @@ export function SizeRowsEditor({ rows, onChange }) {
       {rows.map((row, index) => (
         <div key={index} className={`${ROW_GRID_CLASS} items-center`} data-testid="lot-form-size-row">
           <input
+            autoComplete="off"
             type="text"
             value={row.size}
             onChange={(e) => update(index, { size: e.target.value })}
@@ -34,6 +35,7 @@ export function SizeRowsEditor({ rows, onChange }) {
             className={INPUT_CLASS}
           />
           <input
+            autoComplete="off"
             type="number"
             min="0"
             step="1"
@@ -48,7 +50,7 @@ export function SizeRowsEditor({ rows, onChange }) {
             type="button"
             onClick={() => remove(index)}
             disabled={rows.length <= 1}
-            title="Remove size"
+            data-tip="Remove size"
             aria-label="Remove size"
             className={REMOVE_CLASS}
           >

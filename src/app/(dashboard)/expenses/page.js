@@ -141,7 +141,8 @@ export default function ExpensesPage() {
           <p className="text-gray-500 mt-1">Record and manage all business expenditures.</p>
         </motion.div>
 
-        <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Two tiles a row until there is room for three (xl); the third then spans the row. */}
+        <motion.div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
           <StatCard
             icon={DollarSign}
             title={`Total Expense (${periodLabel(dateFilter)})`}
@@ -152,7 +153,12 @@ export default function ExpensesPage() {
             title="Top Spending Category"
             value={`${topCategory.name} (${formatMoney(topCategory.amount)})`}
           />
-          <StatCard icon={MinusCircle} title="Total Categories" value={categories.length} />
+          <StatCard
+            icon={MinusCircle}
+            title="Total Categories"
+            value={categories.length}
+            className="sm:col-span-2 xl:col-span-1"
+          />
         </motion.div>
 
         <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-4 justify-end w-full">
@@ -165,11 +171,14 @@ export default function ExpensesPage() {
         </motion.div>
 
         <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-5 gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
-              <div className="relative w-full sm:w-64">
+          {/* Search + category, then the periods. One line only from 2xl: on tablets and small laptops (with the
+              sidebar) a single line pushed the period buttons out of the card. */}
+          <div className="flex flex-col 2xl:flex-row justify-between items-start 2xl:items-center mb-5 gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full 2xl:w-auto">
+              <div className="relative w-full sm:flex-1 2xl:w-64 2xl:flex-none">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
+                  autoComplete="off"
                   type="text"
                   placeholder="Search by Name or Notes..."
                   value={searchTerm}
@@ -188,7 +197,7 @@ export default function ExpensesPage() {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl w-full lg:w-auto flex-shrink-0">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl w-full sm:w-auto flex-shrink-0">
               {PERIOD_FILTERS.map(({ value, label }) => (
                 <FilterButton
                   key={value}

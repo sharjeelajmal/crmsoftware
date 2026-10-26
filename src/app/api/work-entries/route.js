@@ -4,6 +4,8 @@ import { route, ok, created, parseBody, parseQuery } from "@/lib/api";
 import { workAssignmentSchema, workEntriesQuerySchema } from "@/lib/validation";
 import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
 import { buildWorkEntry, requireLot, requireOperation, requireWorker } from "@/lib/wages";
+import { lotCategory, rateCardOf } from "@/lib/operations";
+import { cardRateOf } from "@/constants/operations";
 
 /**
  * GET /api/work-entries?lotId=&workerId=&operationId=&filter=&from=&to=
@@ -25,12 +27,14 @@ export const GET = route(async (request) => {
 /**
  * POST /api/work-entries  { lotId, operationId, rate?, date?, note?, rows: [{ workerId, pieces }] }
  * Assigns one operation of a lot to one or more workers; one work entry per row, amount = pieces × rate.
+ * Without a rate: the rate on the lot's category rate card, else the operation's own rate.
  */
 export const POST = route(async (request, { session }) => {
   const input = await parseBody(request, workAssignmentSchema);
   const db = await getDb();
   const [lot, operation] = await Promise.all([requireLot(db, input.lotId), requireOperation(db, input.operationId)]);
   const workers = await Promise.all(input.rows.map((row) => requireWorker(db, row.workerId)));
+  const rate = input.rate ?? cardRateOf(await rateCardOf(db, await lotCategory(db, lot)), operation._id) ?? undefined;
 
   const now = new Date();
   const docs = input.rows.map((row, i) =>
@@ -39,7 +43,7 @@ export const POST = route(async (request, { session }) => {
       operation,
       worker: workers[i],
       pieces: row.pieces,
-      rate: input.rate,
+      rate,
       date: input.date,
       note: input.note,
       session,

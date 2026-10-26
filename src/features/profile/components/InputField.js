@@ -10,6 +10,7 @@ export function InputField({ icon: Icon, type, placeholder, value, name, onChang
     <div className="relative">
       <Icon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
       <input
+        autoComplete="off"
         type={type}
         placeholder={placeholder}
         value={value}

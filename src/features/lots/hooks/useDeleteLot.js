@@ -19,6 +19,7 @@ export function useDeleteLot() {
         clearAsyncDataCache("lots");
         clearAsyncDataCache("my-lots");
         clearAsyncDataCache(`lot:${lotId}`);
+        clearAsyncDataCache("fabric"); // the deleted entry no longer uses fabric
         toast.success("Lot deleted");
         return true;
       } catch (err) {

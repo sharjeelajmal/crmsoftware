@@ -51,7 +51,7 @@ export function AdjustmentsCard({ adjustments = [], onDelete }) {
       </AnimatePresence>
 
       <h2 className="flex items-center gap-2 text-lg font-bold text-gray-800 mb-3">
-        <CalendarMinus size={18} className="text-primary" /> Leave, advance &amp; deductions (this period)
+        <CalendarMinus size={18} className="text-primary" /> Advance &amp; deductions (this period)
       </h2>
       {adjustments.length === 0 ? (
         <p className="text-sm text-gray-500">Nothing recorded in this period.</p>
@@ -92,7 +92,8 @@ export function AdjustmentsCard({ adjustments = [], onDelete }) {
               <button
                 type="button"
                 onClick={() => setRemoving(adj)}
-                title="Delete"
+                data-tip="Delete"
+                aria-label="Delete"
                 className="text-gray-400 hover:text-danger cursor-pointer"
                 data-testid="adjustment-delete"
               >

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { BRAND } from "@/constants/brand";
 import { WAGE_PERIODS, DEFAULT_WAGE_PERIOD, splitEvenly } from "@/constants/wages";
 import { EMPTY_RANGE, isCompleteRange } from "@/features/analytics/utils";
+import { DEFAULT_MAIN_OPERATION, MAIN_OPERATION_LABELS, mainOperationOf } from "@/constants/operations";
 
 export { EMPTY_RANGE, isCompleteRange, WAGE_PERIODS, DEFAULT_WAGE_PERIOD };
 
@@ -51,24 +52,47 @@ export const workerFormFrom = (worker) => ({
   note: worker?.note || "",
 });
 
-export const EMPTY_OPERATION_FORM = { name: "", rate: "" };
+export const EMPTY_OPERATION_FORM = { name: "", rate: "", stage: DEFAULT_MAIN_OPERATION };
 
 export const operationFormFrom = (operation) => ({
   ...EMPTY_OPERATION_FORM,
   ...(operation?._id ? { _id: operation._id } : {}),
   name: operation?.name || "",
   rate: operation?.rate === undefined || operation?.rate === null ? "" : String(operation.rate),
+  stage: operation ? mainOperationOf(operation) : DEFAULT_MAIN_OPERATION,
 });
 
 /** `{ value, label }` options for the worker picker (active workers only). */
 export const workerOptions = (workers = []) =>
   workers.filter((w) => w.active !== false).map((w) => ({ value: String(w._id), label: w.name }));
 
-/** `{ value, label }` options for the operation picker, label shows the current rate. */
-export const operationOptions = (operations = []) =>
-  operations
-    .filter((op) => op.active !== false)
-    .map((op) => ({ value: String(op._id), label: `${op.name} · Rs ${Number(op.rate) || 0}/pc` }));
+/**
+ * `{ value, label }` options for the operation picker from a lot's offered operations (GET /api/lots/:id/operations):
+ * "Overlock · Stitching · Rs 3.5/pc".
+ */
+export const operationOptions = (offered = []) =>
+  offered.map((op) => ({
+    value: op.operationId,
+    label: `${op.name} · ${MAIN_OPERATION_LABELS[op.stage] ?? ""} · Rs ${Number(op.rate) || 0}/pc`,
+  }));
+
+/** Rate card editor rows: every active operation (plus inactive ones already on the card), chosen or not. */
+export const rateCardRows = (operations = [], items = []) => {
+  const onCard = new Map(items.map((item) => [item.operationId, item]));
+  return operations
+    .filter((op) => op.active !== false || onCard.has(String(op._id)))
+    .map((op) => {
+      const item = onCard.get(String(op._id));
+      return {
+        operationId: String(op._id),
+        name: op.name,
+        stage: mainOperationOf(op),
+        defaultRate: Number(op.rate) || 0,
+        chosen: Boolean(item),
+        rate: String(item ? item.rate : Number(op.rate) || 0),
+      };
+    });
+};
 
 /** Form state for assigning one operation of a lot to workers. */
 export const emptyAssignment = (pieces) => ({

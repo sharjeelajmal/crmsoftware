@@ -10,7 +10,7 @@ export function DeltaBadge({ value, against, upIsGood = true, onBrand = false })
       <span className="inline-flex items-center gap-1.5 text-xs">
         <span
           className={`rounded-full px-2 py-0.5 font-semibold ${onBrand ? "bg-white/15 text-white" : "bg-surface-muted text-gray-600"}`}
-          title="Nothing to compare with yet"
+          data-tip="Nothing to compare with yet"
         >
           —
         </span>

@@ -71,6 +71,7 @@ export function CustomDropdown({
             {options.length > SEARCH_THRESHOLD && (
               <div className="p-2 border-b border-gray-100 sticky top-0 bg-white z-10">
                 <input
+                  autoComplete="off"
                   type="text"
                   placeholder={searchPlaceholder}
                   className="w-full p-2 text-sm bg-gray-50 rounded-md outline-none"
@@ -122,6 +123,13 @@ const SELECT_SIZES = {
     wrap: "relative inline-block",
     button: "gap-1 px-2 py-1 rounded-md text-xs",
     icon: 14,
+    item: "px-3 py-1.5 text-sm",
+  },
+  // Month / year in a calendar caption (CalendarDropdown).
+  calendar: {
+    wrap: "relative inline-block",
+    button: "gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold",
+    icon: 16,
     item: "px-3 py-1.5 text-sm",
   },
 };

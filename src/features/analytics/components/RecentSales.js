@@ -37,7 +37,8 @@ export function RecentSales({ sales, onViewInvoice, onSavePdf }) {
               <button
                 type="button"
                 onClick={() => onViewInvoice(sale)}
-                title="View Invoice"
+                data-tip="View Invoice"
+                aria-label="View Invoice"
                 className="cursor-pointer text-gray-400 hover:text-primary transition-colors"
               >
                 <FileText size={20} />
@@ -45,7 +46,8 @@ export function RecentSales({ sales, onViewInvoice, onSavePdf }) {
               <button
                 type="button"
                 onClick={() => onSavePdf(sale)}
-                title="Save as PDF"
+                data-tip="Save as PDF"
+                aria-label="Save as PDF"
                 className="cursor-pointer text-gray-400 hover:text-primary transition-colors"
               >
                 <Save size={20} />

@@ -18,7 +18,7 @@ export const PUT = route(async (request, context) => {
   return ok({ updated: true });
 });
 
-/** DELETE /api/workers/:id — only when the worker has no work entries; otherwise deactivate. */
+/** DELETE /api/workers/:id — only when the worker has no work entries (their attendance marks go too); else deactivate. */
 export const DELETE = route(async (_request, context) => {
   const _id = await requireObjectId(context);
   const db = await getDb();
@@ -26,5 +26,6 @@ export const DELETE = route(async (_request, context) => {
   if (used > 0) throw conflict(`This worker has ${used} work entries. Mark them inactive instead of deleting.`);
   const { deletedCount } = await db.collection("workers").deleteOne({ _id });
   if (deletedCount === 0) throw notFound("Worker");
+  await db.collection("attendance").deleteMany({ workerId: _id });
   return ok({ deleted: true });
 });

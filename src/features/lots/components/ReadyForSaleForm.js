@@ -84,7 +84,13 @@ export function ReadyForSaleForm({ lot, onUpdated }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className={CARD_CLASS} data-testid="lot-stage-panel" data-action={ACTION_KEY}>
+    <form
+      noValidate
+      onSubmit={handleSubmit}
+      className={CARD_CLASS}
+      data-testid="lot-stage-panel"
+      data-action={ACTION_KEY}
+    >
       <div data-testid="lot-ready-confirm-dialog">
         <AnimatePresence>
           {confirming && (
@@ -132,6 +138,7 @@ export function ReadyForSaleForm({ lot, onUpdated }) {
             Finished pieces <span className="text-gray-400">(max {max})</span>
           </label>
           <input
+            autoComplete="off"
             id="lot-ready-qty"
             type="number"
             inputMode="numeric"
@@ -155,6 +162,7 @@ export function ReadyForSaleForm({ lot, onUpdated }) {
             Note <span className="text-gray-400">(optional)</span>
           </label>
           <input
+            autoComplete="off"
             id="lot-ready-note"
             type="text"
             maxLength={500}
@@ -203,6 +211,7 @@ export function ReadyForSaleForm({ lot, onUpdated }) {
                   <td className="py-1.5 text-right text-gray-500">{cut}</td>
                   <td className="py-1.5 text-right">
                     <input
+                      autoComplete="off"
                       type="number"
                       inputMode="numeric"
                       min={0}

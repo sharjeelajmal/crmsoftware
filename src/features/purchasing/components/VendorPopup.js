@@ -19,6 +19,7 @@ export function VendorPopup({ initialData, onSave, onCancel }) {
       <h3 className="text-2xl font-bold mb-6 text-center">{isEditing ? "Edit Vendor" : "Add New Vendor"}</h3>
       <div className="space-y-4">
         <input
+          autoComplete="off"
           type="text"
           name="name"
           value={vendor.name}
@@ -27,6 +28,7 @@ export function VendorPopup({ initialData, onSave, onCancel }) {
           className={INPUT_CLASS}
         />
         <input
+          autoComplete="off"
           type="text"
           name="contactPerson"
           value={vendor.contactPerson}
@@ -35,6 +37,7 @@ export function VendorPopup({ initialData, onSave, onCancel }) {
           className={INPUT_CLASS}
         />
         <input
+          autoComplete="off"
           type="tel"
           name="phone"
           value={vendor.phone}

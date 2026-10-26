@@ -20,7 +20,7 @@ describe("roles", () => {
     }
   });
 
-  it("cutting master is limited to the cutting portal, profile and lot/product APIs", () => {
+  it("cutting master is limited to the cutting portal, fabric khata, profile and lot/product APIs", () => {
     const allowed = [
       "/cutting",
       "/cutting/new",
@@ -31,6 +31,10 @@ describe("roles", () => {
       "/api/products",
       "/api/profile",
       "/api/auth/logout",
+      "/fabric",
+      "/fabric/report",
+      "/api/fabric",
+      "/api/fabric/receipts/1",
     ];
     const blocked = [
       "/",
@@ -42,6 +46,8 @@ describe("roles", () => {
       "/api/analytics",
       "/cuttingx",
       "/api/productsx",
+      "/fabrics",
+      "/api/fabricx",
     ];
     for (const p of allowed) expect(isPathAllowedForRole(p, "cutting_master"), p).toBe(true);
     for (const p of blocked) expect(isPathAllowedForRole(p, "cutting_master"), p).toBe(false);

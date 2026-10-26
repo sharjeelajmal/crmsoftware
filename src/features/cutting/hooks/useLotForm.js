@@ -8,11 +8,12 @@ import { EMPTY_LOT_FORM, formFromLot, initialSizeRows, toLotPayload, totalPieces
 
 const asList = (value) => (Array.isArray(value) ? value : []);
 
-// Every cached list that shows lot data must be refreshed after a save.
+// Every cached list that shows lot data (and the fabric khata, which counts the fabric used) must be refreshed.
 const invalidateLotCaches = () => {
   clearAsyncDataCache("my-lots");
   clearAsyncDataCache("lots");
   clearAsyncDataCache("lot:");
+  clearAsyncDataCache("fabric");
 };
 
 /**
@@ -73,7 +74,10 @@ export function useLotForm({ lot = null, onSaved } = {}) {
       const payload = toLotPayload(form);
       const saved = lot ? await api.put(`/api/lots/${lot._id}`, payload) : await api.post("/api/lots", payload);
       invalidateLotCaches();
-      toast.success(`${saved.lotNumber || lot?.lotNumber || "Lot"} ${lot ? "updated" : "saved"}`);
+      const pass = saved.gatePasses?.find((p) => p.type === "cutting");
+      toast.success(
+        `${saved.lotNumber || lot?.lotNumber || "Lot"} ${lot ? "updated" : "saved"}${pass ? ` · gate pass ${pass.number}` : ""}`
+      );
       onSaved?.(saved);
       return true;
     } catch (err) {

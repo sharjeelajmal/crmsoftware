@@ -1,12 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { Calendar } from "lucide-react";
-import { format } from "date-fns";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/dist/style.css";
 import { Modal } from "@/components/ui/Modal";
+import { DatePickerField, dateToValue, valueToDate } from "@/components/ui/DatePickerField";
 import { Button } from "@/components/ui/Button";
 import { SelectDropdown } from "@/components/ui/CustomDropdown";
 import { hasSizes, sizeOptions } from "@/features/inventory/utils";
@@ -24,7 +20,6 @@ export function AddPurchasePopup({ products, vendors, onSave, onCancel }) {
     size: "",
   });
   const [productName, setProductName] = useState("");
-  const [showCalendar, setShowCalendar] = useState(false);
 
   const selectedProduct = products.find((product) => product._id === purchase.productId);
 
@@ -34,11 +29,6 @@ export function AddPurchasePopup({ products, vendors, onSave, onCancel }) {
   const handleProductSelect = (product) => {
     setPurchase((prev) => ({ ...prev, productId: product._id, costPerItem: product.purchasePrice || "", size: "" }));
     setProductName(product.name);
-  };
-
-  const handleDateSelect = (date) => {
-    if (date) setPurchase((prev) => ({ ...prev, purchaseDate: date }));
-    setShowCalendar(false);
   };
 
   const vendorOptions = vendors.map((vendor) => ({ value: vendor._id, label: vendor.name }));
@@ -71,6 +61,7 @@ export function AddPurchasePopup({ products, vendors, onSave, onCancel }) {
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
+            autoComplete="off"
             type="number"
             name="quantity"
             value={purchase.quantity}
@@ -79,6 +70,7 @@ export function AddPurchasePopup({ products, vendors, onSave, onCancel }) {
             className={INPUT_CLASS}
           />
           <input
+            autoComplete="off"
             type="number"
             name="costPerItem"
             value={purchase.costPerItem}
@@ -87,31 +79,18 @@ export function AddPurchasePopup({ products, vendors, onSave, onCancel }) {
             className={INPUT_CLASS}
           />
         </div>
-        <div className="relative">
-          <input
-            type="text"
-            readOnly
-            value={purchase.purchaseDate ? format(purchase.purchaseDate, "dd MMM, yyyy") : ""}
-            onClick={() => setShowCalendar((open) => !open)}
-            className={`${INPUT_CLASS} cursor-pointer focus:scale-105 transition-transform duration-300 shadow-inner`}
-          />
-          <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        </div>
+        <DatePickerField
+          id="purchase-date"
+          value={dateToValue(purchase.purchaseDate)}
+          onChange={(value) => setPurchase((prev) => ({ ...prev, purchaseDate: valueToDate(value) }))}
+          testId="purchase-date"
+        />
       </div>
       <div className="flex justify-end mt-8">
         <Button size="lg" className="w-full sm:w-auto" onClick={() => onSave(purchase)}>
           Record Purchase
         </Button>
       </div>
-      {showCalendar && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30 bg-white p-2 rounded-lg shadow-2xl border"
-        >
-          <DayPicker mode="single" selected={purchase.purchaseDate} onSelect={handleDateSelect} />
-        </motion.div>
-      )}
     </Modal>
   );
 }

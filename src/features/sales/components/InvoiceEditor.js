@@ -53,6 +53,7 @@ export function InvoiceEditor({ invoiceNumber, form, actions }) {
           <div className="w-1/3">
             <h3 className="text-md font-semibold pb-1 mb-1 text-right">Customer Details</h3>
             <input
+              autoComplete="off"
               type="text"
               placeholder="Enter Name"
               value={form.customer.name}
@@ -60,6 +61,7 @@ export function InvoiceEditor({ invoiceNumber, form, actions }) {
               className="text-sm font-medium w-full p-1 text-right outline-none bg-transparent placeholder:text-gray-400"
             />
             <input
+              autoComplete="off"
               type="text"
               placeholder="Enter Phone"
               value={form.customer.phone}

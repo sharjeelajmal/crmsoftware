@@ -1,19 +1,21 @@
 /**
  * Gate passes (Phase 7) — pure, client-safe rules.
  *
- * A gate pass travels with the pieces when a lot leaves one unit for the next:
- *  - "stitching": issued when the cut pieces go to stitching — cut/lot number, bundle number, sizes
- *    (range + per size), total pieces, shrinkage %, fabric.
+ * Every unit has its own pass:
+ *  - "cutting": issued when the cutting entry is saved (lot created), and again whenever the cutting details on it
+ *    are edited — cut/lot number, bundle number, sizes (range + per size), total pieces, shrinkage %, fabric.
+ *  - "stitching": issued when the cut pieces go to stitching — the same cutting details.
  *  - "washing": issued when the stitched pieces go to washing — lot number, pieces and the wash type.
- * Both carry the factory phone numbers (BUSINESS.gatePass) on top and at the bottom.
+ * All of them carry the factory phone numbers (BUSINESS.gatePass) on top and at the bottom.
  */
 
 export const GATE_PASS_PREFIX = "GP";
 export const FIRST_GATE_PASS_SEQ = 1001;
 
-export const GATE_PASS_TYPES = Object.freeze(["stitching", "washing"]);
+export const GATE_PASS_TYPES = Object.freeze(["cutting", "stitching", "washing"]);
 
 export const GATE_PASS_LABELS = Object.freeze({
+  cutting: "Cutting gate pass",
   stitching: "Stitching gate pass",
   washing: "Washing gate pass",
 });
@@ -38,7 +40,7 @@ export const sizeRangeOf = (sizes = []) => {
   return `${ordered[0]} – ${ordered[ordered.length - 1]}`;
 };
 
-/** Pieces printed on a pass: everything cut for stitching, what came back stitched for washing. */
+/** Pieces printed on a pass: everything cut for cutting and stitching, what came back stitched for washing. */
 export const gatePassPiecesFor = (lot, type) => {
   if (type === "washing") {
     const stitched = Number(lot?.stitchedQty);
@@ -63,8 +65,21 @@ export const dispatchProblem = (lot, pieces) => {
 export const finalWashingPieces = (lot, stitchedQty) =>
   Math.max(0, (Math.trunc(Number(stitchedQty)) || 0) - Math.max(0, Math.trunc(Number(lot?.stitchOutQty)) || 0));
 
+/** The lot fields printed on the cutting pass, in a comparable form. */
+const cuttingPassFields = (lot) =>
+  JSON.stringify([
+    lot?.productName ?? "",
+    lot?.bundleNumber ?? "",
+    lot?.shrinkage ?? null,
+    (lot?.sizes || []).map((row) => [String(row.size), Math.trunc(Number(row.qty)) || 0]),
+    lot?.fabric ? [lot.fabric.name, Number(lot.fabric.qty) || 0, lot.fabric.unit || "m"] : null,
+  ]);
+
+/** True when an edit changed anything printed on the cutting pass (so a fresh pass is needed). */
+export const cuttingPassChanged = (before, after) => cuttingPassFields(before) !== cuttingPassFields(after);
+
 /** The earliest stage from which a pass type can be issued. */
-const MIN_STAGE_INDEX = Object.freeze({ stitching: 1, washing: 2 });
+const MIN_STAGE_INDEX = Object.freeze({ cutting: 0, stitching: 1, washing: 2 });
 const STAGE_ORDER = Object.freeze(["cutting", "stitching", "washing", "packing", "ready"]);
 
 export const canIssueGatePass = (lot, type) =>

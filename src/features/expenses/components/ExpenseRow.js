@@ -40,7 +40,8 @@ export function ExpenseRow({ expense, onEdit, onDelete }) {
         <button
           type="button"
           onClick={() => onEdit(expense)}
-          title="Edit"
+          data-tip="Edit"
+          aria-label="Edit"
           className="cursor-pointer transition-transform hover:scale-125 hover:text-yellow-300"
         >
           <Edit2 size={18} />
@@ -48,7 +49,8 @@ export function ExpenseRow({ expense, onEdit, onDelete }) {
         <button
           type="button"
           onClick={() => onDelete(expense._id)}
-          title="Delete"
+          data-tip="Delete"
+          aria-label="Delete"
           className="cursor-pointer transition-transform hover:scale-125 hover:text-red-400"
         >
           <Trash2 size={18} />

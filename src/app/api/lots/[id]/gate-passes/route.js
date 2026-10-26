@@ -20,7 +20,7 @@ export const GET = route(
 );
 
 /**
- * POST /api/lots/:id/gate-passes  { type: "stitching" | "washing", washType? }
+ * POST /api/lots/:id/gate-passes  { type: "cutting" | "stitching" | "washing", washType? }
  * Admin only. Issues a fresh pass (new number) — used for lots that moved before Phase 7 or for a reissue.
  */
 export const POST = route(async (request, context) => {
