@@ -11,8 +11,8 @@ import { LotStageBadge } from "./LotStageBadge";
 const CARD_CLASS =
   "flex items-center gap-4 p-4 sm:p-5 bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300";
 
-/** One lot in the "My Lots" list; the whole card links to the lot's detail page. */
-export function LotCard({ lot, href }) {
+/** One lot in a list; the whole card links to the lot's detail page. `showStage={false}` hides where the lot is. */
+export function LotCard({ lot, href, showStage = true }) {
   return (
     <motion.div variants={itemVariants} initial="hidden" animate="visible">
       <Link href={href} data-testid="lot-card" data-lot-number={lot.lotNumber} className={CARD_CLASS}>
@@ -22,7 +22,8 @@ export function LotCard({ lot, href }) {
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="font-bold text-gray-800">{lot.lotNumber}</span>
-            <LotStageBadge stage={lot.stage} />
+            {showStage && <LotStageBadge stage={lot.stage} />}
+            {lot.bundleNumber && <span className="text-xs font-semibold text-gray-500">Cut {lot.bundleNumber}</span>}
           </div>
           <p className="text-gray-700 truncate mt-0.5">{lot.productName}</p>
           <p className="text-xs text-gray-500 mt-1">

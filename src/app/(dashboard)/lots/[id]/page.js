@@ -16,6 +16,7 @@ import { LotDetail } from "@/features/cutting/components/LotDetail";
 import { StageActionPanel } from "@/features/lots/components/StageActionPanel";
 import { ShortfallPanel } from "@/features/lots/components/ShortfallPanel";
 import { WorkPanel } from "@/features/wages/components/WorkPanel";
+import { DispatchOutPanel } from "@/features/lots/components/DispatchOutPanel";
 
 export default function AdminLotPage() {
   const { id } = useParams();
@@ -94,6 +95,7 @@ export default function AdminLotPage() {
                 <ShortfallPanel lot={lot} ledgerHref={`/ledger?lot=${lot._id}`} />
               </div>
             </div>
+            {lot.stage === "ready" && <DispatchOutPanel lot={lot} onUpdated={handleStageUpdated} />}
             <WorkPanel lot={lot} />
           </>
         }

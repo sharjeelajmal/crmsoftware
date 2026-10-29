@@ -5,7 +5,7 @@ import { RECEIPTS, buildFabricReceipt, resolveHolder } from "@/lib/fabric";
 import { ALL_ROLES } from "@/constants/roles";
 
 /**
- * POST /api/fabric/receipts  { day, name, qty, unit?, note?, holderId? } — fabric received from the store.
+ * POST /api/fabric/receipts  { day, name, qty, rolls?, unit?, note?, holderId? } — fabric received from the store.
  * Cutting master: always for themselves. Admin: for the cutting master in `holderId` (default: themselves).
  */
 export const POST = route(

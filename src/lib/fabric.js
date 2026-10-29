@@ -71,6 +71,7 @@ export const buildFabricReceipt = ({ input, holder, session, now = new Date() })
   date: receiptDate(input.day),
   name: cleanFabricName(input.name),
   qty: roundQty(input.qty),
+  rolls: Math.max(0, Math.trunc(Number(input.rolls)) || 0),
   unit: input.unit || "m",
   note: input.note || "",
   holder,

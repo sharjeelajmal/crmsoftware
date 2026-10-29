@@ -2,12 +2,13 @@ import { ObjectId } from "mongodb";
 import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, parseBody, requireObjectId, notFound, forbidden, conflict } from "@/lib/api";
 import { lotUpdateSchema } from "@/lib/validation";
-import { buildLotEvent, canDeleteLot, canEditCutting, canViewLot, cutQtyOf, lotEvents } from "@/lib/lots";
+import { buildLotEvent, canDeleteLot, canEditCutting, canViewLot, cutQtyOf, isAdmin, lotEvents } from "@/lib/lots";
+import { CUTTING_EVENT_TYPES } from "@/constants/lots";
 import { issueGatePass } from "@/lib/gatepass";
 import { cuttingPassChanged } from "@/constants/gatepass";
 import { ALL_ROLES } from "@/constants/roles";
 
-/** GET /api/lots/:id — lot with its history (owner or admin). */
+/** GET /api/lots/:id — lot with its history (owner or admin; a cutting master only gets the cutting entries). */
 export const GET = route(
   async (_request, { session, ...context }) => {
     const _id = await requireObjectId(context);
@@ -15,7 +16,11 @@ export const GET = route(
     const lot = await db.collection("lots").findOne({ _id });
     if (!lot) throw notFound("Lot");
     if (!canViewLot(lot, session)) throw forbidden();
-    return ok({ ...lot, events: await lotEvents(db, _id) });
+    const events = await lotEvents(db, _id);
+    return ok({
+      ...lot,
+      events: isAdmin(session) ? events : events.filter((event) => CUTTING_EVENT_TYPES.includes(event.type)),
+    });
   },
   { roles: ALL_ROLES }
 );

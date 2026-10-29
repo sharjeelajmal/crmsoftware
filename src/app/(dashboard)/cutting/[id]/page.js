@@ -25,5 +25,7 @@ export default function CuttingLotPage() {
     );
   }
 
-  return <LotDetail lot={lot} backHref="/cutting" backLabel="My Lots" editHref={`/cutting/${lot._id}/edit`} />;
+  return (
+    <LotDetail lot={lot} backHref="/cutting" backLabel="My Lots" editHref={`/cutting/${lot._id}/edit`} cuttingView />
+  );
 }

@@ -101,6 +101,9 @@ export async function markLotReady(db, tx, { lot, qty, sizes, note, session }) {
 export async function reverseLotReady(db, tx, { lot, reason, session }) {
   if (lot.stage !== "ready" || !lot.stockApplied)
     throw conflict(`${lot.lotNumber} is not in stock, nothing to reverse`);
+  if ((Number(lot.dispatchQty) || 0) > 0) {
+    throw conflict(`${lot.dispatchQty} pieces of ${lot.lotNumber} were already dispatched — it can't be reversed`);
+  }
 
   const product = await db.collection("products").findOne({ _id: new ObjectId(lot.productId) }, { session: tx });
   if (!product) throw notFound("Product of this lot");
@@ -156,7 +159,8 @@ export async function reverseLotReady(db, tx, { lot, reason, session }) {
   return $set;
 }
 
-/** Stock movement reasons written by production (ready adds pieces, a reversal takes them back). */
+/** Stock movement reasons written by production (ready adds pieces, a reversal takes them back). A dispatch
+ * ("lot_dispatch") takes ready pieces out of stock but is not production, so it is not counted here. */
 export const PRODUCTION_REASONS = Object.freeze(["lot_ready", "lot_reversed"]);
 
 /** Net pieces that production put into stock: ready movements minus reversals (pure, for tests and widgets). */

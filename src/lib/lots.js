@@ -88,8 +88,8 @@ export function buildLot({ input, product, seq, session }) {
     fabric: { name: input.fabric.name, qty: Number(input.fabric.qty) || 0, unit: input.fabric.unit || "m" },
     sizes,
     cutQty: cutQtyOf(sizes),
-    bundleNumber: input.bundleNumber || "",
-    shrinkage: input.shrinkage === undefined ? null : input.shrinkage,
+    bundleNumber: input.bundleNumber || "", // the "Cut number" on screen and on the gate passes
+    shrinkage: input.shrinkage ?? "", // free text
     washType: "",
     note: input.note || "",
     stage: "cutting",

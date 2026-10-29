@@ -6,7 +6,7 @@ import { dateToValue } from "@/constants/datePresets";
 
 export const todayValue = () => format(new Date(), "yyyy-MM-dd");
 
-export const EMPTY_RECEIPT = { day: "", name: "", qty: "", unit: "m", note: "", holderId: "" };
+export const EMPTY_RECEIPT = { day: "", name: "", qty: "", rolls: "", unit: "m", note: "", holderId: "" };
 
 /** Form state for a new receipt (today) or for editing one. */
 export const receiptForm = (receipt = null) =>
@@ -16,6 +16,7 @@ export const receiptForm = (receipt = null) =>
         day: dateToValue(receipt.date),
         name: receipt.name || "",
         qty: String(receipt.qty ?? ""),
+        rolls: receipt.rolls ? String(receipt.rolls) : "",
         unit: receipt.unit || "m",
         note: receipt.note || "",
         holderId: receipt.holder?.id || "",
@@ -23,10 +24,11 @@ export const receiptForm = (receipt = null) =>
     : { ...EMPTY_RECEIPT, day: todayValue() };
 
 /** Shape accepted by POST/PUT /api/fabric/receipts (see fabricReceiptSchema). */
-export const toReceiptPayload = ({ day, name, qty, unit, note, holderId }) => ({
+export const toReceiptPayload = ({ day, name, qty, rolls, unit, note, holderId }) => ({
   day,
   name: cleanFabricName(name),
   qty: Number(qty),
+  rolls: Math.trunc(Number(rolls)) || 0,
   unit: unit || "m",
   note: String(note || "").trim(),
   ...(holderId ? { holderId } : {}),

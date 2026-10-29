@@ -11,6 +11,7 @@ import { useStockMovements } from "../hooks/useStockMovements";
 const REASON_LABELS = {
   lot_ready: "Lot ready",
   lot_reversed: "Reversed",
+  lot_dispatch: "Dispatched",
 };
 
 const reasonLabel = (reason) => REASON_LABELS[reason] || reason || "—";
@@ -42,7 +43,11 @@ function MovementRow({ movement }) {
         )}
         <span
           className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            movement.reason === "lot_reversed" ? "bg-danger-soft text-danger" : "bg-success-soft text-success"
+            movement.reason === "lot_reversed"
+              ? "bg-danger-soft text-danger"
+              : movement.reason === "lot_dispatch"
+                ? "bg-primary-soft text-primary"
+                : "bg-success-soft text-success"
           }`}
         >
           {reasonLabel(movement.reason)}

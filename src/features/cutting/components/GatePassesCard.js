@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Printer, Plus } from "lucide-react";
 import { itemVariants } from "@/constants/animations";
-import { GATE_PASS_LABELS, GATE_PASS_TYPES, canIssueGatePass } from "@/constants/gatepass";
+import { GATE_PASS_LABELS, ISSUABLE_GATE_PASS_TYPES, canIssueGatePass } from "@/constants/gatepass";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/format";
 import { useGatePasses } from "../hooks/useGatePasses";
@@ -13,13 +13,15 @@ import { GatePassModal } from "./GatePassModal";
 const CARD_CLASS = "bg-white p-4 sm:p-6 rounded-2xl shadow-sm";
 
 /**
- * Gate passes issued for the lot (stitching / washing) with a print preview each.
+ * Gate passes issued for the lot with a print preview each.
  * `canIssue` (admin) shows "Issue …" for a pass type the lot has reached but has no pass for yet.
+ * `types` limits the list (the cutting master's portal shows only the cutting gate pass).
  */
-export function GatePassesCard({ lot, canIssue = false }) {
-  const { passes, isLoading, isIssuing, issue } = useGatePasses(lot?._id, lot?.updatedAt);
+export function GatePassesCard({ lot, canIssue = false, types = null }) {
+  const { passes: all, isLoading, isIssuing, issue } = useGatePasses(lot?._id, lot?.updatedAt);
+  const passes = types ? all.filter((pass) => types.includes(pass.type)) : all;
   const [open, setOpen] = useState(null);
-  const missing = GATE_PASS_TYPES.filter(
+  const missing = ISSUABLE_GATE_PASS_TYPES.filter(
     (type) => canIssue && !isLoading && canIssueGatePass(lot, type) && !passes.some((pass) => pass.type === type)
   );
   // An edit of the cutting details issues a fresh cutting pass; the older ones stay listed but are marked old.
@@ -65,8 +67,10 @@ export function GatePassesCard({ lot, canIssue = false }) {
         <p className="text-sm text-gray-500">Loading…</p>
       ) : passes.length === 0 ? (
         <p className="text-sm text-gray-500" data-testid="gate-pass-empty">
-          The cutting gate pass is made when the cutting entry is saved, the stitching gate pass when the lot is sent to
-          stitching, and the washing gate pass when it goes to washing.
+          {types
+            ? "The cutting gate pass is made when the cutting entry is saved."
+            : "The cutting gate pass is made when the cutting entry is saved, the stitching gate pass when the lot is " +
+              "sent to stitching, and the washing gate pass when it goes to washing."}
         </p>
       ) : (
         <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100">
@@ -95,6 +99,7 @@ export function GatePassesCard({ lot, canIssue = false }) {
                   <span className="block text-xs text-gray-500">
                     {pass.pieces} pcs · {formatDateTime(pass.issuedAt)}
                     {pass.washType ? ` · ${pass.washType}` : ""}
+                    {pass.party ? ` · to ${pass.party}` : ""}
                     {pass.issuedBy?.name ? ` · ${pass.issuedBy.name}` : ""}
                   </span>
                 </span>

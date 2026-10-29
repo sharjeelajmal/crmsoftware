@@ -2,7 +2,7 @@ import { z } from "zod";
 import { ALL_ROLES } from "@/constants/roles";
 import { LEDGER_TYPES } from "@/constants/ledger";
 import { ADJUSTMENT_TYPES } from "@/constants/wages";
-import { GATE_PASS_TYPES } from "@/constants/gatepass";
+import { ISSUABLE_GATE_PASS_TYPES } from "@/constants/gatepass";
 import { PAYMENT_METHODS } from "@/constants/purchasingLedger";
 import { FABRIC_UNITS } from "@/constants/fabric";
 import { ATTENDANCE_STATUSES } from "@/constants/attendance";
@@ -239,12 +239,26 @@ export const lotCreateSchema = z.object({
     .max(50)
     .refine(uniqueSizes, "Sizes must be unique")
     .refine((sizes) => sizes.some((s) => s.qty > 0), "Total pieces must be more than 0"),
-  bundleNumber: optionalText(40),
-  shrinkage: z.coerce.number().min(0).max(100).nullable().optional(), // percent, printed on the gate pass
+  bundleNumber: optionalText(40), // shown as "Cut number" (client, 2026-10-29)
+  // Free text, written as the cutting master likes ("2 inch", "3-4"); a number from an older client becomes its text.
+  shrinkage: z
+    .preprocess((v) => (typeof v === "number" ? String(v) : v === null ? "" : v), z.string().trim().max(40))
+    .optional(),
   note: optionalText(500),
 });
 
 export const lotUpdateSchema = updateSchemaOf(lotCreateSchema);
+
+/** Ready pieces leaving the factory: where to, and how many of each size (a part is fine). */
+export const dispatchOutSchema = z.object({
+  party: trimmed(120),
+  sizes: z
+    .array(z.object({ size: trimmed(20), qty: z.coerce.number().int().min(0) }))
+    .min(1, "Enter the pieces per size")
+    .max(50)
+    .refine((rows) => new Set(rows.map((r) => r.size)).size === rows.length, "Sizes must be unique"),
+  note: optionalText(300),
+});
 
 // ---- Fabric khata (fabric received from the store; used fabric comes from the lots) ---------------------
 const requiredDay = z
@@ -256,6 +270,7 @@ export const fabricReceiptSchema = z.object({
   day: requiredDay,
   name: trimmed(120),
   qty: money.refine((n) => n > 0, "Quantity must be more than 0"),
+  rolls: z.coerce.number().int().min(0).max(100000).optional(), // how many rolls the quantity came in
   unit: z.enum(FABRIC_UNITS).default("m"),
   holderId: objectId.optional(), // admin only: the cutting master who got the fabric (default: whoever records it)
   note: optionalText(300),
@@ -305,7 +320,7 @@ export const lotStageActionSchema = z.object({
 });
 
 export const gatePassIssueSchema = z.object({
-  type: z.enum(GATE_PASS_TYPES),
+  type: z.enum(ISSUABLE_GATE_PASS_TYPES),
   washType: optionalText(80),
 });
 

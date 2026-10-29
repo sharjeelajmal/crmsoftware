@@ -36,6 +36,7 @@ export const EVENT_LABELS = {
   packing: "In packing",
   ready: "Ready for sale — stock added",
   reversed: "Ready reversed",
+  dispatched_out: "Dispatched (gate pass out)",
 };
 
 export const eventLabel = (type) => EVENT_LABELS[type] || type;
@@ -84,9 +85,6 @@ export const validateLotInput = (form) => {
   const names = new Set(rows.map((row) => row.size.trim().toLowerCase()));
   if (names.size !== rows.length) return "Sizes must be unique";
   if (totalPieces(rows) <= 0) return "Enter the cut quantity for at least one size";
-  if (form.shrinkage !== "" && !(Number(form.shrinkage) >= 0 && Number(form.shrinkage) <= 100)) {
-    return "Shrinkage must be between 0 and 100 percent";
-  }
   return null;
 };
 
@@ -98,8 +96,7 @@ export const toLotPayload = (form) => ({
     .filter((row) => row.size.trim())
     .map((row) => ({ size: row.size.trim(), qty: Math.trunc(Number(row.qty)) || 0 })),
   bundleNumber: String(form.bundleNumber || "").trim(),
-  shrinkage:
-    form.shrinkage === "" || form.shrinkage === null || form.shrinkage === undefined ? null : Number(form.shrinkage),
+  shrinkage: String(form.shrinkage ?? "").trim(),
   note: form.note.trim(),
 });
 
@@ -116,11 +113,18 @@ export const filterLots = (lots, { searchTerm = "", stage = "" } = {}) => {
   );
 };
 
-/** Counters for the "My lots" stat cards. */
-export const lotStats = (lots) => ({
-  total: lots.length,
-  inProcess: lots.filter((lot) => lot.stage !== "ready").length,
-  ready: lots.filter((lot) => lot.stage === "ready").length,
-});
+/** Counters for the "My Lots" stat cards: only the cutting side (no stages — the cutting master doesn't see them). */
+export const lotStats = (lots, now = new Date()) => {
+  const month = `${now.getFullYear()}-${now.getMonth()}`;
+  const inMonth = (lot) => {
+    const at = new Date(lot.createdAt);
+    return `${at.getFullYear()}-${at.getMonth()}` === month;
+  };
+  return {
+    total: lots.length,
+    pieces: lots.reduce((sum, lot) => sum + (Number(lot.cutQty) || 0), 0),
+    thisMonth: lots.filter(inMonth).length,
+  };
+};
 
 export const formatPieces = (qty) => `${Number(qty) || 0} pcs`;

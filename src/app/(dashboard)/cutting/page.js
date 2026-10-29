@@ -3,16 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Layers, Loader2, PackageCheck, Plus, Search } from "lucide-react";
+import { CalendarDays, Layers, Plus, Scissors, Search } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { Loader } from "@/components/ui/Loader";
 import { Button } from "@/components/ui/Button";
 import { StatCard } from "@/components/ui/StatCard";
-import { FilterButton } from "@/components/ui/FilterButton";
 import { useMyLots } from "@/features/cutting/hooks/useMyLots";
 import { LotCard } from "@/features/cutting/components/LotCard";
 import { FabricInHandStrip } from "@/features/fabric/components/FabricInHandStrip";
-import { STAGE_FILTERS, filterLots, lotStats } from "@/features/cutting/utils";
+import { filterLots, lotStats } from "@/features/cutting/utils";
 
 const SEARCH_CLASS =
   "pl-12 pr-4 py-3 w-full bg-white rounded-lg border border-gray-200 outline-none focus:ring-2 focus:ring-primary";
@@ -20,10 +19,9 @@ const SEARCH_CLASS =
 export default function CuttingPage() {
   const { lots, isLoading } = useMyLots();
   const [searchTerm, setSearchTerm] = useState("");
-  const [stage, setStage] = useState("");
 
   const stats = lotStats(lots);
-  const visible = filterLots(lots, { searchTerm, stage });
+  const visible = filterLots(lots, { searchTerm });
 
   if (isLoading) return <Loader />;
 
@@ -37,7 +35,7 @@ export default function CuttingPage() {
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">My Lots</h1>
-          <p className="text-gray-500 mt-1">Cutting entries you have recorded and where they are in production.</p>
+          <p className="text-gray-500 mt-1">Your cutting entries, their gate passes and the fabric in hand.</p>
         </div>
         <Link href="/cutting/new" className="w-full sm:w-auto" data-testid="cutting-new">
           <Button icon={Plus} size="lg" className="w-full">
@@ -48,31 +46,15 @@ export default function CuttingPage() {
 
       <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <StatCard icon={Layers} title="My lots" value={stats.total} />
-        <StatCard icon={Loader2} title="In process" value={stats.inProcess} />
-        <StatCard icon={PackageCheck} title="Ready" value={stats.ready} />
+        <StatCard icon={Scissors} title="Pieces cut" value={stats.pieces.toLocaleString("en-US")} />
+        <StatCard icon={CalendarDays} title="Lots this month" value={stats.thisMonth} />
       </motion.div>
 
       <FabricInHandStrip />
 
       <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4 mb-5">
-          <div className="grid grid-cols-2 min-[360px]:grid-cols-3 sm:flex sm:flex-wrap gap-1 sm:gap-2 p-1 bg-gray-100 rounded-xl w-full lg:w-auto">
-            {STAGE_FILTERS.map(({ value, label, short }) => (
-              <FilterButton
-                key={value || "all"}
-                label={
-                  <>
-                    <span className="sm:hidden">{short}</span>
-                    <span className="hidden sm:inline">{label}</span>
-                  </>
-                }
-                data-tip={label}
-                wrap
-                active={stage === value}
-                onClick={() => setStage(value)}
-              />
-            ))}
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-5">
+          <h2 className="text-lg font-bold text-gray-800">Cutting entries</h2>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
@@ -89,12 +71,12 @@ export default function CuttingPage() {
 
         <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3">
           {visible.length > 0 ? (
-            visible.map((lot) => <LotCard key={lot._id} lot={lot} href={`/cutting/${lot._id}`} />)
+            visible.map((lot) => <LotCard key={lot._id} lot={lot} href={`/cutting/${lot._id}`} showStage={false} />)
           ) : (
             <p className="text-center text-gray-500 py-10">
               {lots.length === 0
                 ? "No cutting entries yet. Start with a new cutting entry."
-                : "No lots match this filter."}
+                : "No lots match this search."}
             </p>
           )}
         </motion.div>

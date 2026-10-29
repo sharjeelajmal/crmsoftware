@@ -31,7 +31,7 @@ export function StitchingRow({ lot, onDispatch }) {
         </Link>
         <p className="text-sm text-gray-700 truncate">{lot.productName}</p>
         <p className="text-xs text-gray-500">
-          {lot.bundleNumber ? `Bundle ${lot.bundleNumber} · ` : ""}since {formatDate(lot.updatedAt || lot.createdAt)}
+          {lot.bundleNumber ? `Cut ${lot.bundleNumber} · ` : ""}since {formatDate(lot.updatedAt || lot.createdAt)}
         </p>
       </div>
       <div className="grid grid-cols-3 gap-3 md:w-80 text-sm">

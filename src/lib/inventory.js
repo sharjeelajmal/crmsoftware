@@ -88,7 +88,7 @@ export async function addStock(db, productId, qty, { size, session } = {}) {
 
 /**
  * Append-only audit trail of stock changes made by production (and, later, other sources).
- * `movement`: { productId, productName, qty (+/-), size?, reason: "lot_ready" | "lot_reversed",
+ * `movement`: { productId, productName, qty (+/-), size?, reason: "lot_ready" | "lot_reversed" | "lot_dispatch",
  *               lotId, lotNumber, by: { id, name } }
  */
 export async function recordStockMovement(db, movement, session) {

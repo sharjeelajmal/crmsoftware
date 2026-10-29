@@ -1,12 +1,16 @@
 import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, created, parseBody, requireObjectId, notFound, forbidden, conflict } from "@/lib/api";
 import { gatePassIssueSchema } from "@/lib/validation";
-import { canViewLot } from "@/lib/lots";
+import { canViewLot, isAdmin } from "@/lib/lots";
+import { CUTTING_GATE_PASS_TYPES } from "@/constants/lots";
 import { canIssueGatePass, GATE_PASS_LABELS } from "@/constants/gatepass";
 import { issueGatePass, lotGatePasses } from "@/lib/gatepass";
 import { ALL_ROLES } from "@/constants/roles";
 
-/** GET /api/lots/:id/gate-passes — every pass issued for the lot (owner or admin), oldest first. */
+/**
+ * GET /api/lots/:id/gate-passes — every pass issued for the lot, oldest first (admin). A cutting master (owner) only
+ * gets the cutting gate passes.
+ */
 export const GET = route(
   async (_request, { session, ...context }) => {
     const _id = await requireObjectId(context);
@@ -14,7 +18,8 @@ export const GET = route(
     const lot = await db.collection("lots").findOne({ _id }, { projection: { createdBy: 1 } });
     if (!lot) throw notFound("Lot");
     if (!canViewLot(lot, session)) throw forbidden();
-    return ok(await lotGatePasses(db, _id));
+    const passes = await lotGatePasses(db, _id);
+    return ok(isAdmin(session) ? passes : passes.filter((pass) => CUTTING_GATE_PASS_TYPES.includes(pass.type)));
   },
   { roles: ALL_ROLES }
 );

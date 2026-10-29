@@ -2,11 +2,12 @@
 
 import { motion } from "framer-motion";
 import { AlertTriangle, Check } from "lucide-react";
-import { formatFabricQty } from "@/constants/fabric";
+import { formatFabricQty, formatRolls } from "@/constants/fabric";
 
 /**
  * One card per fabric: what is in hand (big), received / used, and a bar of how much of it was cut. A negative
- * balance means more was cut than was recorded as received. Clicking a card shows that fabric's day-by-day khata.
+ * balance means more was cut than was recorded as received. With `onSelect`, clicking a card picks that fabric (the
+ * khata then shows its day-by-day); without it the cards are read-only (Inventory → Raw material).
  */
 export function FabricInHand({ balances, selected = "", onSelect }) {
   if (balances.length === 0) {
@@ -23,6 +24,10 @@ export function FabricInHand({ balances, selected = "", onSelect }) {
         const usedShare = row.received > 0 ? Math.min(100, (row.used / row.received) * 100) : row.used > 0 ? 100 : 0;
         const short = row.balance < 0;
         const isSelected = selected === row.key;
+        const Card = onSelect ? "button" : "div";
+        const cardProps = onSelect
+          ? { type: "button", onClick: () => onSelect(isSelected ? "" : row.key), "aria-pressed": isSelected }
+          : {};
         return (
           <motion.li
             key={row.key}
@@ -30,13 +35,11 @@ export function FabricInHand({ balances, selected = "", onSelect }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.04 * index, duration: 0.25 }}
           >
-            <button
-              type="button"
-              onClick={() => onSelect(isSelected ? "" : row.key)}
-              aria-pressed={isSelected}
-              className={`w-full text-left rounded-2xl border bg-white p-4 transition cursor-pointer hover:shadow-md ${
-                isSelected ? "border-primary ring-2 ring-primary/30" : "border-gray-100"
-              }`}
+            <Card
+              {...cardProps}
+              className={`block w-full text-left rounded-2xl border bg-white p-4 transition ${
+                onSelect ? "cursor-pointer hover:shadow-md" : ""
+              } ${isSelected ? "border-primary ring-2 ring-primary/30" : "border-gray-100"}`}
               data-testid="fabric-balance-card"
               data-key={row.key}
               data-balance={row.balance}
@@ -67,6 +70,7 @@ export function FabricInHand({ balances, selected = "", onSelect }) {
               <div className="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs text-gray-600 tabular-nums">
                 <span>
                   Received <b className="text-gray-800">{formatFabricQty(row.received, row.unit)}</b>
+                  {row.rolls > 0 && <span className="text-gray-500"> ({formatRolls(row.rolls)})</span>}
                 </span>
                 <span>
                   Used <b className="text-gray-800">{formatFabricQty(row.used, row.unit)}</b>
@@ -77,7 +81,7 @@ export function FabricInHand({ balances, selected = "", onSelect }) {
                   <AlertTriangle size={14} /> More was cut than received — record the missing fabric.
                 </p>
               )}
-            </button>
+            </Card>
           </motion.li>
         );
       })}

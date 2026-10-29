@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 import { Pencil, Trash2 } from "lucide-react";
-import { formatFabricQty } from "@/constants/fabric";
+import { formatFabricQty, formatRolls } from "@/constants/fabric";
 
 /** Fabric received in the period, newest first, with edit / delete for mistakes. */
 export function FabricReceiptsList({ receipts, showHolder = false, onEdit, onDelete }) {
@@ -31,6 +31,12 @@ export function FabricReceiptsList({ receipts, showHolder = false, onEdit, onDel
             <p className="font-semibold text-gray-800 [overflow-wrap:anywhere]">
               {receipt.name}
               <span className="font-bold text-success"> + {formatFabricQty(receipt.qty, receipt.unit)}</span>
+              {receipt.rolls > 0 && (
+                <span className="font-normal text-gray-500" data-testid="fabric-receipt-rolls">
+                  {" "}
+                  · {formatRolls(receipt.rolls)}
+                </span>
+              )}
             </p>
             <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
               {format(new Date(receipt.date), "d MMM yyyy")}

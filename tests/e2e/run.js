@@ -956,19 +956,19 @@ test("Phase 7: gate passes are issued with the stage changes and carry bundle, s
       { size: "32", qty: 50 },
     ],
     bundleNumber: "B-7",
-    shrinkage: 12,
+    shrinkage: "2 inch",
     note: "phase7",
   });
   expect(created.status, "create lot").toBe(201);
   expect(created.body.bundleNumber, "bundle stored").toBe("B-7");
-  expect(created.body.shrinkage, "shrinkage stored").toBe(12);
+  expect(created.body.shrinkage, "shrinkage stored as written").toBe("2 inch");
   const id = created.body._id;
   S.ids.lots.push(id);
 
   const atCutting = (await api(S.cutter, "GET", `/api/lots/${id}/gate-passes`)).body;
   expect(atCutting.map((p) => p.type).join(","), "cutting pass only").toBe("cutting");
   expect(atCutting[0].bundleNumber, "bundle on cutting pass").toBe("B-7");
-  expect(atCutting[0].shrinkage, "shrinkage on cutting pass").toBe(12);
+  expect(atCutting[0].shrinkage, "shrinkage on cutting pass").toBe("2 inch");
   expect(atCutting[0].sizeRange, "sizes on cutting pass").toBe("30 – 32");
   expect(atCutting[0].pieces, "pieces on cutting pass").toBe(100);
   expect((await api(S.admin, "POST", `/api/lots/${id}/gate-passes`, { type: "stitching" })).status, "too early").toBe(
@@ -984,7 +984,7 @@ test("Phase 7: gate passes are issued with the stage changes and carry bundle, s
   expect(stitchingPass.pieces, "cut pieces").toBe(100);
   expect(stitchingPass.sizeRange, "size range").toBe("30 – 32");
   expect(stitchingPass.bundleNumber, "bundle on pass").toBe("B-7");
-  expect(stitchingPass.shrinkage, "shrinkage on pass").toBe(12);
+  expect(stitchingPass.shrinkage, "shrinkage on pass").toBe("2 inch");
 
   const stitched = await api(S.admin, "POST", `/api/lots/${id}/stage`, {
     action: "stitched",
@@ -997,9 +997,16 @@ test("Phase 7: gate passes are issued with the stage changes and carry bundle, s
   expect(washingPass.pieces, "stitched pieces on washing pass").toBe(98);
   expect(washingPass.washType, "wash type on pass").toBe("Enzyme wash");
 
-  const list = await api(S.cutter, "GET", `/api/lots/${id}/gate-passes`);
-  expect(list.status, "owner can read").toBe(200);
+  const list = await api(S.admin, "GET", `/api/lots/${id}/gate-passes`);
   expect(list.body.map((p) => p.type).join(","), "three separate passes").toBe("cutting,stitching,washing");
+  // the cutting master never sees where the pieces went after cutting (client, 2026-10-29)
+  const cutterList = await api(S.cutter, "GET", `/api/lots/${id}/gate-passes`);
+  expect(cutterList.status, "owner can read").toBe(200);
+  expect(cutterList.body.map((p) => p.type).join(","), "cutter: cutting gate pass only").toBe("cutting");
+  const cutterLot = await api(S.cutter, "GET", `/api/lots/${id}`);
+  expect(cutterLot.body.events.map((e) => e.type).join(","), "cutter: cutting history only").toBe("created");
+  const adminLot = await api(S.admin, "GET", `/api/lots/${id}`);
+  expect(adminLot.body.events.length > 1, "admin: the whole history").toBe(true);
   expect((await api(S.cutter2, "GET", `/api/lots/${id}/gate-passes`)).status, "other cutter").toBe(403);
   expect((await api(S.cutter, "POST", `/api/lots/${id}/gate-passes`, { type: "washing" })).status, "cutter issue").toBe(
     403
@@ -1222,7 +1229,13 @@ test("fabric khata: fabric in, cutting entries out, balance per fabric, day by d
   const balanceOf = async (session, query = "") =>
     (await api(session, "GET", `/api/fabric${query}`)).body.balances.find((b) => b.key === KEY);
 
-  const first = await api(S.cutter, "POST", "/api/fabric/receipts", { day: yesterday, name: "E2E 15-14 KZ", qty: 500 });
+  const first = await api(S.cutter, "POST", "/api/fabric/receipts", {
+    day: yesterday,
+    name: "E2E 15-14 KZ",
+    qty: 500,
+    rolls: 4,
+  });
+  expect(first.body.rolls, "rolls stored").toBe(4);
   expect(first.status, "receive").toBe(201);
   const cutterId = first.body.holder.id;
   expect(Boolean(cutterId), "held by the cutting master").toBe(true);
@@ -1249,6 +1262,7 @@ test("fabric khata: fabric in, cutting entries out, balance per fabric, day by d
   expect(khata.body.admin, "cutter is not admin").toBe(false);
   const row = khata.body.balances.find((b) => b.key === KEY);
   expect([row.received, row.used, row.balance], "received / used / in hand").toEqual([700, 120, 580]);
+  expect(row.rolls, "rolls received").toBe(4);
 
   const days = await api(S.cutter, "GET", `/api/fabric?fabric=${encodeURIComponent(KEY)}`);
   expect(
@@ -1384,6 +1398,118 @@ uiTest(
     expect(await page.getAttribute('[data-testid="report-day"]', "data-value"), "moved a day back").toBe(localDay(-1));
   }
 );
+
+test("Dispatch: ready pieces leave in parts with a dispatch gate pass, out of the Ready stock, with the labour cost", async () => {
+  const created = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "Denim", qty: 30 },
+    sizes: [
+      { size: "30", qty: 20 },
+      { size: "32", qty: 20 },
+    ],
+    bundleNumber: "C-77",
+    note: "dispatch",
+  });
+  const id = created.body._id;
+  S.ids.lots.push(id);
+  S.dispatchLotId = id;
+  for (const step of [{ action: "send_stitching" }, { action: "stitched", qty: 40 }, { action: "washed", qty: 40 }]) {
+    expect((await api(S.admin, "POST", `/api/lots/${id}/stage`, step)).status, step.action).toBe(200);
+  }
+  // labour on the lot: 40 pcs × Rs 4 = 160 → Rs 4 a finished piece
+  const operation = (await api(S.admin, "GET", "/api/operations")).body.operations.find((o) => o.name === "E2E Pocket");
+  const worker = (await api(S.admin, "GET", "/api/workers")).body.find((w) => w.name === "E2E Akram");
+  const work = await api(S.admin, "POST", "/api/work-entries", {
+    lotId: id,
+    operationId: operation._id,
+    rate: 4,
+    rows: [{ workerId: worker._id, pieces: 40 }],
+  });
+  expect(work.status, "labour").toBe(201);
+
+  const notReady = await api(S.admin, "POST", `/api/lots/${id}/dispatch-out`, {
+    party: "E2E Shop",
+    sizes: [{ size: "30", qty: 1 }],
+  });
+  expect(notReady.status, "only a Ready lot").toBe(409);
+  const ready = await api(S.admin, "POST", `/api/lots/${id}/stage`, {
+    action: "ready",
+    qty: 40,
+    sizes: [
+      { size: "30", qty: 20 },
+      { size: "32", qty: 20 },
+    ],
+  });
+  expect(ready.status, "ready").toBe(200);
+  const stockOf = async () =>
+    (await api(S.admin, "GET", "/api/products")).body
+      .find((p) => p._id === S.productId)
+      .sizes.find((z) => z.size === "30").remaining;
+  const before = await stockOf();
+
+  const first = await api(S.admin, "POST", `/api/lots/${id}/dispatch-out`, {
+    party: " E2E Shop ",
+    sizes: [
+      { size: "30", qty: 10 },
+      { size: "32", qty: 0 },
+    ],
+    note: "2 cartons",
+  });
+  expect(first.status, "dispatch 10").toBe(201);
+  const pass = first.body.pass;
+  expect([pass.type, pass.party, pass.pieces, pass.partial], "dispatch gate pass").toEqual([
+    "dispatch",
+    "E2E Shop",
+    10,
+    true,
+  ]);
+  expect(/^GP-\d{4,}$/.test(pass.number), "numbered").toBe(true);
+  expect(pass.sizes, "sizes going out").toEqual([{ size: "30", qty: 10 }]);
+  expect([pass.cost.perPiece, pass.cost.amount], "labour cost").toEqual([4, 40]);
+  expect(pass.bundleNumber, "cut number on the pass").toBe("C-77");
+  expect(await stockOf(), "ready stock went down").toBe(before - 10);
+
+  const tooMany = await api(S.admin, "POST", `/api/lots/${id}/dispatch-out`, {
+    party: "E2E Shop",
+    sizes: [{ size: "30", qty: 11 }],
+  });
+  expect(tooMany.status, "more than is left").toBe(409);
+  expect(
+    (await api(S.admin, "POST", `/api/lots/${id}/dispatch-out`, { party: "", sizes: [{ size: "30", qty: 1 }] })).status,
+    "party needed"
+  ).toBe(400);
+  expect(
+    (await api(S.cutter, "POST", `/api/lots/${id}/dispatch-out`, { party: "X", sizes: [{ size: "30", qty: 1 }] }))
+      .status,
+    "cutting master can't dispatch"
+  ).toBe(403);
+
+  const second = await api(S.admin, "POST", `/api/lots/${id}/dispatch-out`, {
+    party: "E2E Market",
+    sizes: [{ size: "32", qty: 15 }],
+  });
+  expect(second.status, "a second part").toBe(201);
+  expect(second.body.dispatchQty, "dispatched so far").toBe(25);
+  const lot = (await api(S.admin, "GET", `/api/lots/${id}`)).body;
+  expect(lot.dispatchSizes, "per size").toEqual([
+    { size: "30", qty: 10 },
+    { size: "32", qty: 15 },
+  ]);
+  expect(lot.events.map((e) => e.type).filter((t) => t === "dispatched_out").length, "events").toBe(2);
+  expect(
+    (await api(S.admin, "POST", `/api/lots/${id}/reverse`, { reason: "oops" })).status,
+    "no reverse once pieces left"
+  ).toBe(409);
+  const parties = await api(S.admin, "GET", "/api/gate-passes/parties");
+  expect(parties.body.includes("E2E Shop") && parties.body.includes("E2E Market"), "parties remembered").toBe(true);
+  expect(
+    (await api(S.cutter, "GET", `/api/lots/${id}/gate-passes`)).body.map((p) => p.type).join(","),
+    "cutting master: still only the cutting pass"
+  ).toBe("cutting");
+
+  // the labour stays booked on the lot; remove it so the cleanup can delete the worker
+  for (const entry of work.body) await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
+});
 
 test("deleting a lot at cutting also removes its cutting gate pass", async () => {
   const lot = await api(S.cutter, "POST", "/api/lots", {
@@ -1844,7 +1970,7 @@ uiTest("UI (Phase 7): the lot page lists gate passes and the preview shows both 
   expect(await page.locator('[data-testid="gate-pass-phone-top"]').innerText(), "top phone").toBe("0321-4361127");
   expect(await page.locator('[data-testid="gate-pass-phone-bottom"]').innerText(), "bottom phone").toBe("0323-8888000");
   expect(await page.locator('[data-testid="gate-pass-lot"]').innerText(), "lot number").toBe(lot.lotNumber);
-  expect(await page.locator('[data-testid="gate-pass-shrinkage"]').innerText(), "shrinkage").toBe("12%");
+  expect(await page.locator('[data-testid="gate-pass-shrinkage"]').innerText(), "shrinkage").toBe("2 inch");
   expect(await page.locator('[data-testid="gate-pass-sizes"]').innerText(), "sizes").toBe("30 – 32");
   await page.click('button[aria-label="Close"]');
 
@@ -1855,6 +1981,74 @@ uiTest("UI (Phase 7): the lot page lists gate passes and the preview shows both 
   await page.waitForSelector('[data-testid="gate-pass-row"]', { timeout: 60_000 });
   expect(await page.locator('[data-testid^="gate-pass-issue-"]').count(), "no issue buttons for cutter").toBe(0);
 });
+
+uiTest(
+  "UI: the cutting master sees cutting only; admin dispatches the rest of a lot and sees raw material",
+  async (page) => {
+    // cutting master: no stages anywhere, only the cutting gate pass
+    await browserLogin(page, "e2e-cutter", "cutter123");
+    await page.goto(`${BASE}/cutting`);
+    await page.waitForSelector('[data-testid="lot-card"]', { timeout: 60_000 });
+    expect(await page.getByText("In process", { exact: true }).count(), "no stage cards").toBe(0);
+    const phase7 = (await api(S.admin, "GET", "/api/lots")).body.find((l) => l.note === "phase7");
+    await page.goto(`${BASE}/cutting/${phase7._id}`);
+    await page.waitForSelector('[data-testid="lot-detail"]', { timeout: 60_000 });
+    await page.waitForSelector('[data-testid="gate-pass-row"]', { timeout: 60_000 });
+    expect(await page.locator('[data-testid^="lot-pipeline-qty-"]').count(), "no pipeline").toBe(0);
+    expect(
+      await page.locator('[data-testid="gate-pass-row"]').evaluateAll((rows) => rows.map((r) => r.dataset.type).join()),
+      "cutting gate pass only"
+    ).toBe("cutting");
+    expect(await page.locator('[data-testid="lot-detail-locked"]').count(), "locked, without saying where it is").toBe(
+      1
+    );
+    expect(await page.locator('[data-testid="lot-cutting-details"]').innerText(), "cut number label").toContain(
+      "CUT NO."
+    );
+
+    // admin: dispatch what is left of the dispatch lot (15 of size 30); its labour is 40 pcs × Rs 4 again
+    const operation = (await api(S.admin, "GET", "/api/operations")).body.operations.find(
+      (o) => o.name === "E2E Pocket"
+    );
+    const worker = (await api(S.admin, "GET", "/api/workers")).body.find((w) => w.name === "E2E Akram");
+    const work = await api(S.admin, "POST", "/api/work-entries", {
+      lotId: S.dispatchLotId,
+      operationId: operation._id,
+      rate: 4,
+      rows: [{ workerId: worker._id, pieces: 40 }],
+    });
+    await page.context().clearCookies();
+    await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+    await page.goto(`${BASE}/lots/${S.dispatchLotId}`);
+    const panel = page.locator('[data-testid="dispatch-panel"]');
+    await panel.waitFor({ timeout: 60_000 });
+    expect(await panel.getAttribute("data-left"), "left in the factory").toBe("15");
+    await page.click('[data-testid="dispatch-open"]');
+    await page.waitForSelector('[data-testid="dispatch-out-form"]');
+    await page.fill('[data-testid="dispatch-party"]', "e2e");
+    await page.locator('[data-testid="dispatch-party-option"]', { hasText: "E2E Shop" }).click();
+    expect(await page.getAttribute('[data-testid="dispatch-total"]', "data-pieces"), "all that is left").toBe("15");
+    await page.click('[data-testid="dispatch-submit"]');
+    await page.waitForSelector('[data-testid="gate-pass-document"][data-type="dispatch"]', { timeout: 60_000 });
+    expect(await page.locator('[data-testid="gate-pass-party"]').innerText(), "party on the pass").toBe("E2E Shop");
+    expect(await page.locator('[data-testid="gate-pass-pieces"]').innerText(), "pieces on the pass").toBe("15 pcs");
+    expect(await page.locator('[data-testid="gate-pass-cost"]').innerText(), "labour cost on the pass").toBe("60/-");
+    await page.click('button[aria-label="Close"]');
+    await page.waitForFunction(
+      () => document.querySelector('[data-testid="dispatch-panel"]')?.dataset.left === "0",
+      null,
+      { timeout: 60_000 }
+    );
+    expect(await page.locator('[data-testid="lot-reverse"]').count(), "no reverse after dispatch").toBe(0);
+    for (const entry of work.body) await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
+
+    // Inventory → Raw material
+    await page.goto(`${BASE}/inventory`);
+    await page.click('[data-testid="inventory-tab-raw"]');
+    await page.waitForSelector('[data-testid="raw-material"] [data-testid="fabric-balance-card"]', { timeout: 60_000 });
+    expect(await page.locator('[data-testid="raw-received"]').innerText(), "received in raw").toContain("m");
+  }
+);
 
 uiTest("UI (Phase 7b): the stitching page shows what is lying and sends a part out with a gate pass", async (page) => {
   const created = await api(S.cutter, "POST", "/api/lots", {

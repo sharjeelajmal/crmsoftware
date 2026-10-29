@@ -367,30 +367,6 @@
     .sheet-acts{grid-template-columns:1fr}
   }
   @media(max-width:360px){.brand small{display:none}.acts{grid-template-columns:1fr}}
-  /* New Updates tab */
-  .nav-item .new{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;vertical-align:2px}
-  .upd-banner{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin-top:16px;padding:16px 18px;border-radius:var(--radius);background:linear-gradient(135deg,var(--success-soft),#fff 70%);border:1px solid var(--success-border);box-shadow:var(--shadow);animation:viewIn .5s var(--ease) both;transition:transform .25s var(--ease),box-shadow .25s}
-  .upd-banner:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
-  .upd-banner .ni{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:var(--success);color:#fff;flex:none}
-  .upd-banner b{display:block;font-size:16px}
-  .upd-banner small{display:block;color:var(--text-2);font-size:13px;margin-top:2px}
-  .upd-banner .go{margin-left:auto;font-weight:800;color:var(--success);white-space:nowrap}
-  .upd-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
-  .upd-pill{display:flex;gap:12px;align-items:center;width:100%;padding:12px 14px;border-radius:16px;background:var(--surface);box-shadow:var(--shadow);text-align:left;animation:viewIn .45s calc(var(--i)*45ms) var(--ease) both;transition:transform .25s var(--ease)}
-  .upd-pill:hover{transform:translateY(-2px)}
-  .upd-pill .ni{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--success-soft);color:var(--success);flex:none}
-  .upd-pill b{display:block;font-size:14px;line-height:1.3}
-  .upd-pill small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
-  .upd-group{margin-top:30px;scroll-margin-top:104px}
-  .upd-h{display:flex;gap:14px;align-items:center;animation:viewIn .5s var(--ease) both}
-  .upd-h .ni{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;background:var(--primary);color:#fff;flex:none;box-shadow:0 10px 20px -10px var(--primary)}
-  .upd-h h3{font-size:19px;font-weight:800;line-height:1.25}
-  .done-badge{display:inline-flex;align-items:center;gap:5px;margin-top:5px;padding:3px 10px;border-radius:999px;background:var(--success-soft);color:var(--success);border:1px solid var(--success-border);font-size:12px;font-weight:800}
-  .done-badge .ico{width:13px;height:13px}
-  .upd-what{margin:12px 0 0;padding:14px 16px;border-radius:16px;background:var(--surface);border-left:4px solid var(--primary-light);box-shadow:var(--shadow);font-size:14.5px;line-height:1.6;color:var(--text-2)}
-  .upd-what b{color:var(--text)}
-  @media (max-width:640px){.upd-group{scroll-margin-top:196px}.upd-banner{flex-wrap:wrap}.upd-banner .go{margin-left:60px}}
-
   @media print{
     .decor,.top,.nav,.pager,.acts,.note,.hero-btns,#toast,.modal{display:none!important}
     body{background:#fff}
@@ -520,7 +496,6 @@ const P={
   droplet:'<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
   pkg:'<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/>',
   spool:'<path d="M17 13.44 4.44 7.26M7 3h10M7 21h10"/><path d="M9 3v18M15 3v18"/>',
-  spark:'<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0L14.06 8.5a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/><path d="M20 3v4M22 5h-4"/>',
   scroll:'<path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>',
 };
 const ico=(k,cls="ico")=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[k]||""}</svg>`;
@@ -540,7 +515,7 @@ const CH=[
     tip:"Ghalat password par laal message aata hai. Dobara sahi likhein."},
    {id:"login-menu",t:"Menu pehchanein",s:"Baayen taraf ki list",who:"admin",
     steps:["Screen ke baayen taraf menu dekhein.","Phone par upar ☰ (teen lakeeron) wala button dabayein, menu khul jayega."],
-    ok:"Upar: <b>Dashboard, Inventory, Purchasing, Expenses</b>. Neeche “Production” mein: <b>Lots, Stitching, Lot Report, Fabric Khata, Cutting Report, Ledger, Workers, Attendance, Wages, Users</b>. Aakhir mein Profile aur Log Out.",
+    ok:"Upar: <b>Dashboard, Inventory</b> (Ready stock aur Raw material), <b>Purchasing, Expenses</b>. Neeche “Production” mein: <b>Lots, Stitching, Lot Report, Fabric Khata, Cutting Report, Ledger, Workers, Attendance, Wages, Users</b>. Aakhir mein Profile aur Log Out.",
     tip:"Sales, Customers aur Recovery filhal band hain. Zaroorat ho to dobara chalu ho sakte hain, purana data mehfooz hai."},
    {id:"login-profile",t:"Apna naam aur password badlein",s:"Profile page",who:"both",
     steps:["Menu mein “Profile” kholein.","Naam ya phone badal kar Save dabayein.","Password badalna ho to “Change Password” mein purana aur naya password likhein."],
@@ -559,13 +534,13 @@ const CH=[
     tip:"Yahi naam aur password cutting master ko de dein."},
    {id:"users-view",t:"Cutting master kya dekhta hai",s:"Us ke account se login",who:"cm",
     steps:["Log Out karein.","Cutting master ke naam aur password se login karein.","Menu dekhein."],
-    ok:"Sirf <b>My Lots, New Cutting, Fabric Khata, Cutting Report, Profile, Log Out</b>. Stock, salary ya doosre pages nahi khulte; kapre ka khata bhi sirf apna."},
+    ok:"Sirf <b>My Lots, New Cutting, Fabric Khata, Cutting Report, Profile, Log Out</b>. Stock, salary ya doosre pages nahi khulte; kapre ka khata bhi sirf apna. Lot cutting ke baad kahan gaya (Stitching, Washing, Ready) yeh bhi cutting master ko nazar nahi aata."},
    {id:"users-edit",t:"User band ya delete karna",s:"Users list",who:"admin",
     steps:["Users list mein us user ki row par pencil (Edit) dabayein.","Account band karna ho to “Active” wala switch dabayein (Inactive ho jayega) aur Save karein. Bilkul hatana ho to row par delete ka nishan."],
     ok:"Band user login nahi kar sakta. Aap ka apna admin account band ya delete nahi hota (hifazat ke liye)."},
   ]},
  {key:"stock",icon:"box",title:"Stock, khareed aur kharche",short:"Stock aur khareed",who:["admin"],
-  intro:"Har article (product) ka stock yahan rehta hai. Lot “Ready” hone par aur maal khareedne par stock <b>khud</b> barhta hai. Vendors ka khata (kitna dena hai) Purchasing ke “Ledger” tab mein.",
+  intro:"Inventory ke do hisse hain: <b>Ready stock</b> (tayyar maal — lot “Ready” hone par aur khareed par <b>khud</b> barhta hai, dispatch par khud ghatta hai) aur <b>Raw material</b> (kapra — cutting master darj karta hai, har cutting mein khud kam hota hai). Vendors ka khata (kitna dena hai) Purchasing ke “Ledger” tab mein.",
   tasks:[
    {id:"stock-add",t:"Naya product (article) banayein",s:"Inventory → Add Product",who:"admin",
     steps:["Menu mein “Inventory” kholein aur “Add Product” dabayein.","Naam, category, khareed qeemat (purchase price) aur sale price likhein.","Size-wise stock rakhna hai to “Track stock per size” on karein aur har size ki ginti likhein (misaal: 30 = 5, 32 = 7).","“Add” dabayein."],
@@ -582,6 +557,10 @@ const CH=[
    {id:"stock-history",t:"Stock kab aur kahan se badla",s:"History ka nishan",who:"admin",
     steps:["Product ki row par history (ghari) wala nishan dabayein."],
     ok:"Har tabdeeli: tareekh, kis lot se, kitne pieces aur kis ne ki."},
+   {id:"stock-raw",t:"Raw material (kapra) ka stock",s:"Inventory → Raw material",who:"admin",
+    steps:["Menu mein “Inventory” kholein aur upar <b>Raw material</b> tab dabayein.","Zaroorat ho to “All cutting masters” se ek cutting master chunein ya kapra search karein.","Tayyar maal ke liye wapas <b>Ready stock</b> tab dabayein."],
+    ok:"Teen khane: <b>Fabric received</b> (rolls ke saath), <b>Used in cutting</b>, <b>In stock (raw)</b>; neeche har kapre ka card (In hand, Received, Used). “Receive Fabric” se yahin se bhi kapra darj hota hai; “Day by day” se Fabric Khata khulta hai.",
+    tip:"Kapra cutting master “Fabric Khata” mein darj karta hai (chapter “Kapra (Fabric) Khata”). Har cutting entry ka kapra khud kam ho jata hai."},
    {id:"stock-purchase",t:"Maal ki khareed",s:"Purchasing → New Purchase",who:"admin",
     steps:["Menu mein “Purchasing” kholein aur “New Purchase” dabayein.","Product, vendor (jis se khareeda), size (agar ho), ginti aur qeemat likhein.","“Record Purchase” dabayein."],
     ok:"Khareed list mein aa jati hai aur product ka stock khud barh jata hai."},
@@ -605,14 +584,18 @@ const CH=[
   before:"Article (product) pehle Inventory mein bana hona chahiye (chapter “Stock, khareed aur kharche”).",
   tasks:[
    {id:"cut-new",t:"Nayi cutting entry",s:"New Cutting",who:"cm",
-    steps:["Menu mein “New Cutting” kholein.","Article chunein.","Kapre ka naam likhein ya list se chunein, aur kitna laga likhein (misaal: Denim 12oz, 62 m). Neeche likha aata hai is cutting ke baad kitna kapra bachega.","Bundle number (misaal: B-12) aur Shrinkage % (misaal: 12) likhein, agar maloom hon.","Har size ke pieces likhein (misaal: 30 = 60, 32 = 60).","Koi hidayat ho to “Remarks / instructions” mein likhein.","Save dabayein."],
+    steps:["Menu mein “New Cutting” kholein.","Article chunein.","Kapre ka naam likhein ya list se chunein, aur kitna laga likhein (misaal: Denim 12oz, 62 m). Neeche likha aata hai is cutting ke baad kitna kapra bachega.","Cut number (misaal: C-12) aur Shrinkage (jo marzi, misaal: 2 inch) likhein, agar maloom hon.","Har size ke pieces likhein (misaal: 30 = 60, 32 = 60).","Koi hidayat ho to “Remarks / instructions” mein likhein.","Save dabayein."],
     ok:"Neeche <b>Total pieces</b> khud jur jata hai (120). Save karte hi naye lot ka page khulta hai, number ke saath (misaal: <b>LOT-1001</b>), aur <b>cutting gate pass</b> bhi khud ban jata hai — lot ke page par “Gate passes” mein Print dabayein."},
+   {id:"cut-pass",t:"Cutting gate pass print karna",s:"Lot page → Gate passes → Print",who:"cm",
+    steps:["Cutting entry save hote hi lot ka page khulta hai (ya “My Lots” se lot kholein).","Neeche “Gate passes” mein <b>Cutting gate pass</b> ki line par “Print” dabayein.","Preview mein dobara “Print” dabayein."],
+    ok:"Kaghaz par upar <b>CUTTING GATE PASS</b>: Lot no., Article, <b>Cut no.</b>, Sizes, Total pieces, Shrinkage, Kapra, har size ki ginti aur dono phone number.",
+    tip:"Cutting ki detail (sizes, cut number, shrinkage, kapra) edit karne par naya cutting gate pass banta hai; purane par “Old · use GP-…” likha aata hai."},
    {id:"cut-mylots",t:"Apne lots dekhna",s:"My Lots",who:"cm",
     steps:["Menu mein “My Lots” kholein.","Kisi lot par click karein."],
-    ok:"Har lot ka haal: Cutting, Stitching, Washing, Packing ya Ready. Lot ke page par poori history."},
+    ok:"Har lot ki cutting ki detail aur us ka <b>Cutting gate pass</b>. Lot aage kahan tak pahuncha, yeh cutting master ko nazar nahi aata (sirf admin ko)."},
    {id:"cut-edit",t:"Ghalti theek karna",s:"Lot page → Edit",who:"cm",
     steps:["Lot ka page kholein aur “Edit” dabayein.","Ghalat ginti theek karein aur Save karein."],
-    ok:"Total naya ho jata hai; History mein “Cutting entry edited” likha aata hai. Sizes, bundle, shrinkage ya kapra badla ho to naya cutting gate pass ban jata hai (purane par “Old” likha aata hai).",
+    ok:"Total naya ho jata hai; History mein “Cutting entry edited” likha aata hai. Sizes, cut number, shrinkage ya kapra badla ho to naya cutting gate pass ban jata hai (purane par “Old” likha aata hai).",
     warn:"Edit sirf tab tak hota hai jab tak lot Cutting par hai. Stitching par jaane ke baad nahi."},
    {id:"cut-check",t:"Adhoori entry save nahi hoti",s:"Hifazat",who:"cm",
     steps:["Bina article chune Save dabayein.","Phir sab sizes 0 rakh kar Save dabayein."],
@@ -622,8 +605,8 @@ const CH=[
   intro:"Store se jitna kapra aata hai woh yahan likhein. Har cutting entry mein jitna kapra laga woh <b>khud</b> minus hota hai, aur samne nazar aata hai: <b>kitna aaya, kitna use hua, kitna haath mein baqi hai</b> — din-ba-din.",
   tasks:[
    {id:"fab-receive",t:"Store se kapra aaya — darj karein",s:"Fabric Khata → Receive Fabric",who:"cm",
-    steps:["Menu mein “Fabric Khata” kholein.","“Receive Fabric” dabayein.","Tareekh chunein (aaj ki pehle se lagi hoti hai).","Kapre ka naam likhein (misaal: <code>15-14 KZ</code>) aur kitna aaya (misaal: 500, unit “m”).","Note likhna ho to likhein (misaal: 4 rolls) aur Save dabayein."],
-    ok:"Upar ke teen khanon mein <b>Fabric received</b> barh jata hai aur “Fabric in hand” mein us kapre ka card aa jata hai: <b>In hand 500 m</b>. My Lots page par bhi upar “Fabric in hand” nazar aata hai.",
+    steps:["Menu mein “Fabric Khata” kholein.","“Receive Fabric” dabayein.","Tareekh chunein (aaj ki pehle se lagi hoti hai).","Kapre ka naam likhein (misaal: <code>15-14 KZ</code>), kitne <b>rolls</b> aaye (misaal: 4) aur kitna kapra (misaal: 500, unit “m”).","Note likhna ho to likhein (misaal: from store) aur Save dabayein."],
+    ok:"Upar ke teen khanon mein <b>Fabric received</b> barh jata hai aur “Fabric in hand” mein us kapre ka card aa jata hai: <b>In hand 500 m</b>, saath “Received 500 m (4 rolls)”. My Lots page par bhi upar “Fabric in hand” nazar aata hai. Hisaab meters mein chalta hai.",
     tip:"Pehle se darj kapre ka naam likhna shuru karein to neeche list aa jati hai — wahin se chunein taake naam ek jaisa rahe."},
    {id:"fab-cut",t:"Cutting karte waqt balance dekhein",s:"New Cutting → Fabric",who:"cm",
     steps:["“New Cutting” kholein aur article chunein.","Kapre ke naam mein likhna shuru karein aur list se kapra chunein.","Kitna kapra laga likhein (misaal: 120)."],
@@ -637,7 +620,7 @@ const CH=[
     ok:"Yeh remarks lot ke page par aur Daily Cutting Report mein peele (yellow) dabbe mein nazar aate hain."},
    {id:"fab-report",t:"Daily Cutting Report",s:"Cutting Report",who:"cm",
     steps:["Menu mein “Cutting Report” kholein (aaj ka din khulta hai).","Doosra din dekhna ho to tareekh dabayein, ya ‹ › buttons se ek din peeche / aage jayein.","Kaghaz chahiye to “Print” dabayein."],
-    ok:"Upar: <b>Lots cut, Pieces cut, Fabric used, Fabric received</b>. Phir har kapre ka <b>Opening · Received · Used · In hand</b>, phir us din ki har cutting (lot, article, kapra, sizes, bundle aur <b>Remarks</b>)."},
+    ok:"Upar: <b>Lots cut, Pieces cut, Fabric used, Fabric received</b>. Phir har kapre ka <b>Opening · Received · Used · In hand</b>, phir us din ki har cutting (lot, article, kapra, sizes, cut no. aur <b>Remarks</b>)."},
    {id:"fab-fix",t:"Ghalat entry theek ya delete karna",s:"Fabric received → pencil / delete",who:"cm",
     steps:["Fabric Khata mein neeche “Fabric received” list mein entry ke pencil se theek karein, ya delete ke nishan se hatayein."],
     ok:"Balance foran sahi ho jata hai. Cutting entry edit ya delete ho to bhi kapre ka balance khud theek ho jata hai."},
@@ -646,7 +629,7 @@ const CH=[
     ok:"Admin sab ka kapra aur cutting dekhta hai; cutting master sirf apna. Cutting Report mein bhi cutting master chun sakte hain."},
   ]},
  {key:"lots",icon:"route",title:"Lot ka safar: cutting se stock tak",short:"Lot ka safar",who:["admin"],
-  intro:"Har lot in marahil se guzarta hai: <b>Cutting → Stitching → Washing → Packing → Ready</b>. Har qadam lot ke page par “<b>Next step</b>” wale hisse se hota hai.",
+  intro:"Har lot in marahil se guzarta hai: <b>Cutting → Stitching → Washing → Packing → Ready → Dispatch</b>. Har qadam lot ke page par “<b>Next step</b>” wale hisse se hota hai; tayyar maal “<b>Dispatch</b>” card se bahar jata hai.",
   before:"Cutting master ka banaya hua koi lot (chapter “Cutting ki entry”).",
   tasks:[
    {id:"lot-list",t:"Lots ki list",s:"Production → Lots",who:"admin",
@@ -669,7 +652,16 @@ const CH=[
     tip:"Ek lot sirf ek dafa stock mein jata hai, dobara nahi."},
    {id:"lot-reverse",t:"Ghalti se Ready? Wapas karein",s:"Reverse",who:"admin",
     steps:["Ready lot kholein aur “Reverse” dabayein.","Wajah likhein aur confirm karein."],
-    ok:"Stock wapas kam ho jata hai aur lot wapas Packing par; History mein wajah ke saath likha jata hai."},
+    ok:"Stock wapas kam ho jata hai aur lot wapas Packing par; History mein wajah ke saath likha jata hai.",
+    warn:"Jis lot ka kuch maal dispatch ho chuka ho us par “Reverse” ka button nahi aata (maal factory se ja chuka hai)."},
+   {id:"lot-dispatch",t:"Tayyar maal bahar bhejna (Dispatch)",s:"Ready lot → Dispatch → Dispatch pieces",who:"admin",
+    steps:["<b>Ready</b> lot kholein; “Dispatch” card mein “Dispatch pieces” dabayein.","“Going to” mein party ya dukaan ka naam likhein (pehle wale naam neeche list mein aa jate hain).","Har size ke saamne kitne pieces bhejne hain likhein — sab bache hue pehle se bhare hote hain; kam bhi kar sakte hain (misaal: 10).","Note likhna ho to likhein (misaal: carton count) aur “Dispatch &amp; print” dabayein."],
+    ok:"<b>DISPATCH GATE PASS</b> khulta hai: Lot no., Article, To (party / shop), Cut no., Sizes, Pieces, <b>Labour cost per piece</b> aur in pieces ki cost. Wahin se Print karein. Ready stock utna <b>khud kam</b> ho jata hai.",
+    tip:"Cost mein abhi mazdoori hai (lot par diya gaya kaam ÷ tayyar pieces)."},
+   {id:"lot-dispatch-left",t:"Kitna gaya, kitna baqi",s:"Lot page → Dispatch card",who:"admin",
+    steps:["Dispatch ke baad lot page par “Dispatch” card dekhein.","Inventory → Ready stock mein us article ki history (ghari) dekhein."],
+    ok:"<b>Ready · Dispatched · In factory</b> ki ginti, har size ke saath “… left (… sent)”. Gate passes mein har dispatch ki alag line, party ke naam ke saath. Stock history mein “Dispatched”.",
+    warn:"Bache hue se zyada pieces nahi bhej sakte, aur party ka naam zaroori hai."},
    {id:"lot-history",t:"History aur kami (shortfall)",s:"Lot ka page",who:"admin",
     steps:["Kisi bhi lot ka page kholein; neeche History aur Shortfall dekhein."],
     ok:"Har kaam: kis ne, kab, kitne pieces. Shortfall: stitching mein kitne kam aaye, washing mein kitne."},
@@ -678,7 +670,7 @@ const CH=[
     ok:"Lot hat jata hai. Aage ke stage wale lot delete nahi hote."},
   ]},
  {key:"gatepass",icon:"truck",title:"Stitching aur gate pass",short:"Gate pass",who:["admin"],
-  intro:"Jab maal factory se bahar jata hai (stitching ya washing ko) to <b>gate pass</b> banta hai. Stitching se maal thora thora bhi bheja ja sakta hai, aur system batata hai ke abhi kitna <b>pada hai</b>.",
+  intro:"Har qadam ka apna <b>gate pass</b> hai: <b>Cutting</b> (cutting entry save hote hi), <b>Stitching</b> (“Send to stitching” par), <b>Washing</b> (washing ko jaate waqt) aur <b>Dispatch</b> (tayyar maal bahar jaate waqt). Stitching se maal thora thora bhi bheja ja sakta hai, aur system batata hai ke abhi kitna <b>pada hai</b>.",
   before:"Koi lot jo Stitching par ho (chapter “Lot ka safar”).",
   tasks:[
    {id:"gp-page",t:"Stitching par kitna maal pada hai",s:"Production → Stitching",who:"admin",
@@ -688,9 +680,13 @@ const CH=[
     steps:["Stitching page par lot ki row mein “Gate pass out” dabayein.","Kitne pieces ja rahe hain likhein (misaal: 40) aur wash type.","“Issue gate pass” dabayein."],
     ok:"Sirf utne pieces ka naya gate pass ban kar print ke liye khulta hai, aur “Lying” utna kam ho jata hai.",
     warn:"Jitna maal pada hai us se zyada nahi bhej sakte."},
+   {id:"gp-kinds",t:"Chaar alag gate pass",s:"Lot page → Gate passes",who:"admin",
+    steps:["Aisa lot kholein jo Ready ho chuka ho aur jis ka kuch maal dispatch hua ho.","Neeche “Gate passes” dekhein."],
+    ok:"Alag alag lines: <b>Cutting gate pass</b>, <b>Stitching gate pass</b>, <b>Washing gate pass</b> aur <b>Dispatch gate pass</b> (party ke naam ke saath) — har ek ka apna number (GP-…).",
+    tip:"Cutting master ko apne lot par sirf Cutting gate pass nazar aata hai."},
    {id:"gp-print",t:"Gate pass print karna",s:"Lot page → Gate passes → Print",who:"admin",
     steps:["Lot ka page kholein; neeche “Gate passes” mein “Print” dabayein.","Print preview mein dobara “Print” dabayein."],
-    ok:"Upar <b>0321-4361127</b> aur neeche <b>0323-8888000</b>. Lot number, bundle, sizes, pieces, shrinkage ya wash, aur dastakhat ki jagah."},
+    ok:"Upar <b>0321-4361127</b> aur neeche <b>0323-8888000</b>. Lot number, cut number, sizes, pieces, shrinkage ya wash, aur dastakhat ki jagah."},
    {id:"gp-close",t:"Stitching ka kaam mukammal",s:"Stitching received (kul pieces)",who:"admin",
     steps:["Jab saara maal aa jaye, lot ke page par “Stitching received” mein <b>kul</b> pieces likhein."],
     ok:"Aakhri gate pass sirf <b>baqi</b> pieces ka banta hai (jo pehle ja chuke woh dobara nahi). Lot Washing par chala jata hai.",
@@ -769,11 +765,11 @@ const CH=[
   before:"Ek article (misaal: “Test Denim”), 2 karigar aur 2 operations (Belt 3.5 aur Side seam 62.5) pehle bana lein.",
   tasks:[
    {id:"f-cut",t:"1. Cutting master ki entry",s:"New Cutting",who:"cm",
-    steps:["Cutting master ke account se login karein.","New Cutting: Test Denim, Denim 12oz 62 m, Bundle B-20, Shrinkage 12.","Sizes: 30 = 60, 32 = 60 → Save."],
+    steps:["Cutting master ke account se login karein.","New Cutting: Test Denim, Denim 12oz 62 m, Cut number C-20, Shrinkage 2 inch.","Sizes: 30 = 60, 32 = 60 → Save."],
     ok:"Naya LOT number. Admin ke Dashboard par “Cut today” <b>120 pcs</b>."},
    {id:"f-send",t:"2. Stitching ko bhejein aur gate pass",s:"Send to stitching → Print",who:"admin",
     steps:["Admin se login; Lots → wahi lot → “Send to stitching”.","Gate passes → Print."],
-    ok:"Gate pass: 120 pcs, Bundle B-20, Sizes 30 – 32, Shrinkage 12%, dono phone numbers."},
+    ok:"Gate pass: 120 pcs, Cut no. C-20, Sizes 30 – 32, Shrinkage 2 inch, dono phone numbers."},
    {id:"f-work",t:"3. Karigaron ko kaam",s:"Assign work",who:"admin",
     steps:["Lot page → “Assign work” → Belt → 2 karigar → “Split … evenly” → Save.","Phir Side seam → ek karigar → 120 → Save."],
     ok:"Lot par mazdoori: 120 × 3.5 = 420 aur 120 × 62.5 = 7,500, kul <b>7,920/-</b>."},
@@ -798,6 +794,9 @@ const CH=[
    {id:"f-check",t:"10. Sab jagah numbers milayein",s:"Dashboard, Lot Report",who:"admin",
     steps:["Dashboard dekhein: Produced this month aur pipeline.","Lot Report (Today): is lot ki line."],
     ok:"Dashboard par +117; Lot Report: Cut 120, Stitched 118, Washed 117, Ready 117, kami 3."},
+   {id:"f-dispatch",t:"11. Tayyar maal party ko",s:"Dispatch",who:"admin",
+    steps:["Lot page → “Dispatch pieces”.","Going to: <code>Test Party</code>; size 30 = 50, size 32 = 0 → “Dispatch &amp; print”.","Phir baqi 67 bhi dispatch karein."],
+    ok:"Pehli dafa 50 ka Dispatch gate pass; card par Dispatched 50, In factory 67. Doosri dafa ke baad In factory 0, aur Ready stock 117 kam."},
   ]},
 ];
 
@@ -818,173 +817,23 @@ const MEANINGS=[
 ];
 
 const DAILY=[
- {icon:"sun",t:"Subah",items:["Dashboard dekhein: <b>Waiting longest</b> (ruke lots) aur <b>Stock alerts</b>.","Kal ka koi kaam reh gaya ho to lot ke page par “Next step” se pura karein."]},
- {icon:"scissors",t:"Din bhar",items:["Cutting master har cutting “New Cutting” mein likhe.","Maal bahar jaye to gate pass (Send to stitching ya Gate pass out) aur print.","Maal wapas aaye to usi waqt lot par entry.","Karigaron ka kaam lot par “Assign work” se."]},
+ {icon:"sun",t:"Subah",items:["“Attendance” mein karigaron ki haazri lagayein (Present / Absent / Leave).","Dashboard dekhein: <b>Waiting longest</b> (ruke lots) aur <b>Stock alerts</b>.","Kal ka koi kaam reh gaya ho to lot ke page par “Next step” se pura karein."]},
+ {icon:"scissors",t:"Din bhar",items:["Cutting master har cutting “New Cutting” mein likhe.","Maal bahar jaye to gate pass (Send to stitching ya Gate pass out) aur print.","Maal wapas aaye to usi waqt lot par entry.","Karigaron ka kaam lot par “Assign work” se.","Store se kapra aaye to cutting master “Fabric Khata” mein darj kare.","Tayyar maal jaye to lot par “Dispatch” se gate pass."]},
  {icon:"moon",t:"Shaam",items:["Stitching page: kitna maal pada hai.","Jo lot pack ho gaye unhein “Mark Ready for Sale” → stock khud barhega.","Khareed aur kharche usi din likh dein."]},
  {icon:"cal",t:"Hafte ke aakhir",items:["Wages → This Week: salary dekhein, Print ya CSV.","Jahan advance katna ho: khata → Cut.","Haazri roz “Attendance” mein; bonus ya kataui “Advance / Deduction” se."]},
  {icon:"chart",t:"Mahine ke aakhir",items:["Dashboard: Produced this month aur Spending this month.","Lot Report (Custom: poora mahina) → Download CSV.","Ledger mein B-pair aur accessories ka hisaab."]},
 ];
 
-/* ---------- New Updates: everything added on 26 October 2026, with steps to check each one ---------- */
-const UPD={key:"updates",icon:"spark",title:"New Updates",date:"26 October 2026",who:["admin","cm"],
-  intro:"26 October ko system mein yeh nayi cheezein aayi hain: <b>teen alag gate pass</b> (Cutting, Stitching, Washing), kapre ka khata (<b>Fabric Khata</b>) aur roz ki <b>Cutting Report</b> remarks ke saath, karigaron ki roz ki haazri (<b>Attendance</b>), category ke hisaab se operations aur un ke rate (<b>Rate card</b>), vendors ka khata (<b>Ledger</b>) aur payment, <b>date filters</b>, aur poore system mein app ke apne controls. Neeche har cheez ka alag hissa hai: pehle likha hai ke kya naya hai, phir <b>qadam ba qadam</b> kaise check karna hai aur kya nazar aana chahiye. Har kaam ke baad “Theek hai” ya “Masla hai” dabayein — yeh bhi report mein jata hai.",
-  groups:[
-  {title:"Cutting gate pass — teen alag gate pass",icon:"clipboard",
-   what:"Ab har unit ka <b>apna alag gate pass</b> hai: <b>Cutting gate pass</b> (cutting entry save hote hi), <b>Stitching gate pass</b> (“Send to stitching” par) aur <b>Washing gate pass</b> (washing ko maal jaate waqt). Stitching aur Washing pass bilkul pehle jaise hain.",
-   tasks:[
-    {id:"u-gp-cut",t:"Cutting entry par Cutting gate pass",s:"New Cutting → Save → Gate passes",who:"cm",
-     steps:["Cutting master ke account se login karein.","Menu mein “New Cutting” kholein; article, kapra, bundle number, shrinkage aur sizes likh kar “Save cutting entry” dabayein.","Lot ka page khulega. Neeche “Gate passes” card dekhein.","“Cutting gate pass” wali line par “Print” dabayein."],
-     ok:"Save karte hi upar message aata hai: <b>LOT-… saved · gate pass GP-…</b>. Gate passes mein <b>GP-… · Cutting gate pass</b>. Print mein upar <b>CUTTING GATE PASS</b>, cut/lot no., article, bundle, sizes, pieces, shrinkage, kapra aur dono phone number."},
-    {id:"u-gp-three",t:"Teeno pass alag alag",s:"Lot page → Next step",who:"admin",
-     steps:["Admin se login karke wahi lot kholein (Production → Lots).","“Next step” mein “Send to stitching” dabayein aur neeche “Gate passes” dekhein.","Baad mein “Stitching received” karne par dobara “Gate passes” dekhein."],
-     ok:"Pehle <b>Cutting gate pass</b>, phir alag line mein <b>Stitching gate pass</b>, aur stitching wapas aane par <b>Washing gate pass</b> — har ek ka apna number (GP-…)."},
-    {id:"u-gp-old",t:"Cutting ki detail badli to naya pass",s:"Lot page → Edit",who:"cm",
-     steps:["Cutting stage wala lot kholein aur “Edit” dabayein.","Kisi size ke pieces badlein aur Save karein.","“Gate passes” dekhein."],
-     ok:"Naya Cutting gate pass ban jata hai; purane par likha aata hai <b>“Old · use GP-…”</b>, taake purana kaghaz ghalti se print na ho.",
-     tip:"Sirf remarks badalne se naya pass nahi banta."},
-   ]},
-  {title:"Fabric Khata — kapra aaya, use hua, kitna baqi",icon:"scroll",
-   what:"Store se aaya kapra darj hota hai, har cutting mein laga kapra <b>khud minus</b> hota hai, aur samne nazar aata hai: <b>kitna aaya, kitna use hua, kitna haath mein hai</b> — din ba din. Cutting master sirf apna khata dekhta hai, admin sab ka.",
-   tasks:[
-    {id:"u-fab-receive",t:"Store se kapra aaya — darj karein",s:"Fabric Khata → Receive Fabric",who:"cm",
-     steps:["Cutting master ke menu mein “Fabric Khata” kholein.","“Receive Fabric” dabayein.","Tareekh (aaj ki pehle se lagi hoti hai), kapre ka naam (misaal: <code>15-14 KZ</code>), quantity (misaal: 500) aur unit “m” likhein.","“Save” dabayein."],
-     ok:"Upar teen dabbay: <b>Fabric received · Used in cutting · Balance in hand</b>. Neeche “Fabric in hand” mein us kapre ka card: <b>In hand 500 m</b>."},
-    {id:"u-fab-cut",t:"Cutting karte waqt bacha hua kapra",s:"New Cutting → Fabric name",who:"cm",
-     steps:["“New Cutting” kholein aur article chunein.","“Fabric name” ke khane par click karein — neeche list aati hai (misaal: “15-14 KZ · 500 m in hand”). Kapra chunein.","“Fabric quantity” mein kitna kapra laga likhein (misaal: 120)."],
-     ok:"Neeche likha aata hai: <b>Received 500 m · Used 0 m · In hand 500 m</b> aur <b>After this cutting: 380 m</b>. Haath mein jitna hai us se zyada likhein to laal warning aati hai (entry phir bhi save hoti hai)."},
-    {id:"u-fab-days",t:"Din ba din balance",s:"Fabric Khata → Day by day",who:"cm",
-     steps:["Cutting save karke “Fabric Khata” dobara kholein.","Neeche “Day by day” dekhein. Upar se kapra chunein (ya “All fabrics”) aur “Date” se waqt chunein.","Kisi din par click karein."],
-     ok:"Har din: <b>Received</b>, <b>Used in cutting</b> aur din ke aakhir mein <b>In hand</b>; shuru mein Opening aur aakhir mein Closing balance. Din par click se us din ki Cutting Report khulti hai."},
-    {id:"u-fab-strip",t:"My Lots par samne balance",s:"My Lots",who:"cm",
-     steps:["Menu mein “My Lots” kholein."],
-     ok:"Upar hi <b>Fabric in hand</b> ka panel: har kapra aur kitna bacha (misaal: 15-14 KZ · 380 m), saath “Fabric Khata →” ka link."},
-    {id:"u-fab-fix",t:"Ghalat kapra entry theek karna",s:"Fabric Khata → Fabric received",who:"cm",
-     steps:["“Fabric Khata” mein neeche “Fabric received” list dekhein.","Ghalat entry par pencil dabayein, theek karke Save karein — ya delete ka nishan dabayein aur “Delete” se pakka karein."],
-     ok:"Balance foran sahi ho jata hai. Cutting entry edit ya delete ho to bhi kapre ka balance khud theek ho jata hai."},
-    {id:"u-fab-admin",t:"Admin: sab ka khata, aur kapra dena",s:"Production → Fabric Khata",who:"admin",
-     steps:["Admin se login karke Production → “Fabric Khata” kholein.","Upar “All cutting masters” se kisi ek cutting master ko chunein.","“Receive Fabric” mein “Given to” se cutting master chun kar kapra us ke khate mein daalein."],
-     ok:"Admin sab ka kapra aur cutting dekhta hai; jis cutting master ke liye darj kiya, us ke khate mein woh kapra aa jata hai."},
-   ]},
-  {title:"Daily Cutting Report aur Remarks",icon:"clipboard",
-   what:"Har din ki cutting ki <b>report</b>: kitne lot aur pieces kate, kitna kapra laga aur aaya, haath mein kitna bacha, aur har cutting ke saath likhi <b>hidayat (Remarks)</b>. Print bhi hoti hai.",
-   tasks:[
-    {id:"u-rep-remarks",t:"Cutting ke saath remarks",s:"New Cutting → Remarks / instructions",who:"cm",
-     steps:["“New Cutting” mein neeche <b>Remarks / instructions</b> ke khane mein hidayat likhein (misaal: <code>Pockets par double silai</code>).","Baaki form bhar kar Save karein."],
-     ok:"Remarks lot ke page par aur Cutting Report mein <b>peele dabbe</b> mein “Remarks: …” ke saath nazar aate hain."},
-    {id:"u-rep-day",t:"Aaj ki Cutting Report",s:"Cutting Report",who:"cm",
-     steps:["Menu mein “Cutting Report” kholein (aaj ka din khulta hai).","Upar ke chaar khane, phir “Fabric balance” aur “Cutting entries” dekhein."],
-     ok:"<b>Lots cut, Pieces cut, Fabric used, Fabric received</b>; har kapre ka <b>Opening · Received · Used · In hand</b>; har cutting ka lot, article, kapra, sizes, bundle, shrinkage aur Remarks."},
-    {id:"u-rep-nav",t:"Doosra din aur Print",s:"Cutting Report → ‹ › / Print",who:"cm",
-     steps:["‹ button se ek din peeche jayein (› se aage), ya tareekh wale khane se koi bhi din chunein.","“Print” dabayein."],
-     ok:"Report us din ki ho jati hai. Print mein upar AJ Garments aur tareekh, neeche “Cutting master” aur “Checked by” ke dastakhat ki jagah."},
-   ]},
-  {title:"Attendance — Present, Absent, Leave",icon:"cal",
-   what:"Roz har karigar ki <b>haazri</b> lagti hai. <b>Absent</b> aur <b>Leave</b> par us ki per-day salary se <b>ek din khud kat jata hai</b> aur Wages mein nazar aata hai. Poore mahine ka register bhi hai.",
-   tasks:[
-    {id:"u-att-mark",t:"Aaj ki haazri lagana",s:"Production → Attendance",who:"admin",
-     steps:["Menu mein Production → “Attendance” kholein (aaj ka din khulta hai).","Har karigar ke saamne <b>Present</b>, <b>Absent</b> ya <b>Leave</b> dabayein.","Ghalti ho to wahi button dobara dabayein — nishan hat jata hai."],
-     ok:"Button rang badal leta hai (hara / laal / peela). Upar ginti: <b>Present, Absent, Leave, Not marked</b> aur <b>Pay cut this day</b>. Absent/Leave wale karigar ke naam ke neeche kataui likhi aati hai (misaal: “− 1,000/-”)."},
-    {id:"u-att-all",t:"Sab ko ek click mein Present",s:"Attendance → Mark everyone present",who:"admin",
-     steps:["“Mark everyone present” dabayein (kuch nishan pehle lag chuke hon to button par “Mark the rest present” likha hota hai)."],
-     ok:"Jin ka nishan nahi laga tha woh sab Present ho jate hain; pehle wale nishan waise hi rehte hain."},
-    {id:"u-att-day",t:"Pichle din ki haazri",s:"Attendance → ‹ / tareekh",who:"admin",
-     steps:["‹ button dabayein ya tareekh ke khane se pichla din chunein.","Us din ke nishan lagayein."],
-     ok:"Har din ki haazri alag save hoti hai. › button aaj se aage nahi jata."},
-    {id:"u-att-month",t:"Mahine ka register",s:"Attendance → Month register",who:"admin",
-     steps:["“Month register” tab kholein.","‹ › se mahina badlein; kaghaz ke liye “Print” dabayein."],
-     ok:"Har karigar ki line mein har din ka <b>P / A / L</b>, aur naam ke neeche us mahine ki ginti aur kataui (misaal: P 22 · A 2 · L 1 · − 3,000/-). Table khud aaj ki tareekh par khulti hai."},
-    {id:"u-att-wages",t:"Wages mein kataui",s:"Wages",who:"admin",
-     steps:["Menu mein “Wages” kholein (This Week).","Jis karigar ko Absent ya Leave lagaya tha us ki line dekhein."],
-     ok:"Line mein likha aata hai: <b>− absent 1,000/- (1 day)</b> ya <b>− leave …</b>, aur Net payable utna kam. Jis karigar ki per-day salary 0 ho us ke sirf din likhe aate hain, paise nahi katte."},
-    {id:"u-att-popup",t:"“Advance / Deduction” ka naya button",s:"Wages → Advance / Deduction",who:"admin",
-     steps:["Wages mein “Advance / Deduction” dabayein (pehle is ka naam “Leave / Advance” tha)."],
-     ok:"Popup mein ab <b>Advance, Advance cut, Deduction, Bonus</b> hain. Leave yahan nahi — woh Attendance se lagti hai, taake ek chhutti do dafa na kate. Wages page par “Attendance” ka button bhi hai."},
-   ]},
-  {title:"Operations aur Category rate card (Baggy Pent, Simple Pent)",icon:"list",
-   what:"Har operation (Overlock, Safety, Belt …) ab apne <b>main operation</b> (Stitching, Washing …) ke neeche hota hai. Har category ka apna <b>rate card</b>: kaun se operations lagte hain aur har ek ka rate. Lot par kaam dete waqt <b>usi category ke operations, unhi rates par</b> aate hain.",
-   tasks:[
-    {id:"u-ops-main",t:"Operation ko main operation ke neeche daalna",s:"Workers → Operations & rates → Add Operation",who:"admin",
-     steps:["Production → “Workers” kholein aur “Operations &amp; rates” tab chunein.","“Add Operation” dabayein: naam (misaal: <code>Overlock</code>), “Main operation” mein <b>Stitching</b>, aur rate (misaal: 3.5) likhein.","Neeche “Add Operation” dabayein."],
-     ok:"List main operation ke hisaab se bant jati hai: <b>STITCHING · … OPERATIONS</b>, <b>WASHING · …</b> waghera."},
-    {id:"u-ops-card",t:"Category ka rate card banana",s:"Workers → Category rates",who:"admin",
-     steps:["“Category rates” tab kholein. Har Inventory category ka card hota hai (misaal: Baggy Pent).","Card par “Set operations &amp; rates” dabayein.","Jo operations is category mein lagte hain un par ✓ lagayein aur har ek ka rate likhein (default rate pehle se hota hai).","“Save” dabayein."],
-     ok:"Card par operations ke chips aur <b>per piece kul mazdoori</b> (misaal: 21.5/-). Upar likha aata hai “Category rate cards: 1 of …”."},
-    {id:"u-ops-copy",t:"Doosri category ka card copy karna",s:"Category rates → Copy from another category",who:"admin",
-     steps:["Doosri category (misaal: Simple Pent) par “Set operations &amp; rates” dabayein.","Upar “Copy from another category” se Baggy Pent chunein.","Jo farq ho woh badlein aur Save karein."],
-     ok:"Saare ✓ aur rates copy ho jate hain; sirf farq badalna parta hai."},
-    {id:"u-ops-lot",t:"Lot par card wale operations",s:"Lot page → Work & wages → Assign work",who:"admin",
-     steps:["Us category ke article ka stitching wala lot kholein.","“Work &amp; wages” mein “Assign work” dabayein.","Operation ki list kholein aur ek operation chunein."],
-     ok:"Upar likha hota hai <b>“Baggy Pent rate card: … operations · …/- per piece”</b>. List mein sirf card wale operations (misaal: “Overlock · Stitching · Rs 4/pc”) aur rate khud bhar jata hai.",
-     tip:"Jis category ka card na ho, us ke lot par pehle ki tarah saare operations apne default rate par aate hain."},
-    {id:"u-ops-progress",t:"Kaun sa kaam baqi hai",s:"Lot page → Work & wages",who:"admin",
-     steps:["Kaam assign karke lot page par “Work &amp; wages” card dekhein."],
-     ok:"Category ke har operation ka haal: <b>Overlock 100/100 ✓</b> (hara = mukammal), <b>Safety 40/100</b> (peela = adhoora), baqi grey."},
-   ]},
-  {title:"Purchasing: Vendor ka khata (Ledger) aur Payment",icon:"wallet",
-   what:"Purchasing mein naya <b>“Ledger”</b> tab: har vendor ki khareed, di gayi payment aur <b>kitna dena baqi hai</b> — har line ke baad balance ke saath. Payment bhi wahin se darj hoti hai.",
-   tasks:[
-    {id:"u-led-view",t:"Vendor ka khata dekhna",s:"Purchasing → Ledger",who:"admin",
-     steps:["Menu mein “Purchasing” kholein aur “Ledger” tab chunein.","Upar vendor chunein (ya “All vendors”) aur “Date” se waqt chunein."],
-     ok:"Chaar khane: <b>Opening balance, Purchases, Payments, Payable (closing)</b>. Neeche har khareed aur payment ki line, har line ke baad Balance. “Payable by vendor” mein har vendor ka baqi."},
-    {id:"u-led-pay",t:"Vendor ko payment darj karna",s:"Ledger → Record Payment",who:"admin",
-     steps:["“Record Payment” dabayein.","Vendor chunein — likha aata hai kitna dena baqi hai (“Pay full balance” se poora).","Raqam likhein, tareekh ke khane par click karke din chunein, “Paid by” (Cash, Bank transfer, Cheque, Other) chunein aur “Save” dabayein."],
-     ok:"Khate mein hari payment line aa jati hai aur baqi utna kam ho jata hai. Ghalat payment line ke delete nishan se hat jati hai."},
-    {id:"u-led-print",t:"Khata print ya CSV",s:"Ledger → Print / CSV",who:"admin",
-     steps:["Ledger mein “Print” ya “CSV” dabayein."],
-     ok:"Print mein sirf khata (AJ Garments, vendor aur waqt ke saath); CSV ki file download hoti hai."},
-   ]},
-  {title:"Date filters (Inventory, Vendors) aur naya calendar",icon:"cal",
-   what:"Inventory aur Vendors mein <b>“Added”</b> filter se dekh sakte hain kis din kya add hua. Calendar mein ab shuru ki tareekh <b>ek hi click</b> mein lagti hai, aur saare tareekh wale khane app ke apne calendar se khulte hain.",
-   tasks:[
-    {id:"u-date-inv",t:"Inventory: kis din kya add hua",s:"Inventory → Added",who:"admin",
-     steps:["“Inventory” kholein aur “Added: All time” dabayein.","Upar se waqt chunein (Today, Yesterday, Last 7 days, This month …) ya calendar mein pehla aur aakhri din chunein.","“Apply” dabayein. Wapas sab dekhne ke liye button ke saath × dabayein."],
-     ok:"Sirf usi waqt mein add hue products; har product ke naam ke neeche “Added …” tareekh."},
-    {id:"u-date-vendor",t:"Vendors: kab add hue",s:"Purchasing → Manage Vendors → Added",who:"admin",
-     steps:["Purchasing mein “Manage Vendors” tab kholein.","“Added: All time” dabayein, waqt chunein aur “Apply”."],
-     ok:"Sirf usi waqt ke vendors; har vendor card par “Added …”."},
-    {id:"u-date-click",t:"Calendar mein ek click",s:"Kisi bhi date filter ka calendar",who:"admin",
-     steps:["Kisi bhi date filter ka calendar kholein (misaal: Inventory → Added).","Shuru ka din <b>ek dafa</b> dabayein, phir aakhri din."],
-     ok:"Pehla click shuru ka din, doosra click aakhri din — shuru ka din do dafa nahi dabana parta."},
-    {id:"u-date-field",t:"Naya tareekh ka khana",s:"New Purchase / New Expense / Record Payment",who:"admin",
-     steps:["Purchasing → “New Purchase” (ya Expenses → New Expense) mein tareekh ke khane par click karein.","Calendar ke upar mahina / saal ki list kholein aur badlein, ya “Today” / “Yesterday” dabayein."],
-     ok:"App ka apna calendar khulta hai (browser wala nahi); mahina aur saal ki list bhi app ki apni. Chuni hui tareekh khane mein aa jati hai."},
-   ]},
-  {title:"Poore system mein app ke apne controls",icon:"shield",
-   what:"Ab kahin bhi browser ke purane default dabbay nahi aate: <b>dropdown, calendar, on/off switch, tooltip aur messages</b> sab app ke apne, ek jaise design mein. Popup bhi ab ek hi dafa aaram se khulta hai.",
-   tasks:[
-    {id:"u-ui-tip",t:"Apna tooltip",s:"Kisi nishan par mouse",who:"admin",
-     steps:["Inventory mein kisi product ki row par + ya pencil ke nishan par mouse le jayein (phone par dabaa kar rakhein)."],
-     ok:"Chhota dark tooltip (misaal: “Increase stock”) app ke design mein aata hai."},
-    {id:"u-ui-switch",t:"On/off switch",s:"Inventory → Add Product",who:"admin",
-     steps:["Inventory mein “Add Product” kholein.","“Track stock per size” ka switch dabayein."],
-     ok:"Switch slide ho kar on hota hai aur sizes ka hissa khulta hai (purana chhota checkbox nahi)."},
-    {id:"u-ui-unit",t:"Kapre ki unit ki list",s:"New Cutting → Unit",who:"cm",
-     steps:["“New Cutting” mein kapre ki “Unit” ka khana kholein."],
-     ok:"App ki apni list khulti hai: m, yards, kg, pcs."},
-    {id:"u-ui-popup",t:"Popup ek dafa, aaram se",s:"Koi bhi popup",who:"admin",
-     steps:["Koi bhi popup kholein (misaal: Inventory → Add Product, ya Purchasing → New Purchase)."],
-     ok:"Popup ek hi dafa smooth khulta hai — pehle jaisa do dafa jhatka nahi lagta."},
-   ]},
-  {title:"Chhoti behtariyan (purani ghaltiyan theek)",icon:"check",
-   what:"Kuch purani ghaltiyan theek ki gayi hain: laptop ki chaurai par Purchasing page ka bigarna, aur kisi cheez ka sirf ek hissa edit karne par baaki maloomat ka mit jana (misaal: product ka stock 0 ho jana; customer ka balance badalne par city mit jana — Customers abhi band hai, chalu karne par theek milega).",
-   tasks:[
-    {id:"u-fix-1024",t:"Purchasing laptop par",s:"Purchasing (1000–1024 chaurai)",who:"admin",
-     steps:["Laptop par (ya browser ki window thori chhoti karke) “Purchasing” kholein.","Teeno tabs (Purchase History, Manage Vendors, Ledger) dekhein."],
-     ok:"Kuch bhi ek doosre par nahi chadhta; buttons aur filters apni jagah par."},
-    {id:"u-fix-stock",t:"Product edit par stock nahi mitta",s:"Inventory → Edit",who:"admin",
-     steps:["Inventory mein kisi bina-size wale product ka stock note karein (misaal: 12).","Pencil (Edit) se sirf naam ya qeemat badal kar Save karein."],
-     ok:"Stock wahi rehta hai (12). Pehle aisi edit par stock 0 ho sakta tha — yeh ab theek hai."},
-   ]},
-  ]};
-const UPDCH={key:UPD.key,title:UPD.title,icon:UPD.icon,tasks:UPD.groups.flatMap(g=>g.tasks)};
 
 const FAQ=[
+ ["Cutting master ko lot ka aage ka haal kyun nahi dikhta?","Client ki hidayat par: cutting master ko sirf cutting ki detail aur Cutting gate pass nazar aata hai. Lot Stitching, Washing ya Ready tak kahan pahuncha, yeh sirf admin dekhta hai."],
+ ["Dispatch ke baad “Reverse” kyun nahi hota?","Dispatch hua maal factory se ja chuka hai aur Ready stock se kam ho chuka hai. Is liye us lot ka Ready wapas nahi liya ja sakta."],
  ["Kapre ka balance minus (laal) kyun hai?","Cutting mein jitna kapra likha gaya, us se kam “Received” darj hua hai. Fabric Khata mein “Receive Fabric” se store se aaya hua kapra darj karein — purani cuttings ka kapra bhi isi tarah poora ho jata hai."],
  ["Save ka button daba nahi raha (halka/grey hai)?","Koi zaroori khana khali ya ghalat hai. Form mein laal likha message parhein, theek karein, button khud chalu ho jayega."],
  ["Lot ka Edit ya Delete button nahi dikh raha?","Edit aur Delete sirf tab tak hote hain jab tak lot Cutting par ho. Stitching par jaane ke baad hisaab ki hifazat ke liye band ho jate hain."],
  ["Ghalti se lot Ready kar diya?","Lot ke page par “Reverse” dabayein aur wajah likhein. Stock wapas kam ho jayega aur lot Packing par aa jayega."],
  ["Ghalat advance ya ghalat cut likh diya?","Wages page ke neeche “Leave, advance &amp; deductions” list mein us entry ka delete nishan dabayein, phir sahi likhein. Jis advance ka kuch hissa kat chuka ho, pehle us ka cut delete karein, phir advance."],
- ["Cutting gate pass kab banta hai?","Jaise hi cutting master (ya admin) cutting entry <b>Save</b> karta hai, usi waqt cutting gate pass khud ban jata hai — is par cut/lot no., article, bundle, sizes, pieces, shrinkage aur fabric hote hain. Lot ke page par “Gate passes” mein Print dabayein. Agar baad mein cutting ki detail (sizes, bundle, shrinkage, fabric) edit ki jaye to naya cutting pass ban jata hai aur purana “Old” likha aata hai. Stitching gate pass “Send to stitching” par aur washing gate pass washing ko maal jaate waqt alag se bante hain — teeno alag alag hain."],
+ ["Cutting gate pass kab banta hai?","Jaise hi cutting master (ya admin) cutting entry <b>Save</b> karta hai, usi waqt cutting gate pass khud ban jata hai — is par lot no., article, cut no., sizes, pieces, shrinkage aur fabric hote hain. Lot ke page par “Gate passes” mein Print dabayein. Agar baad mein cutting ki detail (sizes, bundle, shrinkage, fabric) edit ki jaye to naya cutting pass ban jata hai aur purana “Old” likha aata hai. Stitching gate pass “Send to stitching” par aur washing gate pass washing ko maal jaate waqt alag se bante hain — teeno alag alag hain."],
  ["Gate pass dobara print karna hai?","Lot ka page kholein → neeche “Gate passes” → Print. Jitni dafa chahein."],
  ["Vendor delete nahi ho raha?","Jis vendor ki payments Ledger mein darj hon woh delete nahi hota, taake us ka khata na bigray. Pehle us ki payments hatayein (agar ghalat thin)."],
  ["Phone par kaise chalayein?","Wahi link phone ke browser mein kholein. Menu upar ☰ wale button mein hai. Sab kuch phone par bhi chalta hai."],
@@ -999,8 +848,8 @@ const KEY="aj-guide-v2";
 const store={read(){try{return JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){return{}}},write(v){try{localStorage.setItem(KEY,JSON.stringify(v))}catch(e){}}};
 const S=Object.assign({status:{},notes:{},view:"start",name:"",open:{}},store.read());
 const save=()=>store.write(S);
-const ALL=[...CH.flatMap(c=>c.tasks.map(t=>({...t,ch:c}))),...UPDCH.tasks.map(t=>({...t,ch:UPDCH}))];
-const VIEWS=["start","updates",...CH.map(c=>c.key),"daily","faq"];
+const ALL=CH.flatMap(c=>c.tasks.map(t=>({...t,ch:c})));
+const VIEWS=["start",...CH.map(c=>c.key),"daily","faq"];
 const chStats=c=>{const n=c.tasks.length,ok=c.tasks.filter(t=>S.status[t.id]==="ok").length,bad=c.tasks.filter(t=>S.status[t.id]==="bad").length;return{n,ok,bad}};
 const total=()=>{const n=ALL.length,ok=ALL.filter(t=>S.status[t.id]==="ok").length,bad=ALL.filter(t=>S.status[t.id]==="bad").length;return{n,ok,bad,left:n-ok-bad}};
 const esc=s=>String(s).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
@@ -1041,7 +890,7 @@ function navItem(key,icon,title,stat,tag){
   </button>`;
 }
 function renderNav(){
-  $("#nav").innerHTML=`<h3>Guide</h3>${navItem("start","home","Shuru karein")}${navItem("updates","spark","New Updates",chStats(UPDCH),"Naya")}
+  $("#nav").innerHTML=`<h3>Guide</h3>${navItem("start","home","Shuru karein")}
     <h3>Chapters</h3>${CH.map(c=>navItem(c.key,c.icon,c.short||c.title,chStats(c))).join("")}
     <h3>Madad</h3>${navItem("daily","sun","Rozana ka kaam")}${navItem("faq","help","Sawal jawab")}`;
   const on=$("#nav .nav-item.on");
@@ -1082,11 +931,6 @@ function startView(){
   const t=total();
   return `<div class="view">
     <div class="ch-head"><div class="ch-icon">${ico("home")}</div><div><p class="eyebrow">Khush aamdeed</p><h2>Is guide ko kaise istemal karein</h2><p>Har chapter mein kuch kaam hain. Har kaam ke saath likha hai ke <b>kaise karna hai</b> aur <b>kya hona chahiye</b>. Aap ki progress isi browser mein khud save hoti rehti hai.</p></div></div>
-    <button type="button" class="upd-banner" data-go="updates">
-      <span class="ni">${ico("spark")}</span>
-      <span><b>New Updates · ${UPD.date}</b><small>${UPD.groups.length} nayi cheezein mukammal — qadam ba qadam check karein (${chStats(UPDCH).ok}/${chStats(UPDCH).n} theek)</small></span>
-      <span class="go">Dekhein →</span>
-    </button>
     <p class="sec-t">4 aasaan qadam</p>
     <div class="howto">
       ${[["Chapter chunein","Baayen list (phone par upar) se koi chapter kholein. Pehli dafa ho to upar se neeche chalein."],["Kaam kholein","Kisi kaam par click karein. Qadam ba qadam likha hai ke kya karna hai."],["System mein kar ke dekhein","Doosre tab mein system kholein aur wahi qadam karein. Nateeja milayein."],["Nishan lagayein","Sahi ho to “Theek hai”, na ho to “Masla hai” dabayein aur ek line likh dein. Aakhir mein “Report bhejein”."]].map((h,i)=>`<div class="how" style="--i:${i}"><span class="hn">${i+1}</span><b>${h[0]}</b><p>${h[1]}</p></div>`).join("")}
@@ -1094,15 +938,15 @@ function startView(){
     <p class="sec-t">System mein kaun kya karta hai</p>
     <div class="roles">
       <div class="role" style="--i:0"><span class="ri">${ico("shield")}</span><div><b>Admin (malik / manager)</b><p>Sab kuch: stock, lots ka safar, gate pass, karigar aur salary, B-pair register, reports aur users.</p></div></div>
-      <div class="role cm" style="--i:1"><span class="ri">${ico("scissors")}</span><div><b>Cutting master</b><p>Sirf cutting ki entry aur apne lots ka haal. Hisaab kitaab, stock ya salary nahi dekh sakta.</p></div></div>
+      <div class="role cm" style="--i:1"><span class="ri">${ico("scissors")}</span><div><b>Cutting master</b><p>Cutting ki entry, Cutting gate pass, apna kapre ka khata aur Cutting Report. Lot aage kahan gaya, stock ya salary nahi dekh sakta.</p></div></div>
     </div>
     <p class="sec-t">Ek lot ka safar</p>
     <div class="panel"><ol class="journey">
-      ${[["scissors","Cutting","Cutting master entry karta hai"],["truck","Stitching","Gate pass ke saath bahar"],["droplet","Washing","Wapas aa kar washing ko"],["pkg","Packing","Washing se wapas"],["check","Ready","Stock mein khud jama"],["chart","Hisaab","Salary aur reports"]].map((j,i)=>`<li style="--j:${i}"><span class="jd">${ico(j[0])}</span><b>${j[1]}</b><small>${j[2]}</small></li>`).join("")}
+      ${[["scissors","Cutting","Cutting master entry karta hai"],["truck","Stitching","Gate pass ke saath bahar"],["droplet","Washing","Wapas aa kar washing ko"],["pkg","Packing","Washing se wapas"],["check","Ready","Stock mein khud jama"],["truck","Dispatch","Party ko gate pass ke saath"],["chart","Hisaab","Salary aur reports"]].map((j,i)=>`<li style="--j:${i}"><span class="jd">${ico(j[0])}</span><b>${j[1]}</b><small>${j[2]}</small></li>`).join("")}
     </ol></div>
     <p class="sec-t">Zaroori baatein</p>
     <div class="facts">
-      ${["Har kaam par likha rehta hai ke kis ne aur kab kiya.","Ghalti ho jaye to theek ho sakti hai: Edit, Reverse ya Delete.","Phone aur computer dono par chalta hai; internet chahiye.","Stock khud barhta hai: lot Ready hone par aur khareed par."].map(f=>`<div class="fact">${ico("check")}<span>${f}</span></div>`).join("")}
+      ${["Har kaam par likha rehta hai ke kis ne aur kab kiya.","Ghalti ho jaye to theek ho sakti hai: Edit, Reverse ya Delete.","Phone aur computer dono par chalta hai; internet chahiye.","Stock khud badalta hai: lot Ready aur khareed par barhta, dispatch par ghatta hai."].map(f=>`<div class="fact">${ico("check")}<span>${f}</span></div>`).join("")}
     </div>
     <p class="sec-t">Chapters (${t.ok}/${t.n} kaam theek)</p>
     <div class="chgrid">${CH.map((c,i)=>{const s=chStats(c),done=s.n&&s.ok===s.n,pct=s.n?Math.round(s.ok/s.n*100):0;return `<button type="button" class="chc${done?" done":""}" data-go="${c.key}" style="--i:${i}"><span class="chc-h"><span class="ni">${ico(done?"check":c.icon)}</span><span>${s.ok}/${s.n}</span></span><b>${i+1}. ${c.title}</b><small>${strip(c.intro).slice(0,92)}${strip(c.intro).length>92?"…":""}</small><span class="bar"><i style="width:${pct}%"></i></span>${s.bad?`<span class="bad">${s.bad} masla note</span>`:""}</button>`}).join("")}</div>
@@ -1110,7 +954,7 @@ function startView(){
 }
 function pager(key){
   const i=VIEWS.indexOf(key),prev=VIEWS[i-1],next=VIEWS[i+1];
-  const name=k=>k==="start"?"Shuru karein":k==="updates"?"New Updates":k==="daily"?"Rozana ka kaam":k==="faq"?"Sawal jawab":CH.find(c=>c.key===k).title;
+  const name=k=>k==="start"?"Shuru karein":k==="daily"?"Rozana ka kaam":k==="faq"?"Sawal jawab":CH.find(c=>c.key===k).title;
   return `<div class="pager">${prev?`<button type="button" data-go="${prev}"><small>← Pichla</small><b>${name(prev)}</b></button>`:""}${next?`<button type="button" class="next" data-go="${next}"><small>Agla →</small><b>${name(next)}</b></button>`:""}</div>`;
 }
 function chapterView(c){
@@ -1125,24 +969,6 @@ function chapterView(c){
     <ol class="tasks">${c.tasks.map((t,i)=>taskCard({...t,ch:c},i)).join("")}</ol>
     ${c.meanings?`<p class="sec-t">Dashboard ke cards ka matlab</p><div class="means">${MEANINGS.map((m,i)=>`<div class="mean" style="--i:${i}"><b>${m[0]}</b><span>${m[1]}</span></div>`).join("")}</div>`:""}
     ${pager(c.key)}
-  </div>`;
-}
-function updatesView(){
-  const s=chStats(UPDCH),pct=s.n?Math.round(s.ok/s.n*100):0;
-  return `<div class="view">
-    <div class="ch-head">
-      <div class="ch-icon">${ico("spark")}</div>
-      <div><p class="eyebrow">${UPD.date} · ${UPD.groups.length} nayi cheezein · ${s.n} kaam</p><h2>${UPD.title}</h2><p>${UPD.intro}</p><div class="who">Kaun karega: ${UPD.who.map(w=>WHO[w]).join("")}</div></div>
-      <div class="ring-ch"><svg viewBox="0 0 76 76"><circle class="trk" cx="38" cy="38" r="31" fill="none" stroke-width="7"/><circle class="val" cx="38" cy="38" r="31" fill="none" stroke-width="7" stroke-linecap="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="${100-pct}"/></svg><div><b>${s.ok}/${s.n}</b><small>theek</small></div></div>
-    </div>
-    <p class="sec-t">Is update mein kya kya mukammal hua</p>
-    <div class="upd-list">${UPD.groups.map((g,i)=>`<button type="button" class="upd-pill" data-jump="upd-${i}" style="--i:${i}"><span class="ni">${ico("check")}</span><span><b>${i+1}. ${g.title}</b><small>${g.tasks.length} kaam check karein</small></span></button>`).join("")}</div>
-    ${UPD.groups.map((g,gi)=>`<section class="upd-group" id="upd-${gi}">
-      <div class="upd-h"><span class="ni">${ico(g.icon)}</span><div><h3>${gi+1}. ${g.title}</h3><span class="done-badge">${ico("check")}Mukammal</span></div></div>
-      <p class="upd-what">${g.what}</p>
-      <ol class="tasks">${g.tasks.map((t,i)=>taskCard({...t,ch:UPDCH},i)).join("")}</ol>
-    </section>`).join("")}
-    ${pager("updates")}
   </div>`;
 }
 function dailyView(){
@@ -1173,7 +999,6 @@ function render(scroll){
   const c=$("#content");
   if(query){c.innerHTML=searchView(query)}
   else if(S.view==="start"){c.innerHTML=startView()}
-  else if(S.view==="updates"){c.innerHTML=updatesView()}
   else if(S.view==="daily"){c.innerHTML=dailyView()}
   else if(S.view==="faq"){c.innerHTML=faqView()}
   else{const ch=CH.find(x=>x.key===S.view);c.innerHTML=ch?chapterView(ch):startView()}
@@ -1204,8 +1029,6 @@ function go(view){
 document.addEventListener("click",e=>{
   const g=e.target.closest("[data-go]");if(g){e.preventDefault();go(g.dataset.go);return}
   if(e.target.closest("[data-clear]")){query="";$("#q").value="";render(true);return}
-  const j=e.target.closest("[data-jump]");
-  if(j){const el=document.getElementById(j.dataset.jump);if(el)el.scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"start"});return}
   const h=e.target.closest(".task-h");
   if(h){const card=h.closest(".task"),id=card.dataset.id,o=!card.classList.contains("open");card.classList.toggle("open",o);h.setAttribute("aria-expanded",o);S.open[id]=o;if(!o)delete S.open[id];save();return}
   const ok=e.target.closest("[data-ok]");
@@ -1247,8 +1070,6 @@ function reportText(){
   L.push(`Theek: ${t.ok}/${t.n} · Masle: ${t.bad} · Baqi: ${t.left}`);
   const bads=ALL.filter(x=>S.status[x.id]==="bad");
   if(bads.length){L.push("");L.push("*Masle:*");bads.forEach(x=>L.push(`• [${x.ch.title}] ${x.t}${S.notes[x.id]?` — ${S.notes[x.id].trim()}`:""}`))}
-  const u=chStats(UPDCH);
-  L.push("");L.push(`*New Updates (${UPD.date}):* ${u.ok}/${u.n}${u.n&&u.ok===u.n?" ✓":""}${u.bad?` (${u.bad} masla)`:""}`);
   L.push("");L.push("*Chapter-wise:*");
   CH.forEach((c,i)=>{const s=chStats(c);L.push(`${i+1}. ${c.title}: ${s.ok}/${s.n}${s.n&&s.ok===s.n?" ✓":""}${s.bad?` (${s.bad} masla)`:""}`)});
   return L.join("\n");
@@ -1276,7 +1097,7 @@ $("#resetBtn").onclick=async()=>{if(await askConfirm("Saare “Theek hai / Masla
 $("#printBtn").onclick=()=>{
   closeReport();
   const c=$("#content");
-  c.innerHTML=updatesView()+CH.map(ch=>`<div class="view" style="margin-bottom:24px"><div class="ch-head"><div class="ch-icon">${ico(ch.icon)}</div><div><p class="eyebrow">Chapter ${CH.indexOf(ch)+1}</p><h2>${ch.title}</h2><p>${ch.intro}</p></div></div>${ch.before?`<div class="before">${ico("info")}<span><b>Pehle yeh ho:</b> ${ch.before}</span></div>`:""}<ol class="tasks">${ch.tasks.map((t,i)=>taskCard({...t,ch},i)).join("")}</ol></div>`).join("");
+  c.innerHTML=CH.map(ch=>`<div class="view" style="margin-bottom:24px"><div class="ch-head"><div class="ch-icon">${ico(ch.icon)}</div><div><p class="eyebrow">Chapter ${CH.indexOf(ch)+1}</p><h2>${ch.title}</h2><p>${ch.intro}</p></div></div>${ch.before?`<div class="before">${ico("info")}<span><b>Pehle yeh ho:</b> ${ch.before}</span></div>`:""}<ol class="tasks">${ch.tasks.map((t,i)=>taskCard({...t,ch},i)).join("")}</ol></div>`).join("");
   $$(".task",c).forEach(el=>el.classList.add("open"));
   setTimeout(()=>{window.print();render(false)},120);
 };

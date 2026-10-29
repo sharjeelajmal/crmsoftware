@@ -20,6 +20,13 @@ export const cutQtyOf = (sizes = []) => sizes.reduce((sum, s) => sum + (Math.tru
 
 export const stageIndex = (stage) => STAGES.indexOf(stage);
 
+/**
+ * What a cutting master may see of a lot after cutting (client, 2026-10-29): only its own history entries and the
+ * cutting gate pass — never where the pieces went next.
+ */
+export const CUTTING_EVENT_TYPES = Object.freeze(["created", "edited"]);
+export const CUTTING_GATE_PASS_TYPES = Object.freeze(["cutting"]);
+
 /** Next stage in the pipeline, or null when the lot is already ready. */
 export const nextStage = (stage) => STAGES[stageIndex(stage) + 1] ?? null;
 

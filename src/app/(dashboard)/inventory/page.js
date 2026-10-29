@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Plus } from "lucide-react";
+import { Boxes, Scroll, Search, Plus } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { Button } from "@/components/ui/Button";
 import { CustomDropdown } from "@/components/ui/CustomDropdown";
@@ -17,8 +17,19 @@ import { ProductTable } from "@/features/inventory/components/ProductTable";
 import { DateRangeButton } from "@/components/ui/DateRangeButton";
 import { rangeLabel } from "@/constants/datePresets";
 import { STOCK_FILTERS, STOCK_FILTER_OPTIONS, filterProducts } from "@/features/inventory/utils";
+import { RawMaterialView } from "@/features/fabric/components/RawMaterialView";
 
 const CLOSED = { type: null, data: null };
+
+// Two kinds of inventory (client, 2026-10-29): ready goods (products) and raw material (fabric).
+const VIEWS = [
+  { value: "ready", label: "Ready stock", icon: Boxes },
+  { value: "raw", label: "Raw material", icon: Scroll },
+];
+const tabClass = (active) =>
+  "flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold " +
+  "transition-colors cursor-pointer " +
+  (active ? "bg-primary text-white shadow-md" : "text-gray-600 hover:bg-gray-100");
 const SEARCH_CLASS =
   "pl-12 pr-4 py-3 w-full bg-white rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary";
 
@@ -41,6 +52,7 @@ export default function InventoryPage() {
   const [stockFilter, setStockFilter] = useState(STOCK_FILTERS.ALL);
   const [addedRange, setAddedRange] = useState(null);
   const [popup, setPopup] = useState(CLOSED);
+  const [view, setView] = useState("ready");
 
   const closePopup = () => setPopup(CLOSED);
   const filteredProducts = filterProducts(products, {
@@ -123,89 +135,118 @@ export default function InventoryPage() {
       </AnimatePresence>
 
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="w-full space-y-6">
-        <motion.header
+        <motion.div
           variants={itemVariants}
-          className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-3"
+          className="flex items-center gap-1 p-1 bg-white rounded-xl w-full sm:w-auto sm:self-start shadow-sm"
+          role="tablist"
+          data-testid="inventory-tabs"
         >
-          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-center">
-            <div className="relative flex items-center w-full sm:w-72 lg:w-80">
-              <Search className="absolute left-4 text-gray-400" size={20} />
-              <input
-                autoComplete="off"
-                type="text"
-                placeholder="Search"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={SEARCH_CLASS}
-              />
-            </div>
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
-              <CustomDropdown
-                label="Category"
-                options={categoryOptions}
-                selected={selectedCategory}
-                onSelect={setSelectedCategory}
-                onDeleteOption={handleDeleteCategory}
-                searchPlaceholder="Search category..."
-                containerClassName="w-full sm:w-48"
-              />
-              <CustomDropdown
-                label="Stock"
-                options={STOCK_FILTER_OPTIONS}
-                selected={stockFilter}
-                onSelect={setStockFilter}
-                containerClassName="w-full sm:w-48"
-              />
-              <DateRangeButton
-                range={addedRange}
-                onChange={setAddedRange}
-                className="col-span-2 sm:w-64"
-                testId="inventory-date-filter"
-              />
-            </div>
-          </div>
-          <Button
-            icon={Plus}
-            onClick={() => setPopup({ type: "addCategory", data: null })}
-            className="w-full sm:w-auto sm:self-start xl:self-auto shrink-0 whitespace-nowrap"
-          >
-            Add Category
-          </Button>
-        </motion.header>
-
-        <motion.div variants={itemVariants} className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">
-                {selectedCategory === "All" ? "All Products" : selectedCategory}
-              </h2>
-              {addedRange && (
-                <p className="text-sm text-gray-500" data-testid="inventory-date-summary">
-                  Added: {rangeLabel(addedRange)} · {filteredProducts.length}{" "}
-                  {filteredProducts.length === 1 ? "product" : "products"}
-                </p>
-              )}
-            </div>
-            <Button
-              icon={Plus}
-              onClick={() => setPopup({ type: "addProduct", data: null })}
-              className="w-full sm:w-auto"
+          {VIEWS.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={view === value}
+              onClick={() => setView(value)}
+              className={tabClass(view === value)}
+              data-testid={`inventory-tab-${value}`}
             >
-              Add Product
-            </Button>
-          </div>
-          <ProductTable
-            products={filteredProducts}
-            isLoading={isLoading}
-            onStockChange={(productId, action) => setPopup({ type: "stock", data: { productId, action } })}
-            onEdit={(productId) => setPopup({ type: "edit", data: productId })}
-            onDelete={(productId) => setPopup({ type: "deleteProduct", data: productId })}
-            onHistory={(productId) => setPopup({ type: "history", data: productId })}
-            emptyText={
-              products.length > 0 ? "No products match these filters. Change or clear a filter to see more." : undefined
-            }
-          />
+              <Icon size={16} /> {label}
+            </button>
+          ))}
         </motion.div>
+
+        {view === "raw" ? (
+          <RawMaterialView />
+        ) : (
+          <>
+            <motion.header
+              variants={itemVariants}
+              className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-3"
+            >
+              <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-center">
+                <div className="relative flex items-center w-full sm:w-72 lg:w-80">
+                  <Search className="absolute left-4 text-gray-400" size={20} />
+                  <input
+                    autoComplete="off"
+                    type="text"
+                    placeholder="Search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={SEARCH_CLASS}
+                  />
+                </div>
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3">
+                  <CustomDropdown
+                    label="Category"
+                    options={categoryOptions}
+                    selected={selectedCategory}
+                    onSelect={setSelectedCategory}
+                    onDeleteOption={handleDeleteCategory}
+                    searchPlaceholder="Search category..."
+                    containerClassName="w-full sm:w-48"
+                  />
+                  <CustomDropdown
+                    label="Stock"
+                    options={STOCK_FILTER_OPTIONS}
+                    selected={stockFilter}
+                    onSelect={setStockFilter}
+                    containerClassName="w-full sm:w-48"
+                  />
+                  <DateRangeButton
+                    range={addedRange}
+                    onChange={setAddedRange}
+                    className="col-span-2 sm:w-64"
+                    testId="inventory-date-filter"
+                  />
+                </div>
+              </div>
+              <Button
+                icon={Plus}
+                onClick={() => setPopup({ type: "addCategory", data: null })}
+                className="w-full sm:w-auto sm:self-start xl:self-auto shrink-0 whitespace-nowrap"
+              >
+                Add Category
+              </Button>
+            </motion.header>
+
+            <motion.div variants={itemVariants} className="bg-white p-4 sm:p-6 rounded-2xl shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-800">
+                    {selectedCategory === "All" ? "All Products" : selectedCategory}
+                  </h2>
+                  {addedRange && (
+                    <p className="text-sm text-gray-500" data-testid="inventory-date-summary">
+                      Added: {rangeLabel(addedRange)} · {filteredProducts.length}{" "}
+                      {filteredProducts.length === 1 ? "product" : "products"}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  icon={Plus}
+                  onClick={() => setPopup({ type: "addProduct", data: null })}
+                  className="w-full sm:w-auto"
+                >
+                  Add Product
+                </Button>
+              </div>
+              <ProductTable
+                products={filteredProducts}
+                isLoading={isLoading}
+                onStockChange={(productId, action) => setPopup({ type: "stock", data: { productId, action } })}
+                onEdit={(productId) => setPopup({ type: "edit", data: productId })}
+                onDelete={(productId) => setPopup({ type: "deleteProduct", data: productId })}
+                onHistory={(productId) => setPopup({ type: "history", data: productId })}
+                emptyText={
+                  products.length > 0
+                    ? "No products match these filters. Change or clear a filter to see more."
+                    : undefined
+                }
+              />
+            </motion.div>
+          </>
+        )}
       </motion.div>
     </>
   );

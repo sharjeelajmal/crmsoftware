@@ -6,18 +6,24 @@
  *    are edited — cut/lot number, bundle number, sizes (range + per size), total pieces, shrinkage %, fabric.
  *  - "stitching": issued when the cut pieces go to stitching — the same cutting details.
  *  - "washing": issued when the stitched pieces go to washing — lot number, pieces and the wash type.
+ *  - "dispatch": issued when ready pieces leave the factory (all or a part) — party / shop, pieces per size and the
+ *    labour cost of those pieces (see src/constants/dispatch.js).
  * All of them carry the factory phone numbers (BUSINESS.gatePass) on top and at the bottom.
  */
 
 export const GATE_PASS_PREFIX = "GP";
 export const FIRST_GATE_PASS_SEQ = 1001;
 
-export const GATE_PASS_TYPES = Object.freeze(["cutting", "stitching", "washing"]);
+export const GATE_PASS_TYPES = Object.freeze(["cutting", "stitching", "washing", "dispatch"]);
+
+/** Types the admin can issue again by hand ("Issue …"); a dispatch pass only comes from a dispatch. */
+export const ISSUABLE_GATE_PASS_TYPES = Object.freeze(["cutting", "stitching", "washing"]);
 
 export const GATE_PASS_LABELS = Object.freeze({
   cutting: "Cutting gate pass",
   stitching: "Stitching gate pass",
   washing: "Washing gate pass",
+  dispatch: "Dispatch gate pass",
 });
 
 /** Which stage action issues which gate pass (null = none). */
@@ -79,12 +85,17 @@ const cuttingPassFields = (lot) =>
 export const cuttingPassChanged = (before, after) => cuttingPassFields(before) !== cuttingPassFields(after);
 
 /** The earliest stage from which a pass type can be issued. */
-const MIN_STAGE_INDEX = Object.freeze({ cutting: 0, stitching: 1, washing: 2 });
+const MIN_STAGE_INDEX = Object.freeze({ cutting: 0, stitching: 1, washing: 2, dispatch: 4 });
 const STAGE_ORDER = Object.freeze(["cutting", "stitching", "washing", "packing", "ready"]);
 
 export const canIssueGatePass = (lot, type) =>
   isGatePassType(type) && STAGE_ORDER.indexOf(lot?.stage) >= MIN_STAGE_INDEX[type];
 
-/** "12%" / "—" */
-export const formatShrinkage = (value) =>
-  value === null || value === undefined || value === "" ? "—" : `${Number(value) || 0}%`;
+/**
+ * Shrinkage as written on the cutting entry ("2 inch", "3-4"); "—" when empty. Entries from before it became free text
+ * (client, 2026-10-29) stored a percent number, shown as "12%".
+ */
+export const formatShrinkage = (value) => {
+  if (value === null || value === undefined || value === "") return "—";
+  return typeof value === "number" ? `${value}%` : String(value);
+};

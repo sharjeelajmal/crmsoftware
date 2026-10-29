@@ -5,8 +5,8 @@ import { valueToDate } from "@/constants/datePresets";
 /**
  * Fabric khata (the cutting master's fabric account) — pure, client-safe rules.
  *
- * Fabric comes in from the store as receipts (`fabric_receipts`); every cutting entry (lot) uses `lot.fabric.qty` of
- * its fabric. Balance in hand = received − used, per fabric. A fabric is its name + unit; names match regardless of
+ * Fabric comes in from the store as receipts (`fabric_receipts`, optionally with the number of rolls); every cutting
+ * entry (lot) uses `lot.fabric.qty` of its fabric. This is the factory's raw-material inventory. Balance in hand = received − used, per fabric. A fabric is its name + unit; names match regardless of
  * case and extra spaces ("Denim 12oz" = "denim  12OZ"). The "used" side is never stored: it is read from the lots,
  * so editing or deleting a cutting entry corrects the balance by itself.
  */
@@ -38,6 +38,12 @@ export const fabricKey = (name, unit) => `${cleanFabricName(name).toLowerCase()}
 export const formatFabricQty = (qty, unit = "m") =>
   `${(Number(qty) || 0).toLocaleString("en-US", { maximumFractionDigits: 2 })} ${unit || "m"}`;
 
+/** "4 rolls" / "1 roll"; "" for none. */
+export const formatRolls = (rolls) => {
+  const n = Math.trunc(Number(rolls)) || 0;
+  return n > 0 ? `${n.toLocaleString("en-US")} roll${n === 1 ? "" : "s"}` : "";
+};
+
 /** One figure per unit ("1,250 m · 40 kg"), units at zero left out; `empty` when there is nothing. */
 export const formatUnitTotals = (totals = [], field, empty = "0 m") => {
   const shown = totals.filter((row) => row[field] !== 0);
@@ -55,6 +61,7 @@ export const receiptMovement = (receipt) => ({
   name: cleanFabricName(receipt.name),
   unit: receipt.unit || "m",
   qty: round2(receipt.qty),
+  rolls: Math.max(0, Math.trunc(Number(receipt.rolls)) || 0),
 });
 
 /** A cutting entry as a movement (fabric used). */
@@ -85,6 +92,7 @@ export function fabricBalances(movements) {
         name: m.name,
         unit: m.unit,
         received: 0,
+        rolls: 0,
         used: 0,
         cuts: 0,
         lastReceivedAt: null,
@@ -94,6 +102,7 @@ export function fabricBalances(movements) {
     const row = byKey.get(m.key);
     if (m.kind === "received") {
       row.received = round2(row.received + m.qty);
+      row.rolls += m.rolls || 0;
       row.lastReceivedAt = m.date;
       row.name = m.name;
     } else {
@@ -107,13 +116,14 @@ export function fabricBalances(movements) {
     .sort((a, b) => a.name.localeCompare(b.name) || unitOrder(a.unit, b.unit));
 }
 
-/** Received / used / in hand added up per unit (metres and kilos are never added together). */
+/** Received / used / in hand (and rolls received) per unit (metres and kilos are never added together). */
 export function totalsByUnit(balances) {
   const byUnit = new Map();
   for (const row of balances) {
-    if (!byUnit.has(row.unit)) byUnit.set(row.unit, { unit: row.unit, received: 0, used: 0, balance: 0 });
+    if (!byUnit.has(row.unit)) byUnit.set(row.unit, { unit: row.unit, received: 0, rolls: 0, used: 0, balance: 0 });
     const total = byUnit.get(row.unit);
     total.received = round2(total.received + row.received);
+    total.rolls += row.rolls || 0;
     total.used = round2(total.used + row.used);
     total.balance = round2(total.balance + row.balance);
   }
@@ -252,9 +262,12 @@ export function balanceAfterCut(balances, { name, unit, qty }, originalLot = nul
 }
 
 /** Why a fabric receipt can't be saved, or "". */
-export const receiptProblem = ({ name, qty, unit, day }) => {
+export const receiptProblem = ({ name, qty, unit, day, rolls }) => {
   if (!cleanFabricName(name)) return "Please enter the fabric name.";
   if (!(Number(qty) > 0)) return "Quantity must be more than 0.";
+  if (rolls !== undefined && rolls !== "" && !(Number.isInteger(Number(rolls)) && Number(rolls) >= 0)) {
+    return "Rolls must be a whole number.";
+  }
   if (unit && !FABRIC_UNITS.includes(unit)) return "Choose a unit.";
   if (!valueToDate(day)) return "Please choose the date.";
   return "";

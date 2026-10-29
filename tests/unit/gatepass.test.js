@@ -3,6 +3,7 @@ import {
   GATE_PASS_FOR_ACTION,
   GATE_PASS_LABELS,
   GATE_PASS_TYPES,
+  ISSUABLE_GATE_PASS_TYPES,
   canIssueGatePass,
   cuttingPassChanged,
   formatGatePassNumber,
@@ -42,11 +43,15 @@ describe("gate pass rules", () => {
     expect(GATE_PASS_FOR_ACTION.washed).toBeUndefined();
   });
 
-  it("keeps cutting, stitching and washing as three separate passes", () => {
-    expect([...GATE_PASS_TYPES]).toEqual(["cutting", "stitching", "washing"]);
+  it("keeps cutting, stitching, washing and dispatch as separate passes", () => {
+    expect([...GATE_PASS_TYPES]).toEqual(["cutting", "stitching", "washing", "dispatch"]);
     expect(GATE_PASS_LABELS.cutting).toBe("Cutting gate pass");
     expect(GATE_PASS_LABELS.stitching).toBe("Stitching gate pass");
     expect(GATE_PASS_LABELS.washing).toBe("Washing gate pass");
+    expect(GATE_PASS_LABELS.dispatch).toBe("Dispatch gate pass");
+    // a dispatch pass only comes from a dispatch, never from "Issue …"
+    expect([...ISSUABLE_GATE_PASS_TYPES]).toEqual(["cutting", "stitching", "washing"]);
+    expect(() => gatePassIssueSchema.parse({ type: "dispatch" })).toThrow();
   });
 
   it("derives the size range from sizes that have pieces", () => {
@@ -158,13 +163,22 @@ describe("buildGatePass", () => {
 describe("gate pass schemas", () => {
   const base = { productId: "64b000000000000000000001", fabric: { name: "Denim" }, sizes: [{ size: "30", qty: 10 }] };
 
-  it("accepts bundle number and shrinkage on the cutting entry", () => {
-    const parsed = lotCreateSchema.parse({ ...base, bundleNumber: " B-12 ", shrinkage: "12.5" });
-    expect(parsed.bundleNumber).toBe("B-12");
-    expect(parsed.shrinkage).toBe(12.5);
+  it("accepts the cut number and a free-text shrinkage on the cutting entry", () => {
+    const parsed = lotCreateSchema.parse({ ...base, bundleNumber: " C-12 ", shrinkage: " 2 inch " });
+    expect(parsed.bundleNumber).toBe("C-12");
+    expect(parsed.shrinkage).toBe("2 inch");
     expect(lotCreateSchema.parse(base).bundleNumber).toBe("");
-    expect(lotCreateSchema.parse({ ...base, shrinkage: null }).shrinkage).toBeNull();
-    expect(() => lotCreateSchema.parse({ ...base, shrinkage: 120 })).toThrow();
+    expect(lotCreateSchema.parse(base).shrinkage).toBeUndefined();
+    expect(lotCreateSchema.parse({ ...base, shrinkage: null }).shrinkage).toBe("");
+    expect(lotCreateSchema.parse({ ...base, shrinkage: 120 }).shrinkage).toBe("120"); // no limit any more
+    expect(() => lotCreateSchema.parse({ ...base, shrinkage: "x".repeat(41) })).toThrow();
+  });
+
+  it("prints shrinkage as written; old percent numbers keep their %", () => {
+    expect(formatShrinkage("2 inch")).toBe("2 inch");
+    expect(formatShrinkage(12)).toBe("12%");
+    expect(formatShrinkage("")).toBe("—");
+    expect(formatShrinkage(null)).toBe("—");
   });
 
   it("accepts a wash type with the stitched action and validates the issue request", () => {

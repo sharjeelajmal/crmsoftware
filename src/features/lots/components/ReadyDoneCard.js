@@ -17,6 +17,8 @@ export function ReadyDoneCard({ lot, canReverse = true, onUpdated }) {
   const [reversing, setReversing] = useState(false);
   const pieces = Number(lot?.readyQty) || 0;
   const readySizes = Array.isArray(lot?.readySizes) ? lot.readySizes : [];
+  // Once pieces have left the factory the ready entry can't be taken back (they are no longer in stock).
+  const dispatched = Number(lot?.dispatchQty) || 0;
 
   const handleReversed = (updated) => {
     setReversing(false);
@@ -50,7 +52,7 @@ export function ReadyDoneCard({ lot, canReverse = true, onUpdated }) {
             ) : null}
           </p>
         </div>
-        {canReverse && (
+        {canReverse && dispatched === 0 && (
           <Button
             variant="secondary"
             size="sm"

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, Pencil, Scroll, Ruler, StickyNote, History } from "lucide-react";
+import { ArrowLeft, Lock, Pencil, Scroll, Ruler, StickyNote, History } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { Button } from "@/components/ui/Button";
 import { formatDateTime } from "@/lib/format";
@@ -12,6 +12,7 @@ import { LotPipeline } from "./LotPipeline";
 import { LotHistory } from "./LotHistory";
 import { GatePassesCard } from "./GatePassesCard";
 import { formatShrinkage } from "@/constants/gatepass";
+import { CUTTING_GATE_PASS_TYPES } from "@/constants/lots";
 
 const CARD_CLASS = "bg-white p-4 sm:p-6 rounded-2xl shadow-sm";
 
@@ -29,6 +30,8 @@ function CardTitle({ icon: Icon, children }) {
  * `editHref` shows the Edit button (only while the lot is at the cutting stage).
  * `actions` renders extra buttons in the header; `afterPipeline` renders right under the pipeline card;
  * `footer` renders below the history. `canIssueGatePass` (admin) enables issuing/reissuing gate passes.
+ * `cuttingView` (the cutting master's portal) shows only the cutting part: no stage, no pipeline, no wash type and
+ * only the cutting gate pass — never where the pieces went after cutting (client, 2026-10-29).
  */
 export function LotDetail({
   lot,
@@ -39,6 +42,7 @@ export function LotDetail({
   afterPipeline,
   footer,
   canIssueGatePass = false,
+  cuttingView = false,
 }) {
   const canEdit = lot.stage === "cutting" && Boolean(editHref);
 
@@ -50,7 +54,7 @@ export function LotDetail({
       className="space-y-4 sm:space-y-6 max-w-5xl mx-auto"
       data-testid="lot-detail"
       data-lot-number={lot.lotNumber}
-      data-stage={lot.stage}
+      data-stage={cuttingView ? undefined : lot.stage}
     >
       <motion.div variants={itemVariants}>
         <Link href={backHref} className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary mb-3">
@@ -60,7 +64,7 @@ export function LotDetail({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">{lot.lotNumber}</h1>
-              <LotStageBadge stage={lot.stage} className="text-sm px-3 py-1.5" />
+              {!cuttingView && <LotStageBadge stage={lot.stage} className="text-sm px-3 py-1.5" />}
             </div>
             <p className="text-lg text-gray-700 mt-1 break-words">{lot.productName}</p>
             <p className="text-sm text-gray-500 mt-1">
@@ -76,14 +80,24 @@ export function LotDetail({
                 </Button>
               </Link>
             )}
+            {cuttingView && !canEdit && (
+              <span
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-600"
+                data-testid="lot-detail-locked"
+              >
+                <Lock size={16} /> Cutting entry locked
+              </span>
+            )}
             {actions}
           </div>
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants} className={CARD_CLASS}>
-        <LotPipeline lot={lot} />
-      </motion.div>
+      {!cuttingView && (
+        <motion.div variants={itemVariants} className={CARD_CLASS}>
+          <LotPipeline lot={lot} />
+        </motion.div>
+      )}
 
       {afterPipeline}
 
@@ -94,19 +108,24 @@ export function LotDetail({
           <p className="text-gray-600 mt-1">
             {Number(lot.fabric?.qty) || 0} {lot.fabric?.unit || "m"}
           </p>
-          <dl className="grid grid-cols-3 gap-2 mt-4 text-sm" data-testid="lot-cutting-details">
+          <dl
+            className={`grid ${cuttingView ? "grid-cols-2" : "grid-cols-3"} gap-2 mt-4 text-sm`}
+            data-testid="lot-cutting-details"
+          >
             <div>
-              <dt className="text-xs uppercase tracking-wide text-gray-500">Bundle no.</dt>
+              <dt className="text-xs uppercase tracking-wide text-gray-500">Cut no.</dt>
               <dd className="font-semibold text-gray-800 break-words">{lot.bundleNumber || "—"}</dd>
             </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-gray-500">Shrinkage</dt>
-              <dd className="font-semibold text-gray-800">{formatShrinkage(lot.shrinkage)}</dd>
+              <dd className="font-semibold text-gray-800 break-words">{formatShrinkage(lot.shrinkage)}</dd>
             </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-gray-500">Wash</dt>
-              <dd className="font-semibold text-gray-800 break-words">{lot.washType || "—"}</dd>
-            </div>
+            {!cuttingView && (
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-gray-500">Wash</dt>
+                <dd className="font-semibold text-gray-800 break-words">{lot.washType || "—"}</dd>
+              </div>
+            )}
           </dl>
         </motion.div>
 
@@ -139,12 +158,16 @@ export function LotDetail({
 
       {lot.note ? (
         <motion.div variants={itemVariants} className={CARD_CLASS}>
-          <CardTitle icon={StickyNote}>Note</CardTitle>
+          <CardTitle icon={StickyNote}>Remarks</CardTitle>
           <p className="text-gray-700 whitespace-pre-line break-words">{lot.note}</p>
         </motion.div>
       ) : null}
 
-      <GatePassesCard lot={lot} canIssue={canIssueGatePass} />
+      <GatePassesCard
+        lot={lot}
+        canIssue={canIssueGatePass && !cuttingView}
+        types={cuttingView ? CUTTING_GATE_PASS_TYPES : null}
+      />
 
       <motion.div variants={itemVariants} className={CARD_CLASS}>
         <CardTitle icon={History}>History</CardTitle>

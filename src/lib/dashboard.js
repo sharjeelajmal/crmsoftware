@@ -184,6 +184,7 @@ export async function loadDashboard(db, now = new Date()) {
             pieces: 1,
             partial: 1,
             washType: 1,
+            party: 1,
             issuedAt: 1,
           },
         }

@@ -2,7 +2,7 @@
 
 import { BRAND, BUSINESS } from "@/constants/brand";
 import { GATE_PASS_LABELS, formatShrinkage } from "@/constants/gatepass";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatMoney } from "@/lib/format";
 
 /**
  * The printable gate pass (screen preview and print). Inline styles with var(--color-*) like the invoice,
@@ -28,6 +28,7 @@ function Row({ label, value, testId }) {
 export function GatePassDocument({ pass, id = "gate-pass-print" }) {
   if (!pass) return null;
   const isWashing = pass.type === "washing";
+  const isDispatch = pass.type === "dispatch";
   const sizes = (pass.sizes || []).filter((row) => row.qty > 0);
 
   return (
@@ -63,16 +64,23 @@ export function GatePassDocument({ pass, id = "gate-pass-print" }) {
 
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
-          <Row label="Cut / Lot no." value={pass.lotNumber} testId="gate-pass-lot" />
+          <Row label="Lot no." value={pass.lotNumber} testId="gate-pass-lot" />
           <Row label="Article" value={pass.productName || "—"} />
-          {isWashing ? (
+          {isDispatch ? (
+            <>
+              <Row label="To (party / shop)" value={pass.party || "—"} testId="gate-pass-party" />
+              <Row label="Cut no." value={pass.bundleNumber || "—"} testId="gate-pass-bundle" />
+              <Row label="Sizes" value={pass.sizeRange || "—"} testId="gate-pass-sizes" />
+              <Row label="Pieces" value={`${pass.pieces} pcs`} testId="gate-pass-pieces" />
+            </>
+          ) : isWashing ? (
             <>
               <Row label="Pieces" value={`${pass.pieces} pcs`} testId="gate-pass-pieces" />
               <Row label="Wash" value={pass.washType || "—"} testId="gate-pass-wash" />
             </>
           ) : (
             <>
-              <Row label="Bundle no." value={pass.bundleNumber || "—"} testId="gate-pass-bundle" />
+              <Row label="Cut no." value={pass.bundleNumber || "—"} testId="gate-pass-bundle" />
               <Row label="Sizes" value={pass.sizeRange || "—"} testId="gate-pass-sizes" />
               <Row label="Total pieces" value={`${pass.pieces} pcs`} testId="gate-pass-pieces" />
               <Row label="Shrinkage" value={formatShrinkage(pass.shrinkage)} testId="gate-pass-shrinkage" />
@@ -105,6 +113,29 @@ export function GatePassDocument({ pass, id = "gate-pass-print" }) {
             </tr>
           </tbody>
         </table>
+      )}
+
+      {isDispatch && pass.cost && (
+        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: "10px" }}>
+          <tbody>
+            <Row
+              label="Labour cost per piece"
+              value={formatMoney(pass.cost.perPiece)}
+              testId="gate-pass-cost-per-piece"
+            />
+            <Row
+              label={`Labour cost of ${pass.pieces} pcs`}
+              value={formatMoney(pass.cost.amount)}
+              testId="gate-pass-cost"
+            />
+          </tbody>
+        </table>
+      )}
+
+      {isDispatch && pass.note && (
+        <p style={{ marginTop: "12px", fontSize: "13px" }}>
+          <strong>Note:</strong> {pass.note}
+        </p>
       )}
 
       {isWashing && (

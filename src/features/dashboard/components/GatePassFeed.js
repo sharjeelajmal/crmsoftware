@@ -3,22 +3,23 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Droplets, Scissors, Spool, Ticket } from "lucide-react";
+import { Droplets, Scissors, Spool, Ticket, Truck } from "lucide-react";
 import { Panel, PanelEmpty } from "./Panel";
 
 const TYPE_STYLE = {
   cutting: { label: "Cutting pass", icon: Scissors, tint: "bg-gray-100 text-gray-700" },
   stitching: { label: "To stitching", icon: Spool, tint: "bg-yellow-100 text-yellow-800" },
   washing: { label: "To washing", icon: Droplets, tint: "bg-primary-soft text-primary" },
+  dispatch: { label: "Dispatched", icon: Truck, tint: "bg-success-soft text-success" },
 };
 
-/** The latest gate passes (cutting entries, pieces leaving for stitching or washing), newest first. */
+/** The latest gate passes (cutting entries, pieces leaving for stitching or washing, goods dispatched), newest first. */
 export function GatePassFeed({ passes, className = "" }) {
   return (
     <Panel
       icon={Ticket}
       title="Recent gate passes"
-      subtitle="Cutting, stitching and washing"
+      subtitle="Cutting, stitching, washing and dispatch"
       href="/stitching"
       linkLabel="Stitching"
       className={className}
@@ -61,7 +62,8 @@ export function GatePassFeed({ passes, className = "" }) {
                     <p className="text-xs text-gray-500 truncate">
                       {style.label}
                       {pass.partial ? " (part)" : ""}
-                      {pass.washType ? ` · ${pass.washType}` : ""} ·{" "}
+                      {pass.washType ? ` · ${pass.washType}` : ""}
+                      {pass.party ? ` · ${pass.party}` : ""} ·{" "}
                       {formatDistanceToNowStrict(new Date(pass.issuedAt), { addSuffix: true })}
                     </p>
                   </div>

@@ -91,7 +91,25 @@ export function ReceiveFabricModal({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div>
+            <label htmlFor="fabric-receipt-rolls" className={LABEL_CLASS}>
+              Rolls <span className="text-gray-400">(optional)</span>
+            </label>
+            <input
+              autoComplete="off"
+              id="fabric-receipt-rolls"
+              type="number"
+              inputMode="numeric"
+              min="0"
+              step="1"
+              value={form.rolls}
+              onChange={(e) => set("rolls", e.target.value)}
+              placeholder="e.g. 4"
+              className={INPUT_CLASS}
+              data-testid="fabric-receipt-rolls"
+            />
+          </div>
           <div>
             <label htmlFor="fabric-receipt-qty" className={LABEL_CLASS}>
               Quantity
@@ -110,7 +128,7 @@ export function ReceiveFabricModal({
               data-testid="fabric-receipt-qty"
             />
           </div>
-          <div>
+          <div className="col-span-2 sm:col-span-1">
             <span className={LABEL_CLASS}>Unit</span>
             <SelectDropdown
               options={FABRIC_UNITS.map((unit) => ({ value: unit, label: unit }))}
@@ -133,7 +151,7 @@ export function ReceiveFabricModal({
             maxLength={300}
             value={form.note}
             onChange={(e) => set("note", e.target.value)}
-            placeholder="e.g. from store, 4 rolls"
+            placeholder="e.g. from store"
             className={INPUT_CLASS}
             data-testid="fabric-receipt-note"
           />

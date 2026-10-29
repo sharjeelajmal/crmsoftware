@@ -7,6 +7,7 @@ import { MessageSquareText } from "lucide-react";
 import { BRAND } from "@/constants/brand";
 import { valueToDate } from "@/constants/datePresets";
 import { formatFabricQty } from "@/constants/fabric";
+import { formatShrinkage } from "@/constants/gatepass";
 import { sizesText } from "../utils";
 
 const FABRIC_COLUMNS = "grid grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))] items-center gap-3";
@@ -122,14 +123,12 @@ function LotEntry({ lot, href, index }) {
           <dd className="text-gray-800 [overflow-wrap:anywhere]">{sizesText(lot.sizes) || "—"}</dd>
         </div>
         <div>
-          <dt className="text-xs text-gray-500">Bundle</dt>
+          <dt className="text-xs text-gray-500">Cut no.</dt>
           <dd className="text-gray-800">{lot.bundleNumber || "—"}</dd>
         </div>
         <div>
           <dt className="text-xs text-gray-500">Shrinkage</dt>
-          <dd className="text-gray-800">
-            {lot.shrinkage === null || lot.shrinkage === undefined ? "—" : `${lot.shrinkage}%`}
-          </dd>
+          <dd className="text-gray-800 [overflow-wrap:anywhere]">{formatShrinkage(lot.shrinkage)}</dd>
         </div>
       </dl>
       {lot.note && (

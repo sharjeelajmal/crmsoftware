@@ -9,7 +9,6 @@ import { errorMessage } from "@/lib/api-client";
 import { Loader } from "@/components/ui/Loader";
 import { useLotDetail } from "@/features/cutting/hooks/useLotDetail";
 import { LotForm } from "@/features/cutting/components/LotForm";
-import { LotStageBadge } from "@/features/cutting/components/LotStageBadge";
 
 export default function EditCuttingEntryPage() {
   const { id } = useParams();
@@ -39,9 +38,7 @@ export default function EditCuttingEntryPage() {
       >
         <Lock size={40} className="mx-auto text-gray-400" />
         <h1 className="text-2xl font-bold text-gray-800">{lot.lotNumber} can no longer be edited</h1>
-        <p className="text-gray-600 flex flex-wrap items-center justify-center gap-2">
-          Cutting details are locked once production starts. Current stage: <LotStageBadge stage={lot.stage} />
-        </p>
+        <p className="text-gray-600">Cutting details are locked once the lot has left cutting.</p>
         <Link href={detailHref} className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
           <ArrowLeft size={16} /> Back to {lot.lotNumber}
         </Link>

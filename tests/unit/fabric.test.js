@@ -63,8 +63,8 @@ describe("fabric khata", () => {
   it("never adds metres and kilos together", () => {
     const totals = totalsByUnit(fabricBalances(movements));
     expect(totals).toEqual([
-      { unit: "m", received: 700, used: 225, balance: 475 },
-      { unit: "kg", received: 30, used: 0, balance: 30 },
+      { unit: "m", received: 700, rolls: 0, used: 225, balance: 475 },
+      { unit: "kg", received: 30, rolls: 0, used: 0, balance: 30 },
     ]);
     expect(formatUnitTotals(totals, "balance")).toBe("475 m · 30 kg");
     expect(formatUnitTotals(totals, "used")).toBe("225 m");

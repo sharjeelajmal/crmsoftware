@@ -18,6 +18,7 @@ export const PUT = route(
     if (changes.day) $set.date = receiptDate(changes.day);
     if (changes.name !== undefined) $set.name = cleanFabricName(changes.name);
     if (changes.qty !== undefined) $set.qty = roundQty(changes.qty);
+    if (changes.rolls !== undefined) $set.rolls = changes.rolls;
     if (changes.unit) $set.unit = changes.unit;
     if (changes.note !== undefined) $set.note = changes.note;
     if (changes.holderId && isAdmin(session)) $set.holder = await resolveHolder(db, session, changes.holderId);

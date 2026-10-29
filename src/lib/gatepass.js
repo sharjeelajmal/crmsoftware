@@ -17,9 +17,28 @@ export async function nextGatePassSeq(db, session) {
   return seq >= FIRST_GATE_PASS_SEQ ? seq + 1 : FIRST_GATE_PASS_SEQ;
 }
 
-/** `pieces` overrides the default (partial passes); `partial: true` marks a pass that carried only part of the lot. */
-export function buildGatePass({ lot, type, seq, washType = "", pieces, partial = false, session, now = new Date() }) {
-  const sizes = (lot.sizes || []).map((row) => ({ size: String(row.size), qty: Math.trunc(Number(row.qty)) || 0 }));
+/**
+ * `pieces` overrides the default (partial passes); `partial: true` marks a pass that carried only part of the lot.
+ * A dispatch pass brings its own `sizes` (what goes out), the `party` it goes to, its `cost` and a `note`.
+ */
+export function buildGatePass({
+  lot,
+  type,
+  seq,
+  washType = "",
+  pieces,
+  partial = false,
+  sizes: onPass,
+  party = "",
+  cost = null,
+  note = "",
+  session,
+  now = new Date(),
+}) {
+  const sizes = (onPass ?? lot.sizes ?? []).map((row) => ({
+    size: String(row.size),
+    qty: Math.trunc(Number(row.qty)) || 0,
+  }));
   return {
     seq,
     number: formatGatePassNumber(seq),
@@ -37,15 +56,16 @@ export function buildGatePass({ lot, type, seq, washType = "", pieces, partial =
       ? { name: lot.fabric.name, qty: Number(lot.fabric.qty) || 0, unit: lot.fabric.unit || "m" }
       : null,
     washType: type === "washing" ? washType || lot.washType || "" : "",
+    ...(type === "dispatch" ? { party, cost, note } : {}),
     issuedBy: { id: session?.sub ?? null, name: session?.name ?? "" },
     issuedAt: now,
   };
 }
 
 /** Issues (inserts) a pass for the lot inside the caller's transaction and returns it. */
-export async function issueGatePass(db, tx, { lot, type, washType, pieces, partial, session }) {
+export async function issueGatePass(db, tx, { lot, type, session, ...details }) {
   const seq = await nextGatePassSeq(db, tx);
-  const doc = buildGatePass({ lot, type, seq, washType, pieces, partial, session });
+  const doc = buildGatePass({ lot, type, seq, session, ...details });
   const { insertedId } = await db.collection("gate_passes").insertOne(doc, { session: tx });
   return { _id: insertedId, ...doc };
 }
