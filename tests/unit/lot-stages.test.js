@@ -115,7 +115,7 @@ describe("ready for sale (Phase 3)", () => {
         97
       )
     ).toMatch(/add up to 90/);
-    expect(readySizesProblem(packing, [{ size: "36", qty: 97 }], 97)).toMatch(/not part of this lot/);
+    expect(readySizesProblem(packing, [{ size: "36", qty: 97 }], 97)).toMatch(/not part of this invoice/);
     expect(readySizesProblem(packing, [{ size: "30", qty: -1 }], -1)).toMatch(/Invalid pieces/);
     expect(readySizesProblem(packing, [], 97)).toMatch(/per size/);
   });

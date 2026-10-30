@@ -16,9 +16,9 @@ export function WaitingLots({ lots, className = "" }) {
     <Panel
       icon={Hourglass}
       title="Waiting longest"
-      subtitle="Lots in process with no movement"
+      subtitle="Invoices in process with no movement"
       href="/lots"
-      linkLabel="Lots"
+      linkLabel="Invoices"
       className={className}
       testId="dash-waiting"
     >
@@ -26,7 +26,7 @@ export function WaitingLots({ lots, className = "" }) {
         <PanelEmpty
           icon={CircleCheck}
           title="Nothing is waiting"
-          hint="Every lot is either ready or not started yet."
+          hint="Every invoice is either ready or not started yet."
         />
       ) : (
         <ul className="space-y-2">

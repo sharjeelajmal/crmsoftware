@@ -28,7 +28,7 @@ export const PUT = route(async (request, context) => {
   let link;
   if ("lotId" in changes) {
     link = await resolveLotLink(db, changes.lotId);
-    if (!link) throw notFound("Lot");
+    if (!link) throw notFound("Invoice");
   }
 
   const ops = ledgerEditOps({ existing, changes, link, session });

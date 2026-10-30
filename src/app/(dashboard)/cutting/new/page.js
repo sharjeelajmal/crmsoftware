@@ -19,11 +19,11 @@ export default function NewCuttingEntryPage() {
     >
       <motion.div variants={itemVariants}>
         <Link href="/cutting" className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary mb-3">
-          <ArrowLeft size={16} /> My Lots
+          <ArrowLeft size={16} /> My Invoices
         </Link>
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">New Cutting Entry</h1>
         <p className="text-gray-500 mt-1">
-          Record the article, fabric and pieces cut per size. A lot number is assigned on save.
+          Record the article, fabric and pieces cut per size. An invoice number is assigned on save.
         </p>
       </motion.div>
 

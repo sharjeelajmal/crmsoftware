@@ -30,9 +30,9 @@ export default function AdminLotPage() {
   if (!lot) {
     return (
       <div className="max-w-3xl mx-auto text-center py-16 space-y-4">
-        <p className="text-gray-500">{error ? errorMessage(error, "Lot not found") : "Lot not found."}</p>
+        <p className="text-gray-500">{error ? errorMessage(error, "Invoice not found") : "Invoice not found."}</p>
         <Link href="/lots" className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
-          <ArrowLeft size={16} /> Back to Production Lots
+          <ArrowLeft size={16} /> Back to Invoices
         </Link>
       </div>
     );
@@ -59,7 +59,7 @@ export default function AdminLotPage() {
           <ConfirmDialog
             title={`Delete ${lot.lotNumber}?`}
             message="The cutting entry and its history will be removed. This cannot be undone."
-            confirmLabel={isDeleting ? "Deleting…" : "Delete lot"}
+            confirmLabel={isDeleting ? "Deleting…" : "Delete invoice"}
             onConfirm={isDeleting ? undefined : handleDelete}
             onCancel={() => setConfirmDelete(false)}
           />
@@ -69,7 +69,7 @@ export default function AdminLotPage() {
       <LotDetail
         lot={lot}
         backHref="/lots"
-        backLabel="Production Lots"
+        backLabel="Invoices"
         editHref={`/cutting/${lot._id}/edit`}
         canIssueGatePass
         actions={
@@ -81,7 +81,7 @@ export default function AdminLotPage() {
               data-testid="lot-delete"
               className="w-full sm:w-auto"
             >
-              Delete lot
+              Delete invoice
             </Button>
           ) : null
         }

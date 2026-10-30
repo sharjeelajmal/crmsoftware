@@ -58,7 +58,7 @@ export function useStageAction() {
         const updated = await api.post(`/api/lots/${lot._id}/stage`, payload);
         clearLotCaches();
         if (action.addsStock) clearStockCaches();
-        const lotNumber = updated.lotNumber || "Lot";
+        const lotNumber = updated.lotNumber || "Invoice";
         toast.success(
           action.addsStock
             ? `${lotNumber} ready · +${updated.readyQty ?? pieces} pieces added to stock`

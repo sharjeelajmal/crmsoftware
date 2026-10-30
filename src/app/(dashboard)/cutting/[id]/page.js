@@ -17,15 +17,21 @@ export default function CuttingLotPage() {
   if (!lot) {
     return (
       <div className="max-w-3xl mx-auto text-center py-16 space-y-4">
-        <p className="text-gray-500">{error ? errorMessage(error, "Lot not found") : "Lot not found."}</p>
+        <p className="text-gray-500">{error ? errorMessage(error, "Invoice not found") : "Invoice not found."}</p>
         <Link href="/cutting" className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
-          <ArrowLeft size={16} /> Back to My Lots
+          <ArrowLeft size={16} /> Back to My Invoices
         </Link>
       </div>
     );
   }
 
   return (
-    <LotDetail lot={lot} backHref="/cutting" backLabel="My Lots" editHref={`/cutting/${lot._id}/edit`} cuttingView />
+    <LotDetail
+      lot={lot}
+      backHref="/cutting"
+      backLabel="My Invoices"
+      editHref={`/cutting/${lot._id}/edit`}
+      cuttingView
+    />
   );
 }

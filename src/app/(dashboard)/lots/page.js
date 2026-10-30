@@ -47,8 +47,8 @@ export default function LotsPage({ searchParams }) {
         className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4"
       >
         <div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Production Lots</h1>
-          <p className="text-gray-500 mt-1">Every cutting lot and where it is in the pipeline.</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Invoices</h1>
+          <p className="text-gray-500 mt-1">Every cutting invoice and where it is in the pipeline.</p>
         </div>
         <Link href="/lots/report" className="w-full sm:w-auto" data-testid="lots-report-link">
           <Button variant="secondary" icon={FileBarChart} className="w-full">
@@ -58,7 +58,7 @@ export default function LotsPage({ searchParams }) {
       </motion.div>
 
       <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
-        <StatCard icon={Scissors} title="New lots" value={summary?.newLots ?? 0} />
+        <StatCard icon={Scissors} title="New invoices" value={summary?.newLots ?? 0} />
         <StatCard icon={Loader2} title="In process" value={summary?.inProcess ?? 0} />
         <StatCard icon={PackageCheck} title="Ready" value={summary?.ready ?? 0} />
         <StatCard icon={Layers} title="Today's pieces" value={summary?.today?.pieces ?? 0} />
@@ -90,7 +90,7 @@ export default function LotsPage({ searchParams }) {
             <input
               autoComplete="off"
               type="text"
-              placeholder="Search lot, article or user..."
+              placeholder="Search invoice, article or user..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               data-testid="lots-search"
@@ -104,7 +104,7 @@ export default function LotsPage({ searchParams }) {
         ) : (
           <LotsTable
             lots={visible}
-            emptyMessage={lots.length === 0 ? "No lots at this stage yet." : "No lots match your search."}
+            emptyMessage={lots.length === 0 ? "No invoices at this stage yet." : "No invoices match your search."}
           />
         )}
       </motion.div>

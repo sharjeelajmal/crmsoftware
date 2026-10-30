@@ -209,7 +209,7 @@ describe("partial gate passes out of stitching (Phase 7b)", () => {
     expect(dispatchProblem({ ...inStitching, stitchOutQty: 40 }, 70)).toMatch(/Only 60 pieces are left/);
     expect(dispatchProblem(inStitching, 0)).toMatch(/more than 0/);
     expect(dispatchProblem({ ...inStitching, stage: "cutting" }, 5)).toMatch(
-      /only be sent out while the lot is in stitching/
+      /only be sent out while the invoice is in stitching/
     );
   });
 

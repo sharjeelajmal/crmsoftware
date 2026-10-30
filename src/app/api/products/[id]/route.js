@@ -28,7 +28,7 @@ export const DELETE = route(async (_request, context) => {
   const db = await getDb();
 
   const openLots = await db.collection("lots").countDocuments({ productId: _id, stage: { $ne: "ready" } });
-  if (openLots > 0) throw conflict(`This product has ${openLots} lot(s) in production and cannot be deleted`);
+  if (openLots > 0) throw conflict(`This product has ${openLots} invoice(s) in production and cannot be deleted`);
 
   const { deletedCount } = await db.collection("products").deleteOne({ _id });
   if (deletedCount === 0) throw notFound("Product");

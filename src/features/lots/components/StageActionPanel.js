@@ -182,7 +182,7 @@ export function StageActionPanel({ lot, canReverse = true, onUpdated }) {
     return (
       <div className={`${CARD_CLASS} bg-gray-50`} data-testid="lot-stage-panel" data-panel-state="locked">
         <Title icon={Lock}>Current stage: {STAGE_LABELS[lot?.stage] || lot?.stage || "—"}</Title>
-        <p className="text-sm text-gray-500 mt-2">No action is available for this lot right now.</p>
+        <p className="text-sm text-gray-500 mt-2">No action is available for this invoice right now.</p>
       </div>
     );
   }

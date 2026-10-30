@@ -100,7 +100,7 @@ export const lotOptions = (lots = []) =>
 export const historyLines = (snapshot) =>
   Object.keys(snapshot?.after ?? {}).map((key) => ({
     key,
-    label: key === "lotNumber" ? "Lot" : key[0].toUpperCase() + key.slice(1),
+    label: key === "lotNumber" ? "Invoice" : key[0].toUpperCase() + key.slice(1),
     before: snapshot.before?.[key] ?? "—",
     after: snapshot.after?.[key] ?? "—",
   }));

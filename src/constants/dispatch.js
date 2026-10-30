@@ -29,14 +29,14 @@ export const piecesOf = (sizes = []) => sizes.reduce((sum, row) => sum + whole(r
 
 /** Why this dispatch can't go out, or "" when it can. */
 export function dispatchOutProblem(lot, { sizes = [], party = "" } = {}) {
-  if (lot?.stage !== "ready") return "Only a lot that is Ready can be dispatched";
+  if (lot?.stage !== "ready") return "Only an invoice that is Ready can be dispatched";
   if (!String(party).trim()) return "Write where the goods are going (party or shop)";
   const left = new Map(dispatchBalance(lot).rows.map((row) => [row.size, row.left]));
   for (const row of sizes) {
     const size = String(row.size);
     const qty = Math.trunc(Number(row.qty));
     if (!Number.isFinite(qty) || qty < 0) return `Invalid pieces for size ${size}`;
-    if (!left.has(size)) return `Size "${size}" is not part of this lot`;
+    if (!left.has(size)) return `Size "${size}" is not part of this invoice`;
     if (qty > left.get(size)) return `Only ${left.get(size)} pieces of size ${size} are left to dispatch`;
   }
   if (piecesOf(sizes) <= 0) return "Enter the pieces going out (more than 0)";

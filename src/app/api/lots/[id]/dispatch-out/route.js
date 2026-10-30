@@ -14,7 +14,7 @@ export const POST = route(async (request, { session, ...context }) => {
 
   const result = await withTransaction(async (db, tx) => {
     const lot = await db.collection("lots").findOne({ _id }, { session: tx });
-    if (!lot) throw notFound("Lot");
+    if (!lot) throw notFound("Invoice");
     return dispatchReadyLot(db, tx, { lot, party, sizes, note, session });
   });
 

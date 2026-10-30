@@ -34,7 +34,8 @@ export const lotReportUrl = (filter, range, { csv = false } = {}) => {
   return `/api/lots/report?${params.toString()}`;
 };
 
-export const reportFileName = (filter) => `${BRAND.slug}_lot_report_${filter}_${format(new Date(), "yyyy-MM-dd")}.csv`;
+export const reportFileName = (filter) =>
+  `${BRAND.slug}_invoice_report_${filter}_${format(new Date(), "yyyy-MM-dd")}.csv`;
 
 /** Stage key for a report row whose `stage` is the human label ("Cutting" → "cutting"). */
 export const stageKeyFromLabel = (label) =>

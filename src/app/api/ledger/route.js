@@ -13,7 +13,7 @@ const CSV_FIELDS = [
   { label: "Item", value: "item" },
   { label: "Qty", value: "qty" },
   { label: "Unit", value: "unit" },
-  { label: "Lot #", value: "lotNumber" },
+  { label: "Invoice #", value: "lotNumber" },
   { label: "Note", value: "note" },
   { label: "Recorded by", value: "by" },
   { label: "Edits", value: "edits" },
@@ -60,7 +60,7 @@ export const POST = route(async (request, { session }) => {
   const input = await parseBody(request, ledgerEntrySchema);
   const db = await getDb();
   const link = await resolveLotLink(db, input.lotId);
-  if (!link) throw notFound("Lot");
+  if (!link) throw notFound("Invoice");
 
   const doc = buildLedgerEntry({ input, link, session });
   const { insertedId } = await db.collection(LEDGER_COLLECTION).insertOne(doc);

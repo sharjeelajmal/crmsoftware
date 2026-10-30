@@ -101,7 +101,7 @@ export function WagesTable({ report, label }) {
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3 mt-4">
         {workers.length === 0 ? (
           <p className="text-center text-gray-500 py-10" data-testid="wages-empty">
-            No work entries in this period. Assign work from a lot page (Lots → lot → Work &amp; wages).
+            No work entries in this period. Assign work from an invoice page (Invoices → invoice → Work &amp; wages).
           </p>
         ) : (
           workers.map((row) => <WorkerWages key={row.workerId} row={row} entries={report?.entries ?? []} />)

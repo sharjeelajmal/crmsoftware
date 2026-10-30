@@ -57,7 +57,7 @@ export const gatePassPiecesFor = (lot, type) => {
 
 /** Why a partial "gate pass out" (stitching → washing) can't be issued for `pieces`, or "". */
 export const dispatchProblem = (lot, pieces) => {
-  if (lot?.stage !== "stitching") return "Pieces can only be sent out while the lot is in stitching";
+  if (lot?.stage !== "stitching") return "Pieces can only be sent out while the invoice is in stitching";
   const qty = Math.trunc(Number(pieces));
   if (!Number.isFinite(qty) || qty <= 0) return "Enter the pieces going out (more than 0)";
   const cut = Number(lot?.cutQty) || 0;

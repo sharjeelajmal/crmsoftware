@@ -67,7 +67,7 @@ export function WorkPanel({ lot }) {
             <HardHat size={18} className="text-primary" /> Work &amp; wages
           </h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            Labour on this lot:{" "}
+            Labour on this invoice:{" "}
             <span className="font-semibold text-gray-800" data-testid="lot-work-amount" data-amount={totals.amount}>
               {formatMoney(totals.amount)}
             </span>

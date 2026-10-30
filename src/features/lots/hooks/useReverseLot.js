@@ -26,7 +26,7 @@ export function useReverseLot() {
         clearLotCaches();
         clearStockCaches();
         const pieces = Number(lot.readyQty) || 0;
-        toast.success(`${updated.lotNumber || "Lot"} reversed · -${pieces} pieces taken back from stock`);
+        toast.success(`${updated.lotNumber || "Invoice"} reversed · -${pieces} pieces taken back from stock`);
         return updated;
       } catch (err) {
         toast.error(errorMessage(err));

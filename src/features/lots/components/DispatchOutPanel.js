@@ -107,7 +107,7 @@ export function DispatchOutPanel({ lot, onUpdated }) {
       )}
       {balance.left === 0 && balance.sent > 0 && (
         <p className="mt-3 text-sm font-semibold text-success" data-testid="dispatch-done">
-          Every ready piece of this lot has been dispatched.
+          Every ready piece of this invoice has been dispatched.
         </p>
       )}
     </motion.div>

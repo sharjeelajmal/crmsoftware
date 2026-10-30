@@ -45,7 +45,7 @@ export async function dispatchReadyLot(db, tx, { lot, party, sizes, note, sessio
   const pieces = piecesOf(rows);
 
   const product = await db.collection("products").findOne({ _id: new ObjectId(lot.productId) }, { session: tx });
-  if (!product) throw notFound("Product of this lot");
+  if (!product) throw notFound("Product of this invoice");
 
   // What leaves must still be in the Ready stock (it may have been sold or corrected since the lot was ready).
   const by = { id: session?.sub ?? null, name: session?.name ?? "" };
@@ -86,14 +86,12 @@ export async function dispatchReadyLot(db, tx, { lot, party, sizes, note, sessio
 
   const $set = { dispatchSizes: addDispatched(lot.dispatchSizes, rows), updatedAt: new Date() };
   await db.collection("lots").updateOne({ _id: lot._id }, { $inc: { dispatchQty: pieces }, $set }, { session: tx });
-  await db
-    .collection("lot_events")
-    .insertOne(
-      buildLotEvent(lot._id, "dispatched_out", session, {
-        qty: pieces,
-        note: [pass.number, party, note].filter(Boolean).join(" · "),
-      }),
-      { session: tx }
-    );
+  await db.collection("lot_events").insertOne(
+    buildLotEvent(lot._id, "dispatched_out", session, {
+      qty: pieces,
+      note: [pass.number, party, note].filter(Boolean).join(" · "),
+    }),
+    { session: tx }
+  );
   return { pass, dispatchQty: (Number(lot.dispatchQty) || 0) + pieces, ...$set };
 }

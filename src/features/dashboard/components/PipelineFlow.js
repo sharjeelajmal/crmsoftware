@@ -40,7 +40,7 @@ function StageCard({ stage, step, lots, pieces, share, hint, href, last = false 
         </p>
         <p className="mt-0.5 flex items-baseline gap-1 text-gray-800">
           <AnimatedNumber value={lots} className="text-2xl font-bold" testId={`dash-stage-${stage}-lots`} />
-          <span className="text-xs text-gray-500">{plural(lots, "lot")}</span>
+          <span className="text-xs text-gray-500">{plural(lots, "invoice")}</span>
         </p>
         <p className="text-xs text-gray-500 truncate" data-testid={`dash-stage-${stage}-pieces`} data-value={pieces}>
           {compactNumber(pieces)} {PIECES_LABEL[stage] ?? "pcs"}
@@ -84,9 +84,9 @@ export function PipelineFlow({ production }) {
     <Panel
       icon={Workflow}
       title="Production pipeline"
-      subtitle={`${inProcess.lots} ${plural(inProcess.lots, "lot")} · ${compactNumber(inProcess.pieces)} pcs in process right now`}
+      subtitle={`${inProcess.lots} ${plural(inProcess.lots, "invoice")} · ${compactNumber(inProcess.pieces)} pcs in process right now`}
       href="/lots"
-      linkLabel="All lots"
+      linkLabel="All invoices"
       testId="dash-pipeline"
     >
       <ol className="grid grid-cols-2 lg:grid-cols-5 gap-3">

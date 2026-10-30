@@ -32,7 +32,7 @@ export function ReverseLotModal({ lot, onReversed, onCancel }) {
         </h3>
         <p className="text-sm text-gray-600 mt-2">
           <span className="font-semibold">{pieces} pieces</span> of {lot.productName} will be taken back out of stock
-          and the lot returns to packing. The reason is kept in the lot history.
+          and the invoice returns to packing. The reason is kept in the invoice history.
         </p>
         <label htmlFor="lot-reverse-reason" className="block text-sm font-medium text-gray-700 mt-4 mb-1">
           Reason <span className="text-danger">*</span>

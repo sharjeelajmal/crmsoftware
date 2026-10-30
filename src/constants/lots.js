@@ -1,7 +1,8 @@
 // Pure production-lot constants, safe to import from client components.
+// "Lot" is the name in the code and the database; on screen the same record is an "Invoice".
 // (src/lib/lots.js adds the server-side rules on top and re-exports these.)
 
-export const LOT_PREFIX = "LOT-";
+export const LOT_PREFIX = "INV-";
 export const FIRST_LOT_SEQ = 1001;
 
 export const STAGES = Object.freeze(["cutting", "stitching", "washing", "packing", "ready"]);
@@ -102,7 +103,7 @@ export function applyStageAction(lot, actionKey, { qty } = {}) {
   if (!action) throw new Error(`Unknown action "${actionKey}"`);
   if (lot.stage !== action.from) {
     throw new Error(
-      `"${action.label}" is only possible while the lot is at the ${action.from} stage (now: ${lot.stage})`
+      `"${action.label}" is only possible while the invoice is at the ${action.from} stage (now: ${lot.stage})`
     );
   }
   const $set = { stage: action.to };
@@ -156,7 +157,7 @@ export function readySizesProblem(lot, sizes, qty) {
   if (!Array.isArray(sizes) || sizes.length === 0) return "Enter the pieces per size";
   const lotSizes = new Set((lot?.sizes || []).map((s) => s.size));
   for (const row of sizes) {
-    if (!lotSizes.has(row.size)) return `Size "${row.size}" is not part of this lot`;
+    if (!lotSizes.has(row.size)) return `Size "${row.size}" is not part of this invoice`;
     const n = Math.trunc(Number(row.qty));
     if (!Number.isFinite(n) || n < 0) return `Invalid pieces for size ${row.size}`;
   }

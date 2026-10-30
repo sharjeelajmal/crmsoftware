@@ -35,7 +35,7 @@ export async function requireOperation(db, operationId, session) {
 
 export async function requireLot(db, lotId, session) {
   const lot = await db.collection("lots").findOne({ _id: new ObjectId(lotId) }, { session });
-  if (!lot) throw notFound("Lot");
+  if (!lot) throw notFound("Invoice");
   return lot;
 }
 

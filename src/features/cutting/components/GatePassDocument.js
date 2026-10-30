@@ -64,7 +64,7 @@ export function GatePassDocument({ pass, id = "gate-pass-print" }) {
 
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <tbody>
-          <Row label="Lot no." value={pass.lotNumber} testId="gate-pass-lot" />
+          <Row label="Invoice no." value={pass.lotNumber} testId="gate-pass-lot" />
           <Row label="Article" value={pass.productName || "—"} />
           {isDispatch ? (
             <>

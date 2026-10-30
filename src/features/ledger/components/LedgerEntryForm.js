@@ -13,7 +13,7 @@ import { LedgerTypeChips } from "./LedgerTypeChips";
 
 const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-sm font-medium text-gray-700 mb-1";
-const NO_LOT = { value: "", label: "No lot (loose item)" };
+const NO_LOT = { value: "", label: "No invoice (loose item)" };
 
 /**
  * Record a new register entry or edit an existing one (`initialData` with `_id`).
@@ -114,13 +114,13 @@ export function LedgerEntryForm({ initialData = null, onSave, onCancel, isSaving
 
         <div data-testid="ledger-form-lot">
           <span className={`${LABEL_CLASS} flex items-center gap-1.5`}>
-            <Link2 size={14} /> Lot <span className="text-gray-400 font-normal">(optional)</span>
+            <Link2 size={14} /> Invoice <span className="text-gray-400 font-normal">(optional)</span>
           </span>
           <SelectDropdown
             options={[NO_LOT, ...lots]}
             selected={form.lotId}
             onSelect={(lotId) => set("lotId", lotId)}
-            placeholder={lotsLoading ? "Loading lots…" : "No lot (loose item)"}
+            placeholder={lotsLoading ? "Loading invoices…" : "No invoice (loose item)"}
           />
         </div>
 

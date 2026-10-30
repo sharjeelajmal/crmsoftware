@@ -29,7 +29,7 @@ export function GatePassFeed({ passes, className = "" }) {
         <PanelEmpty
           icon={Ticket}
           title="No gate passes yet"
-          hint="A pass is made at the cutting entry and when a lot goes to stitching or washing."
+          hint="A pass is made at the cutting entry and when an invoice goes to stitching or washing."
         />
       ) : (
         <ul className="divide-y divide-border/70">

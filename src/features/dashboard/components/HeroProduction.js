@@ -77,10 +77,10 @@ export function HeroProduction({ production, trend, now, className = "" }) {
           <MiniStat
             label="Ready today"
             value={production.readyToday.pieces}
-            hint={`${production.readyToday.lots} ${plural(production.readyToday.lots, "lot")}`}
+            hint={`${production.readyToday.lots} ${plural(production.readyToday.lots, "invoice")}`}
             testId="dash-hero-ready-today"
           />
-          <MiniStat label="Lots finished" value={production.readyLotsThisMonth} hint="this month" />
+          <MiniStat label="Invoices finished" value={production.readyLotsThisMonth} hint="this month" />
           <MiniStat label="Avg per day" value={Math.round(produced / dayOfMonth)} hint="pcs this month" />
         </div>
       </div>

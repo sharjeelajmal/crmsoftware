@@ -33,7 +33,7 @@ export async function markLotReady(db, tx, { lot, qty, sizes, note, session }) {
   if (problem) throw conflict(problem);
 
   const product = await db.collection("products").findOne({ _id: new ObjectId(lot.productId) }, { session: tx });
-  if (!product) throw notFound("Product of this lot");
+  if (!product) throw notFound("Product of this invoice");
 
   const now = new Date();
   const by = actor(session);
@@ -106,7 +106,7 @@ export async function reverseLotReady(db, tx, { lot, reason, session }) {
   }
 
   const product = await db.collection("products").findOne({ _id: new ObjectId(lot.productId) }, { session: tx });
-  if (!product) throw notFound("Product of this lot");
+  if (!product) throw notFound("Product of this invoice");
 
   const by = actor(session);
   const readySizes = Array.isArray(lot.readySizes) ? lot.readySizes : [];

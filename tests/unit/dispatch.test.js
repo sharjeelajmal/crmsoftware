@@ -50,7 +50,9 @@ describe("dispatch of ready goods", () => {
     expect(dispatchOutProblem(lot, { sizes: [{ size: "30", qty: 31 }], party: "X" })).toMatch(
       /Only 30 pieces of size 30/
     );
-    expect(dispatchOutProblem(lot, { sizes: [{ size: "34", qty: 1 }], party: "X" })).toMatch(/not part of this lot/);
+    expect(dispatchOutProblem(lot, { sizes: [{ size: "34", qty: 1 }], party: "X" })).toMatch(
+      /not part of this invoice/
+    );
     expect(dispatchOutProblem(lot, { sizes: [{ size: "30", qty: 0 }], party: "X" })).toMatch(/more than 0/);
     expect(dispatchOutProblem({ ...lot, stage: "packing" }, { sizes: ten, party: "X" })).toMatch(/Ready/);
   });

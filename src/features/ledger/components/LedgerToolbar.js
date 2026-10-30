@@ -29,7 +29,7 @@ export function LedgerToolbar({ search, onSearch, type, onType, filter, appliedR
           <input
             autoComplete="off"
             type="text"
-            placeholder="Search item, note or lot…"
+            placeholder="Search item, note or invoice…"
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             className={SEARCH_CLASS}

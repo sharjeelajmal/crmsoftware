@@ -54,7 +54,7 @@ export function WorkersCard({ wages, className = "" }) {
           <PanelEmpty
             icon={Users}
             title="No work entered this week"
-            hint="Assign work on a lot to see who is producing most."
+            hint="Assign work on an invoice to see who is producing most."
           />
         ) : (
           <>

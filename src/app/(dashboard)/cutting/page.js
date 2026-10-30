@@ -34,7 +34,7 @@ export default function CuttingPage() {
     >
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">My Lots</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">My Invoices</h1>
           <p className="text-gray-500 mt-1">Your cutting entries, their gate passes and the fabric in hand.</p>
         </div>
         <Link href="/cutting/new" className="w-full sm:w-auto" data-testid="cutting-new">
@@ -45,9 +45,9 @@ export default function CuttingPage() {
       </motion.div>
 
       <motion.div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-        <StatCard icon={Layers} title="My lots" value={stats.total} />
+        <StatCard icon={Layers} title="My invoices" value={stats.total} />
         <StatCard icon={Scissors} title="Pieces cut" value={stats.pieces.toLocaleString("en-US")} />
-        <StatCard icon={CalendarDays} title="Lots this month" value={stats.thisMonth} />
+        <StatCard icon={CalendarDays} title="Invoices this month" value={stats.thisMonth} />
       </motion.div>
 
       <FabricInHandStrip />
@@ -60,7 +60,7 @@ export default function CuttingPage() {
             <input
               autoComplete="off"
               type="text"
-              placeholder="Search lot number or article..."
+              placeholder="Search invoice number or article..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               data-testid="cutting-search"
@@ -76,7 +76,7 @@ export default function CuttingPage() {
             <p className="text-center text-gray-500 py-10">
               {lots.length === 0
                 ? "No cutting entries yet. Start with a new cutting entry."
-                : "No lots match this search."}
+                : "No invoices match this search."}
             </p>
           )}
         </motion.div>

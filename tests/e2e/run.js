@@ -251,7 +251,7 @@ test("cutting master creates, reads and edits a lot; events are recorded", async
     note: "e2e",
   });
   expect(created.status, "create lot").toBe(201);
-  expect(created.body.lotNumber, "lot number").toBe("LOT-1001");
+  expect(created.body.lotNumber, "lot number").toBe("INV-1001");
   expect(created.body.cutQty, "cut qty").toBe(70);
   expect(created.body.stage, "stage").toBe("cutting");
   S.lotId = created.body._id;
@@ -287,7 +287,7 @@ test("cutting master creates, reads and edits a lot; events are recorded", async
     fabric: { name: "Denim", qty: 10 },
     sizes: [{ size: "34", qty: 10 }],
   });
-  expect(second.body.lotNumber, "sequence").toBe("LOT-1002");
+  expect(second.body.lotNumber, "sequence").toBe("INV-1002");
   S.ids.lots.push(second.body._id);
 });
 
@@ -454,7 +454,7 @@ test("Phase 2: lot report totals, stage buckets and CSV", async () => {
   const csv = await S.admin.fetch(`${BASE}/api/lots/report?filter=today&format=csv`);
   expect(csv.status(), "csv status").toBe(200);
   expect(csv.headers()["content-type"], "csv type").toContain("text/csv");
-  expect(await csv.text(), "csv body").toContain('"Lot #"');
+  expect(await csv.text(), "csv body").toContain('"Invoice #"');
 });
 
 test("Phase 3: Ready for Sale adds stock per size once, reverse takes it back", async () => {
@@ -602,7 +602,7 @@ test("Phase 4: ledger register — CRUD with history, filters, CSV; stock never 
 
   const csv = await S.admin.fetch(`${BASE}/api/ledger?format=csv`);
   expect(csv.status(), "csv").toBe(200);
-  expect(await csv.text(), "csv body").toContain('"Lot #"');
+  expect(await csv.text(), "csv body").toContain('"Invoice #"');
 
   expect((await api(S.admin, "DELETE", `/api/ledger/${fabric.body._id}`)).status, "delete").toBe(200);
   S.ids.ledger = S.ids.ledger.filter((id) => id !== fabric.body._id);
@@ -1534,6 +1534,8 @@ uiTest("UI: admin sees the dashboard, the lots list and the users page", async (
   }
   expect(await page.locator('[data-testid="dash-workers"]').count(), "workers card").toBe(1);
   expect(await page.locator('[data-testid="dash-gatepasses"]').count(), "gate passes card").toBe(1);
+  expect((await page.getByText("Invoice Report", { exact: true }).count()) > 0, "menu says Invoice Report").toBe(true);
+  expect(await page.getByText("Lot Report", { exact: true }).count(), "menu has no Lot Report").toBe(0);
   const washingLots = Number(await page.getAttribute('[data-testid="dash-stage-washing-lots"]', "data-value"));
   expect(washingLots >= 1, "a lot at washing").toBe(true);
   await page.click('[data-testid="dash-view-table"]');
@@ -1970,6 +1972,10 @@ uiTest("UI (Phase 7): the lot page lists gate passes and the preview shows both 
   expect(await page.locator('[data-testid="gate-pass-phone-top"]').innerText(), "top phone").toBe("0321-4361127");
   expect(await page.locator('[data-testid="gate-pass-phone-bottom"]').innerText(), "bottom phone").toBe("0323-8888000");
   expect(await page.locator('[data-testid="gate-pass-lot"]').innerText(), "lot number").toBe(lot.lotNumber);
+  expect(lot.lotNumber.startsWith("INV-"), "number reads INV-").toBe(true);
+  const passText = await page.locator('[data-testid="gate-pass-document"]').textContent();
+  expect(passText, "invoice label on the pass").toContain("Invoice no.");
+  expect(/\bLot\b/.test(passText), "no Lot label on the pass").toBe(false);
   expect(await page.locator('[data-testid="gate-pass-shrinkage"]').innerText(), "shrinkage").toBe("2 inch");
   expect(await page.locator('[data-testid="gate-pass-sizes"]').innerText(), "sizes").toBe("30 – 32");
   await page.click('button[aria-label="Close"]');
@@ -1990,6 +1996,8 @@ uiTest(
     await page.goto(`${BASE}/cutting`);
     await page.waitForSelector('[data-testid="lot-card"]', { timeout: 60_000 });
     expect(await page.getByText("In process", { exact: true }).count(), "no stage cards").toBe(0);
+    expect((await page.getByRole("heading", { name: "My Invoices" }).count()) > 0, "page says My Invoices").toBe(true);
+    expect(await page.getByText("My Lots").count(), "no My Lots left").toBe(0);
     const phase7 = (await api(S.admin, "GET", "/api/lots")).body.find((l) => l.note === "phase7");
     await page.goto(`${BASE}/cutting/${phase7._id}`);
     await page.waitForSelector('[data-testid="lot-detail"]', { timeout: 60_000 });

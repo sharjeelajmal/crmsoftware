@@ -115,19 +115,19 @@ export default function Home() {
             />
             <KpiTile
               icon={Layers}
-              label="Lots in process"
+              label="Invoices in process"
               value={production.inProcess.lots}
-              unit={plural(production.inProcess.lots, "lot")}
+              unit={plural(production.inProcess.lots, "invoice")}
               hint={`${compactNumber(production.inProcess.pieces)} pcs between cutting and packing`}
               meter={{
                 value: production.inProcess.lots - production.inProcess.stalled,
                 max: production.inProcess.lots,
                 label:
                   production.inProcess.lots === 0
-                    ? "No lots in process"
+                    ? "No invoices in process"
                     : production.inProcess.stalled > 0
-                      ? `${production.inProcess.stalled} ${plural(production.inProcess.stalled, "lot")} without movement for ${IDLE_WARN_DAYS}+ days`
-                      : `Every lot moved in the last ${IDLE_WARN_DAYS} days`,
+                      ? `${production.inProcess.stalled} ${plural(production.inProcess.stalled, "invoice")} without movement for ${IDLE_WARN_DAYS}+ days`
+                      : `Every invoice moved in the last ${IDLE_WARN_DAYS} days`,
               }}
               href="/lots"
               testId="dash-kpi-process"
@@ -137,7 +137,7 @@ export default function Home() {
               label="Lying in stitching"
               value={production.stitching.lying}
               unit="pcs"
-              hint={`${production.stitching.lots} ${plural(production.stitching.lots, "lot")} at stitching`}
+              hint={`${production.stitching.lots} ${plural(production.stitching.lots, "invoice")} at stitching`}
               meter={{
                 value: production.stitching.out,
                 max: production.stitching.received,

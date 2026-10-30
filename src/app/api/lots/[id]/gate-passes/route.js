@@ -16,7 +16,7 @@ export const GET = route(
     const _id = await requireObjectId(context);
     const db = await getDb();
     const lot = await db.collection("lots").findOne({ _id }, { projection: { createdBy: 1 } });
-    if (!lot) throw notFound("Lot");
+    if (!lot) throw notFound("Invoice");
     if (!canViewLot(lot, session)) throw forbidden();
     const passes = await lotGatePasses(db, _id);
     return ok(isAdmin(session) ? passes : passes.filter((pass) => CUTTING_GATE_PASS_TYPES.includes(pass.type)));
@@ -35,9 +35,9 @@ export const POST = route(async (request, context) => {
 
   const pass = await withTransaction(async (db, tx) => {
     const lot = await db.collection("lots").findOne({ _id }, { session: tx });
-    if (!lot) throw notFound("Lot");
+    if (!lot) throw notFound("Invoice");
     if (!canIssueGatePass(lot, type)) {
-      throw conflict(`${GATE_PASS_LABELS[type]} can only be issued once the lot has reached ${type}`);
+      throw conflict(`${GATE_PASS_LABELS[type]} can only be issued once the invoice has reached ${type}`);
     }
     if (type === "washing" && washType) {
       await db.collection("lots").updateOne({ _id }, { $set: { washType, updatedAt: new Date() } }, { session: tx });

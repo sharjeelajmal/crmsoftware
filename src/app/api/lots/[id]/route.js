@@ -14,7 +14,7 @@ export const GET = route(
     const _id = await requireObjectId(context);
     const db = await getDb();
     const lot = await db.collection("lots").findOne({ _id });
-    if (!lot) throw notFound("Lot");
+    if (!lot) throw notFound("Invoice");
     if (!canViewLot(lot, session)) throw forbidden();
     const events = await lotEvents(db, _id);
     return ok({
@@ -36,9 +36,9 @@ export const PUT = route(
 
     const updated = await withTransaction(async (db, tx) => {
       const lot = await db.collection("lots").findOne({ _id }, { session: tx });
-      if (!lot) throw notFound("Lot");
+      if (!lot) throw notFound("Invoice");
       if (!canViewLot(lot, session)) throw forbidden();
-      if (!canEditCutting(lot, session)) throw conflict("Lot can only be edited before stitching starts");
+      if (!canEditCutting(lot, session)) throw conflict("Invoice can only be edited before stitching starts");
 
       const $set = { updatedAt: new Date() };
       if (input.productId) {
@@ -81,8 +81,8 @@ export const DELETE = route(async (_request, { session, ...context }) => {
 
   await withTransaction(async (db, tx) => {
     const lot = await db.collection("lots").findOne({ _id }, { session: tx });
-    if (!lot) throw notFound("Lot");
-    if (!canDeleteLot(lot, session)) throw conflict("Only lots at the cutting stage can be deleted");
+    if (!lot) throw notFound("Invoice");
+    if (!canDeleteLot(lot, session)) throw conflict("Only invoices at the cutting stage can be deleted");
     await db.collection("lot_events").deleteMany({ lotId: _id }, { session: tx });
     await db.collection("gate_passes").deleteMany({ lotId: _id }, { session: tx });
     await db.collection("lots").deleteOne({ _id }, { session: tx });

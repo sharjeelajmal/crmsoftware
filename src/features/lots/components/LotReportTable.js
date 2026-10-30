@@ -7,11 +7,11 @@ import { LotReportRow, REPORT_COLUMNS } from "./LotReportRow";
 const HEADER_CLASS = "hidden md:flex items-center gap-4 px-4 py-2 text-sm text-gray-500 font-medium";
 
 /** Detailed lot list of the report: header + rows (cards on phones). */
-export function LotReportTable({ rows, emptyMessage = "No lots in this period." }) {
+export function LotReportTable({ rows, emptyMessage = "No invoices in this period." }) {
   return (
     <>
       <div className={HEADER_CLASS}>
-        <span className={REPORT_COLUMNS.lot}>Lot #</span>
+        <span className={REPORT_COLUMNS.lot}>Invoice #</span>
         <span className={REPORT_COLUMNS.product}>Article</span>
         <span className={REPORT_COLUMNS.stage}>Stage</span>
         <span className={REPORT_COLUMNS.qty}>Cut</span>

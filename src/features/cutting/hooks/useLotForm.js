@@ -76,7 +76,7 @@ export function useLotForm({ lot = null, onSaved } = {}) {
       invalidateLotCaches();
       const pass = saved.gatePasses?.find((p) => p.type === "cutting");
       toast.success(
-        `${saved.lotNumber || lot?.lotNumber || "Lot"} ${lot ? "updated" : "saved"}${pass ? ` · gate pass ${pass.number}` : ""}`
+        `${saved.lotNumber || lot?.lotNumber || "Invoice"} ${lot ? "updated" : "saved"}${pass ? ` · gate pass ${pass.number}` : ""}`
       );
       onSaved?.(saved);
       return true;

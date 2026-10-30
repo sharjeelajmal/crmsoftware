@@ -165,7 +165,7 @@ export function CuttingReportView({ report, holderName = "", isFetching = false 
       </div>
 
       <div className="grid grid-cols-2 @3xl:grid-cols-4 gap-3">
-        <Figure label="Lots cut" value={report.totals.lots} testId="report-lots" />
+        <Figure label="Invoices cut" value={report.totals.lots} testId="report-lots" />
         <Figure label="Pieces cut" value={report.totals.pieces.toLocaleString("en-US")} testId="report-pieces" />
         <Figure label="Fabric used" value={unitList(report.totals.used)} testId="report-used" />
         <Figure

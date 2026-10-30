@@ -9,7 +9,7 @@ import { formatDateTime } from "@/lib/format";
 import { useStockMovements } from "../hooks/useStockMovements";
 
 const REASON_LABELS = {
-  lot_ready: "Lot ready",
+  lot_ready: "Invoice ready",
   lot_reversed: "Reversed",
   lot_dispatch: "Dispatched",
 };
@@ -36,7 +36,7 @@ function MovementRow({ movement }) {
       <div className="md:flex-grow min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5">
         {lotHref ? (
           <Link href={lotHref} className="font-semibold text-primary hover:underline">
-            {movement.lotNumber || "Lot"}
+            {movement.lotNumber || "Invoice"}
           </Link>
         ) : (
           <span className="font-semibold text-gray-800">{movement.lotNumber || "—"}</span>
@@ -88,7 +88,7 @@ export function StockHistoryPopup({ product, onClose }) {
           <>
             <div className="hidden md:flex text-xs uppercase tracking-wide text-gray-500 font-semibold pb-1 gap-3">
               <span className="w-40 shrink-0">Date</span>
-              <span className="flex-grow">Lot · reason</span>
+              <span className="flex-grow">Invoice · reason</span>
               <span className="w-20 shrink-0 text-right">Pieces</span>
             </div>
             <ul>

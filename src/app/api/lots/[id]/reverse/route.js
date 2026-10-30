@@ -15,7 +15,7 @@ export const POST = route(async (request, context) => {
 
   const updated = await withTransaction(async (db, tx) => {
     const lot = await db.collection("lots").findOne({ _id }, { session: tx });
-    if (!lot) throw notFound("Lot");
+    if (!lot) throw notFound("Invoice");
     const $set = await reverseLotReady(db, tx, { lot, reason, session });
     return { ...lot, ...$set, events: await lotEvents(db, _id, tx) };
   });

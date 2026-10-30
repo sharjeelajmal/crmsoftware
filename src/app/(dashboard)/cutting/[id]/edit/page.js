@@ -22,9 +22,9 @@ export default function EditCuttingEntryPage() {
   if (!lot) {
     return (
       <div className="max-w-3xl mx-auto text-center py-16 space-y-4">
-        <p className="text-gray-500">{error ? errorMessage(error, "Lot not found") : "Lot not found."}</p>
+        <p className="text-gray-500">{error ? errorMessage(error, "Invoice not found") : "Invoice not found."}</p>
         <Link href="/cutting" className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
-          <ArrowLeft size={16} /> Back to My Lots
+          <ArrowLeft size={16} /> Back to My Invoices
         </Link>
       </div>
     );
@@ -38,7 +38,7 @@ export default function EditCuttingEntryPage() {
       >
         <Lock size={40} className="mx-auto text-gray-400" />
         <h1 className="text-2xl font-bold text-gray-800">{lot.lotNumber} can no longer be edited</h1>
-        <p className="text-gray-600">Cutting details are locked once the lot has left cutting.</p>
+        <p className="text-gray-600">Cutting details are locked once the invoice has left cutting.</p>
         <Link href={detailHref} className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
           <ArrowLeft size={16} /> Back to {lot.lotNumber}
         </Link>
@@ -62,7 +62,7 @@ export default function EditCuttingEntryPage() {
         </Link>
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Edit {lot.lotNumber}</h1>
         <p className="text-gray-500 mt-1">
-          Update the article, fabric or pieces cut. Changes are kept in the lot history.
+          Update the article, fabric or pieces cut. Changes are kept in the invoice history.
         </p>
       </motion.div>
 

@@ -69,7 +69,7 @@ export function GatePassesCard({ lot, canIssue = false, types = null }) {
         <p className="text-sm text-gray-500" data-testid="gate-pass-empty">
           {types
             ? "The cutting gate pass is made when the cutting entry is saved."
-            : "The cutting gate pass is made when the cutting entry is saved, the stitching gate pass when the lot is " +
+            : "The cutting gate pass is made when the cutting entry is saved, the stitching gate pass when the invoice is " +
               "sent to stitching, and the washing gate pass when it goes to washing."}
         </p>
       ) : (

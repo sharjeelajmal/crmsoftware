@@ -52,7 +52,7 @@ export default function StitchingPage() {
         </motion.div>
 
         <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
-          <StatCard icon={Layers} title="Lots in stitching" value={stitching.lots} />
+          <StatCard icon={Layers} title="Invoices in stitching" value={stitching.lots} />
           <StatCard icon={Inbox} title="Received" value={`${stitching.received} pcs`} />
           <StatCard icon={Send} title="Sent out" value={`${stitching.out} pcs`} />
           <StatCard icon={Shirt} title="Lying (padi hui)" value={`${stitching.lying} pcs`} />
@@ -60,7 +60,7 @@ export default function StitchingPage() {
 
         <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
           <div className="hidden md:flex items-center gap-4 px-4 pb-2 text-sm text-gray-500 font-medium">
-            <span className="flex-1">Lot</span>
+            <span className="flex-1">Invoice</span>
             <span className="w-80">Pieces</span>
             <span className="w-[136px]" aria-hidden="true" />
           </div>
@@ -68,7 +68,8 @@ export default function StitchingPage() {
             <Loader inline />
           ) : lots.length === 0 ? (
             <p className="text-center text-gray-500 py-10" data-testid="stitching-empty">
-              No lots in stitching right now. Send a lot to stitching from its page (Lots → lot → Send to stitching).
+              No invoices in stitching right now. Send an invoice to stitching from its page (Invoices → invoice → Send
+              to stitching).
             </p>
           ) : (
             <div className="space-y-3">

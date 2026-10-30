@@ -19,7 +19,7 @@ const otherCutter = { sub: "c2", name: "Bilal", role: "cutting_master" };
 
 describe("lot numbers and stages", () => {
   it("formats sequence numbers and starts at 1001", () => {
-    expect(formatLotNumber(FIRST_LOT_SEQ)).toBe("LOT-1001");
+    expect(formatLotNumber(FIRST_LOT_SEQ)).toBe("INV-1001");
     expect(STAGES).toEqual(["cutting", "stitching", "washing", "packing", "ready"]);
     expect(nextStage("cutting")).toBe("stitching");
     expect(nextStage("ready")).toBeNull();
@@ -50,7 +50,7 @@ describe("buildLot / buildLotEvent", () => {
 
   it("builds a cutting-stage lot owned by the session user", () => {
     const lot = buildLot({ input, product, seq: 1001, session: cutter });
-    expect(lot.lotNumber).toBe("LOT-1001");
+    expect(lot.lotNumber).toBe("INV-1001");
     expect(lot.productId).toEqual(product._id);
     expect(lot.productName).toBe("Slim Fit Denim");
     expect(lot.cutQty).toBe(70);

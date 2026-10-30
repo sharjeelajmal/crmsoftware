@@ -101,7 +101,7 @@ export function ProductionTrend({ trend, className = "" }) {
                 <PanelEmpty
                   icon={TrendingUp}
                   title="No production yet"
-                  hint="Cutting entries and ready lots will show up here day by day."
+                  hint="Cutting entries and ready invoices will show up here day by day."
                 />
               </div>
             </div>

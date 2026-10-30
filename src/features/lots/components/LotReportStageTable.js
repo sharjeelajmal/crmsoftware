@@ -7,7 +7,7 @@ import { LotStageBadge } from "@/features/cutting/components/LotStageBadge";
 import { stageRows } from "../utils";
 
 const COLUMNS = [
-  { key: "count", label: "Lots" },
+  { key: "count", label: "Invoices" },
   { key: "cutQty", label: "Cut" },
   { key: "stitchedQty", label: "Stitched" },
   { key: "washedQty", label: "Washed" },

@@ -52,7 +52,7 @@ export const GET = route(async (request) => {
   if (format === "csv") {
     const csv = new Parser({
       fields: [
-        { label: "Lot #", value: "lotNumber" },
+        { label: "Invoice #", value: "lotNumber" },
         { label: "Article", value: "product" },
         { label: "Stage", value: "stage" },
         { label: "Cut", value: "cutQty" },
@@ -70,7 +70,7 @@ export const GET = route(async (request) => {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="lot_report_${filter}.csv"`,
+        "Content-Disposition": `attachment; filename="invoice_report_${filter}.csv"`,
       },
     });
   }

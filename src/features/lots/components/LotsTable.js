@@ -6,11 +6,11 @@ import { LotsRow, LOTS_COLUMNS } from "./LotsRow";
 
 const HEADER_CLASS = "hidden md:flex items-center gap-4 px-4 py-2 text-sm text-gray-500 font-medium";
 
-export function LotsTable({ lots, emptyMessage = "No lots found." }) {
+export function LotsTable({ lots, emptyMessage = "No invoices found." }) {
   return (
     <>
       <div className={HEADER_CLASS}>
-        <span className={LOTS_COLUMNS.lot}>Lot #</span>
+        <span className={LOTS_COLUMNS.lot}>Invoice #</span>
         <span className={LOTS_COLUMNS.product}>Article</span>
         <span className={LOTS_COLUMNS.qty}>Cut qty</span>
         <span className={LOTS_COLUMNS.stage}>Stage</span>
