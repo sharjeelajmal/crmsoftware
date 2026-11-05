@@ -16,7 +16,7 @@ export function RateCardsList({ categories, onEdit }) {
   if (categories.length === 0) {
     return (
       <p className="text-center text-gray-500 py-10">
-        No categories yet. Add them in Inventory (e.g. Baggy Pent, Simple Pent).
+        No categories yet. Use “Add Category” (e.g. Baggy Pent, Simple Pent) and tick its operations.
       </p>
     );
   }

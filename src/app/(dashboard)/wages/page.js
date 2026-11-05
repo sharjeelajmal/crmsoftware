@@ -14,12 +14,18 @@ import { useWorkers } from "@/features/wages/hooks/useWorkers";
 import { useAdvances } from "@/features/wages/hooks/useAdvances";
 import { WagesToolbar } from "@/features/wages/components/WagesToolbar";
 import { WagesTable } from "@/features/wages/components/WagesTable";
+import { InvoiceWorkList } from "@/features/wages/components/InvoiceWorkList";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { AdjustmentModal } from "@/features/wages/components/AdjustmentModal";
 import { AdjustmentsCard } from "@/features/wages/components/AdjustmentsCard";
 import { AdvancesCard } from "@/features/wages/components/AdvancesCard";
 import { periodLabel, rangeLabel } from "@/features/wages/utils";
 
 const ACTION_CLASS = "flex-1 sm:flex-none whitespace-nowrap";
+const VIEWS = [
+  { value: "workers", label: "By worker" },
+  { value: "invoices", label: "By invoice" },
+];
 
 export default function WagesPage() {
   const wages = useWages();
@@ -27,6 +33,7 @@ export default function WagesPage() {
   const advances = useAdvances();
   // null = closed; {} = blank form; { type, workerId } = preset (e.g. "Cut" from the advance account)
   const [adding, setAdding] = useState(null);
+  const [view, setView] = useState("workers");
 
   if (wages.isLoading) return <Loader />;
 
@@ -131,7 +138,23 @@ export default function WagesPage() {
               onWorker={wages.setWorkerId}
             />
           </div>
-          {wages.isFetching && !wages.report ? <Loader inline /> : <WagesTable report={wages.report} label={label} />}
+          <SegmentedControl
+            options={VIEWS}
+            value={view}
+            onChange={setView}
+            ariaLabel="Show wages by"
+            className="w-full sm:w-fit mb-4 print:hidden"
+            testId="wages-view"
+          />
+          {wages.isFetching && !wages.report ? (
+            <Loader inline />
+          ) : view === "invoices" ? (
+            <div id="wages-print">
+              <InvoiceWorkList entries={wages.report?.entries ?? []} />
+            </div>
+          ) : (
+            <WagesTable report={wages.report} label={label} />
+          )}
         </motion.div>
 
         <motion.div variants={itemVariants}>

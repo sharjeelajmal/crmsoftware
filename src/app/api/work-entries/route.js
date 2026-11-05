@@ -1,9 +1,9 @@
 import { ObjectId } from "mongodb";
-import { getDb } from "@/lib/mongodb";
+import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, created, parseBody, parseQuery } from "@/lib/api";
 import { workAssignmentSchema, workEntriesQuerySchema } from "@/lib/validation";
 import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
-import { buildWorkEntry, requireLot, requireOperation, requireWorker } from "@/lib/wages";
+import { buildWorkEntry, requireLot, requireOperations, requireWorkers } from "@/lib/wages";
 import { lotCategory, rateCardOf } from "@/lib/operations";
 import { cardRateOf } from "@/constants/operations";
 
@@ -25,31 +25,53 @@ export const GET = route(async (request) => {
 });
 
 /**
- * POST /api/work-entries  { lotId, operationId, rate?, date?, note?, rows: [{ workerId, pieces }] }
- * Assigns one operation of a lot to one or more workers; one work entry per row, amount = pieces × rate.
- * Without a rate: the rate on the lot's category rate card, else the operation's own rate.
+ * POST /api/work-entries
+ *   { lotId, date?, note?, operations: [{ operationId, rate?, rows: [{ workerId, pieces, payType?, amount? }] }] }
+ * The work sheet: every operation of an invoice with its workers, saved in one go (one transaction, one `batchId`).
+ * One work entry per row: pieces × rate, or the fixed amount. Without a rate: the rate on the invoice's category
+ * rate card, else the operation's own rate. The older `{ lotId, operationId, rate?, rows }` body still works.
  */
 export const POST = route(async (request, { session }) => {
   const input = await parseBody(request, workAssignmentSchema);
-  const db = await getDb();
-  const [lot, operation] = await Promise.all([requireLot(db, input.lotId), requireOperation(db, input.operationId)]);
-  const workers = await Promise.all(input.rows.map((row) => requireWorker(db, row.workerId)));
-  const rate = input.rate ?? cardRateOf(await rateCardOf(db, await lotCategory(db, lot)), operation._id) ?? undefined;
+  const docs = await withTransaction(async (db, txn) => {
+    // One after the other: operations of a transaction share its session and must not run in parallel.
+    const lot = await requireLot(db, input.lotId, txn);
+    const operations = await requireOperations(
+      db,
+      input.operations.map((op) => op.operationId),
+      txn
+    );
+    const workers = await requireWorkers(
+      db,
+      input.operations.flatMap((op) => op.rows.map((row) => row.workerId)),
+      txn
+    );
+    const card = await rateCardOf(db, await lotCategory(db, lot, txn), txn);
 
-  const now = new Date();
-  const docs = input.rows.map((row, i) =>
-    buildWorkEntry({
-      lot,
-      operation,
-      worker: workers[i],
-      pieces: row.pieces,
-      rate,
-      date: input.date,
-      note: input.note,
-      session,
-      now,
-    })
-  );
-  const { insertedIds } = await db.collection("work_entries").insertMany(docs);
-  return created(docs.map((doc, i) => ({ _id: insertedIds[i], ...doc })));
+    const now = new Date();
+    const batchId = new ObjectId();
+    const entries = input.operations.flatMap((item) => {
+      const operation = operations.get(item.operationId);
+      const rate = item.rate ?? cardRateOf(card, operation._id) ?? undefined;
+      return item.rows.map((row) =>
+        buildWorkEntry({
+          lot,
+          operation,
+          worker: workers.get(row.workerId),
+          pieces: row.pieces,
+          rate,
+          payType: row.payType,
+          amount: row.amount,
+          batchId,
+          date: input.date,
+          note: input.note,
+          session,
+          now,
+        })
+      );
+    });
+    const { insertedIds } = await db.collection("work_entries").insertMany(entries, { session: txn });
+    return entries.map((doc, i) => ({ _id: insertedIds[i], ...doc }));
+  });
+  return created(docs);
 });

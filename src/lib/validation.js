@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ALL_ROLES } from "@/constants/roles";
 import { LEDGER_TYPES } from "@/constants/ledger";
-import { ADJUSTMENT_TYPES } from "@/constants/wages";
+import { ADJUSTMENT_TYPES, PAY_TYPES } from "@/constants/wages";
 import { ISSUABLE_GATE_PASS_TYPES } from "@/constants/gatepass";
 import { PAYMENT_METHODS } from "@/constants/purchasingLedger";
 import { FABRIC_UNITS } from "@/constants/fabric";
@@ -431,23 +431,65 @@ export const workEntrySchema = z.object({
   note: optionalText(500),
 });
 
-/** Assign one operation to several workers at once (lot page). */
-export const workAssignmentSchema = z.object({
-  lotId: objectId,
+/** One worker's share of an operation: pieces, and how they are paid (pieces × rate, or a fixed amount). */
+const workRowSchema = z
+  .object({
+    workerId: objectId,
+    pieces: z.coerce.number().int().positive(),
+    payType: z.enum(PAY_TYPES).default("piece"),
+    amount: nonNegative.optional(), // the fixed amount (payType "fixed" only)
+  })
+  .refine((row) => row.payType !== "fixed" || row.amount !== undefined, {
+    message: "Type the fixed amount",
+    path: ["amount"],
+  });
+
+const sheetOperationSchema = z.object({
   operationId: objectId,
-  rate: nonNegative.optional(),
-  date: dateLike.optional(),
-  note: optionalText(500),
+  rate: nonNegative.optional(), // omitted = the invoice's rate card, else the operation's own rate
   rows: z
-    .array(z.object({ workerId: objectId, pieces: z.coerce.number().int().positive() }))
+    .array(workRowSchema)
     .min(1, "Add at least one worker")
     .max(50)
     .refine((rows) => new Set(rows.map((r) => r.workerId)).size === rows.length, "A worker can only appear once"),
 });
 
+/** The single-operation body sent before work sheets existed: `{ lotId, operationId, rate?, rows }`. */
+const asWorkSheet = (body) =>
+  body && typeof body === "object" && !("operations" in body) && "operationId" in body
+    ? {
+        lotId: body.lotId,
+        date: body.date,
+        note: body.note,
+        operations: [{ operationId: body.operationId, rate: body.rate, rows: body.rows }],
+      }
+    : body;
+
+/**
+ * Work on an invoice saved in one go (the work sheet): every operation with its workers and pieces. The older
+ * one-operation body is accepted too.
+ */
+export const workAssignmentSchema = z.preprocess(
+  asWorkSheet,
+  z.object({
+    lotId: objectId,
+    date: dateLike.optional(),
+    note: optionalText(500),
+    operations: z
+      .array(sheetOperationSchema)
+      .min(1, "Pick a worker for at least one operation")
+      .max(100)
+      .refine(
+        (ops) => new Set(ops.map((op) => op.operationId)).size === ops.length,
+        "An operation can only appear once"
+      ),
+  })
+);
+
 export const workEntryUpdateSchema = z.object({
   pieces: z.coerce.number().int().positive().optional(),
   rate: nonNegative.optional(),
+  amount: nonNegative.optional(), // fixed-amount entries only
   date: dateLike.optional(),
   note: z.string().trim().max(500).optional(),
 });

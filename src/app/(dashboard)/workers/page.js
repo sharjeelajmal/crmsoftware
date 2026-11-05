@@ -18,6 +18,7 @@ import { OperationFormPopup } from "@/features/wages/components/OperationFormPop
 import { OperationRow } from "@/features/wages/components/OperationRow";
 import { RateCardsList } from "@/features/wages/components/RateCardsList";
 import { RateCardModal } from "@/features/wages/components/RateCardModal";
+import { CategoryFormPopup } from "@/features/wages/components/CategoryFormPopup";
 
 const VIEWS = { WORKERS: "workers", OPERATIONS: "operations", CARDS: "cards" };
 const CLOSED = { type: null, data: null };
@@ -50,7 +51,15 @@ export default function WorkersPage() {
   const operations = operationsApi.operations.filter((op) => !needle || op.name.toLowerCase().includes(needle));
   const cards = cardsApi.categories.filter((card) => !needle || card.category.toLowerCase().includes(needle));
   const withCards = cardsApi.categories.filter((card) => card.items.length > 0).length;
-  const addLabel = isWorkers ? "Add Worker" : "Add Operation";
+  const addLabel = isWorkers ? "Add Worker" : isCards ? "Add Category" : "Add Operation";
+  const addPopup = isWorkers ? "worker" : isCards ? "category" : "operation";
+  const addTestId = isWorkers ? "workers-add" : isCards ? "categories-add" : "operations-add";
+
+  // A new category goes straight on to its rate card.
+  const handleAddCategory = async (name) => {
+    const card = await cardsApi.addCategory(name);
+    if (card) setPopup({ type: "rateCard", data: card });
+  };
 
   return (
     <>
@@ -68,6 +77,9 @@ export default function WorkersPage() {
             onSave={(form) => withClose(operationsApi.saveOperation(form))}
             onCancel={closePopup}
           />
+        )}
+        {popup.type === "category" && (
+          <CategoryFormPopup onSave={handleAddCategory} onCancel={closePopup} isSaving={cardsApi.isSaving} />
         )}
         {popup.type === "rateCard" && (
           <RateCardModal
@@ -167,16 +179,14 @@ export default function WorkersPage() {
                   className={SEARCH_CLASS}
                 />
               </div>
-              {!isCards && (
-                <Button
-                  icon={isWorkers ? HardHat : Plus}
-                  onClick={() => setPopup({ type: isWorkers ? "worker" : "operation", data: null })}
-                  className="w-full sm:w-auto whitespace-nowrap"
-                  data-testid={isWorkers ? "workers-add" : "operations-add"}
-                >
-                  {addLabel}
-                </Button>
-              )}
+              <Button
+                icon={isWorkers ? HardHat : isCards ? Tags : Plus}
+                onClick={() => setPopup({ type: addPopup, data: null })}
+                className="w-full sm:w-auto whitespace-nowrap"
+                data-testid={addTestId}
+              >
+                {addLabel}
+              </Button>
             </div>
           </div>
 

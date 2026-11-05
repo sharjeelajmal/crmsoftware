@@ -3,16 +3,23 @@ import {
   advanceAccount,
   advanceAccounts,
   advanceDeleteProblem,
-  assignmentProblem,
+  effectiveRate,
   entryAmount,
   leaveAmount,
   lotWorkTotals,
+  payLabel,
   perPieceLabour,
   recoveryProblem,
   splitEvenly,
   summarizeWages,
+  workBatches,
+  workByInvoice,
+  workByWorker,
   workPiecesOf,
+  workSheetProblem,
+  workSheetTotals,
 } from "@/constants/wages";
+import { emptyWorkSheet, fillWorker, splitOperation, toWorkSheetPayload, workerWorkLine } from "@/features/wages/utils";
 import { buildWageAdjustment, buildWorkEntry, workEntryEditOps } from "@/lib/wages";
 import { operationSchema, workAssignmentSchema, workerSchema, wageAdjustmentSchema } from "@/lib/validation";
 import { dateRangeFromFilter } from "@/lib/dates";
@@ -56,18 +63,207 @@ describe("wage maths", () => {
     expect(totals).toEqual({ amount: 1800, byOperation: { Belt: 240, Pocket: 240 }, perPiece: 7.5, entries: 3 });
   });
 
-  it("validates an assignment form", () => {
-    const ok = { operationId: "a", rate: 3.5, rows: [{ workerId: "w1", pieces: 120 }] };
-    expect(assignmentProblem(ok)).toBe("");
-    expect(assignmentProblem({ ...ok, operationId: "" })).toMatch(/operation/);
-    expect(assignmentProblem({ ...ok, rows: [] })).toMatch(/at least one worker/);
-    expect(assignmentProblem({ ...ok, rows: [{ workerId: "", pieces: 1 }] })).toMatch(/needs a worker/);
-    const twice = [
-      { workerId: "w1", pieces: 1 },
-      { workerId: "w1", pieces: 1 },
-    ];
-    expect(assignmentProblem({ ...ok, rows: twice })).toMatch(/only appear once/);
-    expect(assignmentProblem({ ...ok, rows: [{ workerId: "w1", pieces: 0 }] })).toMatch(/more than 0/);
+  it("validates a work sheet: only rows with a worker count, fixed pay needs an amount", () => {
+    const op = (rows, extra = {}) => ({ name: "Belt", rate: "3.5", rows, ...extra });
+    const row = (workerId, pieces, more = {}) => ({
+      workerId,
+      pieces: String(pieces),
+      payType: "piece",
+      amount: "",
+      ...more,
+    });
+    expect(workSheetProblem({ operations: [op([row("", 120)])] })).toMatch(/at least one operation/);
+    expect(workSheetProblem({ operations: [op([row("w1", 120), row("", 5)])] })).toBe("");
+    expect(workSheetProblem({ operations: [op([row("w1", 60), row("w1", 60)])] })).toMatch(
+      /Belt: a worker can only appear once/
+    );
+    expect(workSheetProblem({ operations: [op([row("w1", 0)])] })).toMatch(/Belt: pieces must be more than 0/);
+    expect(workSheetProblem({ operations: [op([row("w1", 10)], { rate: "" })] })).toMatch(/Belt: rate/);
+    expect(workSheetProblem({ operations: [op([row("w1", 10, { payType: "fixed" })])] })).toMatch(/fixed amount/);
+    // a fixed row needs no rate
+    expect(
+      workSheetProblem({ operations: [op([row("w1", 10, { payType: "fixed", amount: "500" })], { rate: "" })] })
+    ).toBe("");
+    // the same worker on two operations is fine
+    const two = [op([row("w1", 120)]), { ...op([row("w1", 120)]), name: "Pocket" }];
+    expect(workSheetProblem({ operations: two })).toBe("");
+  });
+});
+
+describe("work sheet", () => {
+  const offered = [
+    { operationId: "o1", name: "Belt", stage: "stitching", rate: 3.5 },
+    { operationId: "o2", name: "Pocket", stage: "stitching", rate: 4 },
+    { operationId: "o3", name: "Wash", stage: "washing", rate: 2 },
+  ];
+  const done = [
+    { operationId: "o1", pieces: 120 },
+    { operationId: "o2", pieces: 20 },
+  ];
+
+  it("starts each operation at what is left and fills open ones with one worker", () => {
+    const sheet = emptyWorkSheet(offered, done, 120);
+    expect(sheet.operations.map((op) => [op.name, op.done, op.left, op.rows[0].pieces, op.rate])).toEqual([
+      ["Belt", 120, 0, "", "3.5"],
+      ["Pocket", 20, 100, "100", "4"],
+      ["Wash", 0, 120, "120", "2"],
+    ]);
+    const filled = fillWorker(sheet, "w1");
+    expect(filled.operations.map((op) => op.rows[0].workerId)).toEqual(["", "w1", "w1"]);
+    // an operation that already has a worker keeps it
+    const picked = {
+      ...sheet,
+      operations: sheet.operations.map((op, i) =>
+        i === 2 ? { ...op, rows: [{ ...op.rows[0], workerId: "w9" }] } : op
+      ),
+    };
+    expect(fillWorker(picked, "w1").operations[2].rows[0].workerId).toBe("w9");
+  });
+
+  it("splits what is left over the rows and totals the sheet", () => {
+    const sheet = emptyWorkSheet(offered, done, 120);
+    const pocket = splitOperation({
+      ...sheet.operations[1],
+      rows: [
+        ...sheet.operations[1].rows,
+        { workerId: "", pieces: "", payType: "piece", amount: "" },
+        { workerId: "", pieces: "", payType: "piece", amount: "" },
+      ],
+    });
+    expect(pocket.rows.map((row) => row.pieces)).toEqual(["34", "33", "33"]);
+    const ready = {
+      ...sheet,
+      operations: [
+        sheet.operations[0],
+        {
+          ...pocket,
+          rows: [{ ...pocket.rows[0], workerId: "w1" }, { ...pocket.rows[1], workerId: "w2" }, pocket.rows[2]],
+        },
+        { ...sheet.operations[2], rows: [{ workerId: "w1", pieces: "120", payType: "fixed", amount: "1000" }] },
+      ],
+    };
+    // 34 × 4 + 33 × 4 + 1000 fixed
+    expect(workSheetTotals(ready)).toEqual({ workers: 2, operations: 2, rows: 3, amount: 1268 });
+    expect(toWorkSheetPayload("lot1", { ...ready, note: "  shift 2 " })).toEqual({
+      lotId: "lot1",
+      date: ready.date,
+      note: "shift 2",
+      operations: [
+        {
+          operationId: "o2",
+          rate: 4,
+          rows: [
+            { workerId: "w1", pieces: 34, payType: "piece" },
+            { workerId: "w2", pieces: 33, payType: "piece" },
+          ],
+        },
+        { operationId: "o3", rate: 2, rows: [{ workerId: "w1", pieces: 120, payType: "fixed", amount: 1000 }] },
+      ],
+    });
+  });
+});
+
+describe("work history", () => {
+  const at = (h) => new Date(2026, 10, 6, h);
+  const entries = [
+    {
+      _id: "e1",
+      lotId: "l1",
+      lotNumber: "INV-1001",
+      productName: "Baggy",
+      operationId: "o1",
+      operationName: "Belt",
+      workerId: "w1",
+      workerName: "Akram",
+      pieces: 60,
+      rate: 3.5,
+      amount: 210,
+      payType: "piece",
+      batchId: "b1",
+      date: at(9),
+      createdAt: at(9),
+      by: { name: "admin" },
+    },
+    {
+      _id: "e2",
+      lotId: "l1",
+      lotNumber: "INV-1001",
+      productName: "Baggy",
+      operationId: "o1",
+      operationName: "Belt",
+      workerId: "w2",
+      workerName: "Bilal",
+      pieces: 60,
+      rate: 3.5,
+      amount: 210,
+      batchId: "b1",
+      date: at(9),
+      createdAt: at(9),
+      by: { name: "admin" },
+    },
+    {
+      _id: "e3",
+      lotId: "l1",
+      lotNumber: "INV-1001",
+      productName: "Baggy",
+      operationId: "o2",
+      operationName: "Pocket",
+      workerId: "w1",
+      workerName: "Akram",
+      pieces: 120,
+      rate: 8.33,
+      amount: 1000,
+      payType: "fixed",
+      batchId: "b2",
+      date: at(15),
+      createdAt: at(15),
+      by: { name: "manager" },
+    },
+    {
+      _id: "e4",
+      lotId: "l2",
+      lotNumber: "INV-1002",
+      productName: "Simple",
+      operationId: "o1",
+      operationName: "Belt",
+      workerId: "w2",
+      workerName: "Bilal",
+      pieces: 50,
+      rate: 3,
+      amount: 150,
+      date: at(11),
+      createdAt: at(11),
+    },
+  ];
+
+  it("labels pay and works out the per-piece rate of a fixed amount", () => {
+    expect(payLabel(entries[0])).toBe("60 pcs × Rs 3.5");
+    expect(payLabel(entries[2])).toBe("120 pcs · Fixed Rs 1,000");
+    expect(effectiveRate(1000, 120)).toBe(8.33);
+    expect(effectiveRate(500, 0)).toBe(0);
+  });
+
+  it("groups by worker, invoice and save", () => {
+    const one = entries.filter((e) => e.lotId === "l1");
+    expect(workByWorker(one).map((w) => [w.workerName, w.operations, w.pieces, w.amount, w.payTypes])).toEqual([
+      ["Akram", ["Belt", "Pocket"], 180, 1210, ["piece", "fixed"]],
+      ["Bilal", ["Belt"], 60, 210, ["piece"]],
+    ]);
+    expect(
+      workByInvoice(entries).map((r) => [r.lotNumber, r.workerCount, r.operationCount, r.amount, r.payTypes])
+    ).toEqual([
+      ["INV-1001", 2, 2, 1420, ["piece", "fixed"]],
+      ["INV-1002", 1, 1, 150, ["piece"]],
+    ]);
+    const [akram, bilal] = workByWorker(one);
+    expect(workerWorkLine(akram), "pieces of different operations are not added up").toBe("2 operations: Belt, Pocket");
+    expect(workerWorkLine(bilal)).toBe("Belt · 60 pcs");
+    // entries saved before batches existed are grouped by their save time
+    expect(workBatches(entries).map((b) => [b.by, b.workers, b.operations, b.amount])).toEqual([
+      ["manager", 1, 1, 1000],
+      ["", 1, 1, 150],
+      ["admin", 2, 1, 420],
+    ]);
   });
 });
 
@@ -180,6 +376,36 @@ describe("work entry documents", () => {
     });
     expect(workEntryEditOps(existing, { rate: 4, note: "x" }, now).$set).toMatchObject({ amount: 480, note: "x" });
   });
+
+  it("keeps a fixed amount: the rate is what it works out to per piece", () => {
+    const doc = buildWorkEntry({
+      lot,
+      operation,
+      worker,
+      pieces: 120,
+      payType: "fixed",
+      amount: 1000,
+      batchId: "b1",
+      session,
+      now,
+    });
+    expect(doc).toMatchObject({ payType: "fixed", amount: 1000, rate: 8.33, batchId: "b1" });
+    expect(buildWorkEntry({ lot, operation, worker, pieces: 10, session, now })).toMatchObject({
+      payType: "piece",
+      batchId: null,
+    });
+    const existing = { pieces: 120, rate: 8.33, amount: 1000, payType: "fixed" };
+    expect(workEntryEditOps(existing, { pieces: 100 }, now).$set).toMatchObject({
+      pieces: 100,
+      amount: 1000,
+      rate: 10,
+    });
+    expect(workEntryEditOps(existing, { amount: 1200 }, now).$set).toMatchObject({
+      pieces: 120,
+      amount: 1200,
+      rate: 10,
+    });
+  });
 });
 
 describe("wage schemas and periods", () => {
@@ -196,7 +422,26 @@ describe("wage schemas and periods", () => {
     ];
     expect(() => workAssignmentSchema.parse({ lotId: id, operationId: id, rows: twice })).toThrow(/only appear once/);
     const parsed = workAssignmentSchema.parse({ lotId: id, operationId: id, rows: [{ workerId: id, pieces: "12" }] });
-    expect(parsed.rows[0].pieces).toBe(12);
+    expect(parsed.operations[0].rows[0]).toEqual({ workerId: id, pieces: 12, payType: "piece" });
+    const other = "64b000000000000000000002";
+    const sheet = workAssignmentSchema.parse({
+      lotId: id,
+      operations: [
+        { operationId: id, rows: [{ workerId: id, pieces: 5 }] },
+        { operationId: other, rows: [{ workerId: id, pieces: 5, payType: "fixed", amount: "300" }] },
+      ],
+    });
+    expect(sheet.operations[1].rows[0]).toMatchObject({ payType: "fixed", amount: 300 });
+    const fixedNoAmount = {
+      lotId: id,
+      operations: [{ operationId: id, rows: [{ workerId: id, pieces: 5, payType: "fixed" }] }],
+    };
+    expect(() => workAssignmentSchema.parse(fixedNoAmount)).toThrow(/fixed amount/);
+    const sameOp = { operationId: id, rows: [{ workerId: id, pieces: 5 }] };
+    expect(() => workAssignmentSchema.parse({ lotId: id, operations: [sameOp, sameOp] })).toThrow(
+      /operation can only appear once/
+    );
+    expect(() => workAssignmentSchema.parse({ lotId: id, operations: [] })).toThrow();
     expect(() => wageAdjustmentSchema.parse({ workerId: id, type: "loan", amount: 5 })).toThrow();
     expect(wageAdjustmentSchema.parse({ workerId: id, type: "advance", amount: "500" }).amount).toBe(500);
     expect(() => wageAdjustmentSchema.parse({ workerId: id, type: "advance" })).toThrow(/Amount must be more than 0/);

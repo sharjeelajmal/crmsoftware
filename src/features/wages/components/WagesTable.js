@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { BRAND } from "@/constants/brand";
 import { formatDate, formatMoney } from "@/lib/format";
+import { payLabel } from "@/constants/wages";
 import { rangeLabel } from "../utils";
 
 const ROW_CLASS = "rounded-xl text-white shadow-md bg-primary overflow-hidden";
@@ -68,9 +69,7 @@ function WorkerWages({ row, entries }) {
                   {entry.note ? ` · ${entry.note}` : ""}
                 </span>
               </span>
-              <span className="text-xs text-gray-500 whitespace-nowrap">
-                {entry.pieces} × Rs {entry.rate}
-              </span>
+              <span className="text-xs text-gray-500 whitespace-nowrap">{payLabel(entry)}</span>
               <span className="font-semibold whitespace-nowrap">{formatMoney(entry.amount)}</span>
             </li>
           ))}

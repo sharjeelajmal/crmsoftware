@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import { notFound, conflict } from "@/lib/api";
-import { ADVANCE_TYPES, entryAmount, leaveAmount } from "@/constants/wages";
+import { ADVANCE_TYPES, effectiveRate, entryAmount, leaveAmount, payTypeOf, round2 } from "@/constants/wages";
 
 /**
  * Workers & wages — server helpers.
@@ -27,22 +27,37 @@ export async function requireWorker(db, workerId, session) {
   return worker;
 }
 
-export async function requireOperation(db, operationId, session) {
-  const operation = await db.collection("operations").findOne({ _id: new ObjectId(operationId) }, { session });
-  if (!operation) throw notFound("Operation");
-  return operation;
-}
-
 export async function requireLot(db, lotId, session) {
   const lot = await db.collection("lots").findOne({ _id: new ObjectId(lotId) }, { session });
   if (!lot) throw notFound("Invoice");
   return lot;
 }
 
-/** Work entry document: names and the rate are snapshotted so later edits never change old wages. */
-export function buildWorkEntry({ lot, operation, worker, pieces, rate, date, note, session, now = new Date() }) {
-  const finalRate = rate === undefined || rate === null ? Number(operation.rate) || 0 : Number(rate) || 0;
+/**
+ * Work entry document: names and the rate are snapshotted so later edits never change old wages. A `fixed` entry
+ * keeps the agreed amount and the rate it works out to per piece. Entries saved together share `batchId`.
+ */
+export function buildWorkEntry({
+  lot,
+  operation,
+  worker,
+  pieces,
+  rate,
+  payType = "piece",
+  amount,
+  batchId = null,
+  date,
+  note,
+  session,
+  now = new Date(),
+}) {
   const qty = Math.trunc(Number(pieces)) || 0;
+  const fixed = payType === "fixed";
+  const finalRate = fixed
+    ? effectiveRate(amount, qty)
+    : rate === undefined || rate === null
+      ? Number(operation.rate) || 0
+      : Number(rate) || 0;
   return {
     lotId: lot._id,
     lotNumber: lot.lotNumber,
@@ -52,8 +67,10 @@ export function buildWorkEntry({ lot, operation, worker, pieces, rate, date, not
     workerId: worker._id,
     workerName: worker.name,
     pieces: qty,
+    payType: fixed ? "fixed" : "piece",
     rate: finalRate,
-    amount: entryAmount(qty, finalRate),
+    amount: fixed ? round2(amount) : entryAmount(qty, finalRate),
+    batchId,
     date: date ? new Date(date) : now,
     note: note || "",
     by: actorOf(session),
@@ -62,14 +79,48 @@ export function buildWorkEntry({ lot, operation, worker, pieces, rate, date, not
   };
 }
 
-/** $set for an edited entry: amount is recomputed from the new pieces/rate. */
+/** $set for an edited entry: a per-piece amount is recomputed from pieces × rate; a fixed one keeps its amount. */
 export function workEntryEditOps(existing, changes, now = new Date()) {
   const pieces = changes.pieces === undefined ? existing.pieces : Math.trunc(Number(changes.pieces)) || 0;
+  if (payTypeOf(existing) === "fixed") {
+    const amount = changes.amount === undefined ? Number(existing.amount) || 0 : round2(changes.amount);
+    const $set = { pieces, amount, rate: effectiveRate(amount, pieces), updatedAt: now };
+    if (changes.date !== undefined) $set.date = new Date(changes.date);
+    if (changes.note !== undefined) $set.note = changes.note;
+    return { $set };
+  }
   const rate = changes.rate === undefined ? existing.rate : Number(changes.rate) || 0;
   const $set = { pieces, rate, amount: entryAmount(pieces, rate), updatedAt: now };
   if (changes.date !== undefined) $set.date = new Date(changes.date);
   if (changes.note !== undefined) $set.note = changes.note;
   return { $set };
+}
+
+/** Active workers by id; throws like requireWorker when one is missing or inactive. */
+export async function requireWorkers(db, workerIds, session) {
+  const ids = [...new Set(workerIds.map(String))];
+  const found = await db
+    .collection("workers")
+    .find({ _id: { $in: ids.map((id) => new ObjectId(id)) } }, { session })
+    .toArray();
+  const byId = new Map(found.map((worker) => [String(worker._id), worker]));
+  for (const id of ids) {
+    const worker = byId.get(id);
+    if (!worker) throw notFound("Worker");
+    if (worker.active === false) throw conflict(`${worker.name} is inactive`);
+  }
+  return byId;
+}
+
+/** Operations by id; throws when one is missing. */
+export async function requireOperations(db, operationIds, session) {
+  const ids = [...new Set(operationIds.map(String))];
+  const found = await db
+    .collection("operations")
+    .find({ _id: { $in: ids.map((id) => new ObjectId(id)) } }, { session })
+    .toArray();
+  if (found.length !== ids.length) throw notFound("Operation");
+  return new Map(found.map((operation) => [String(operation._id), operation]));
 }
 
 /** Adjustment document. Leave snapshots days × rate (rate = the worker's per-day salary unless given). */

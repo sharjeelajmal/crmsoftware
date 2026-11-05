@@ -48,7 +48,27 @@ export function useRateCards({ enabled = true } = {}) {
     [reload, toast]
   );
 
-  return { categories: data?.categories ?? [], isLoading, isSaving, saveCard, reload };
+  /** Adds a category (shared with Inventory). Resolves to its card (no operations yet), or null when it failed. */
+  const addCategory = useCallback(
+    async (name) => {
+      setIsSaving(true);
+      try {
+        const saved = await api.post("/api/categories", { name });
+        clearAsyncDataCache("inventory"); // the Inventory page lists the same categories
+        toast.success(`${saved.name} added`);
+        await reload();
+        return { category: saved.name, articles: 0, items: [], perPiece: 0 };
+      } catch (err) {
+        toast.error(errorMessage(err));
+        return null;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [reload, toast]
+  );
+
+  return { categories: data?.categories ?? [], isLoading, isSaving, saveCard, addCategory, reload };
 }
 
 export default useRateCards;

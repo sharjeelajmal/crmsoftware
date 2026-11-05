@@ -780,6 +780,67 @@ test("Phase 6: operations with rates, workers, work assignment per lot and the w
   expect((await api(S.admin, "GET", `/api/work-entries?lotId=${lotId}`)).body.length, "entries gone").toBe(0);
 });
 
+test("Work sheet: every operation of an invoice in one save, per-piece and fixed pay, one batch", async () => {
+  const workers = (await api(S.admin, "GET", "/api/workers")).body;
+  const akram = workers.find((w) => w.name === "E2E Akram");
+  const bilal = workers.find((w) => w.name === "E2E Bilal");
+  const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;
+  const belt = ops.find((o) => o.name === "E2E Belt"); // its rate is 10 since the Phase 6 test
+  const pocket = ops.find((o) => o.name === "E2E Pocket");
+  const lotId = S.stageLotId;
+
+  const noAmount = await api(S.admin, "POST", "/api/work-entries", {
+    lotId,
+    operations: [{ operationId: belt._id, rows: [{ workerId: akram._id, pieces: 10, payType: "fixed" }] }],
+  });
+  expect(noAmount.status, "fixed pay needs an amount").toBe(400);
+
+  const sheet = await api(S.admin, "POST", "/api/work-entries", {
+    lotId,
+    note: "sheet",
+    operations: [
+      {
+        operationId: belt._id,
+        rows: [
+          { workerId: akram._id, pieces: 60 },
+          { workerId: bilal._id, pieces: 60 },
+        ],
+      },
+      { operationId: pocket._id, rows: [{ workerId: akram._id, pieces: 120, payType: "fixed", amount: 500 }] },
+    ],
+  });
+  expect(sheet.status, "sheet saved").toBe(201);
+  expect(sheet.body.length, "three entries").toBe(3);
+  expect(new Set(sheet.body.map((e) => e.batchId)).size, "one batch").toBe(1);
+  expect(sheet.body[0].amount, "60 x the belt's own rate 10").toBe(600);
+  expect(sheet.body[0].payType, "per piece by default").toBe("piece");
+  const fixed = sheet.body[2];
+  expect(fixed.payType, "fixed pay").toBe("fixed");
+  expect(fixed.amount, "fixed amount kept").toBe(500);
+  expect(fixed.rate, "500 / 120 per piece").toBe(4.17);
+
+  // an inactive worker refuses the whole sheet: nothing of it is saved
+  expect((await api(S.admin, "PUT", `/api/workers/${bilal._id}`, { active: false })).status, "deactivate").toBe(200);
+  const refused = await api(S.admin, "POST", "/api/work-entries", {
+    lotId,
+    operations: [
+      { operationId: belt._id, rows: [{ workerId: akram._id, pieces: 1 }] },
+      { operationId: pocket._id, rows: [{ workerId: bilal._id, pieces: 1 }] },
+    ],
+  });
+  expect(refused.status, "inactive worker").toBe(409);
+  expect((await api(S.admin, "PUT", `/api/workers/${bilal._id}`, { active: true })).status, "reactivate").toBe(200);
+  const entries = (await api(S.admin, "GET", `/api/work-entries?lotId=${lotId}`)).body;
+  expect(entries.length, "nothing saved from the refused sheet").toBe(3);
+
+  expect((await api(S.admin, "PUT", `/api/work-entries/${fixed._id}`, { amount: 600 })).status, "edit fixed").toBe(200);
+  const edited = (await api(S.admin, "GET", `/api/work-entries?lotId=${lotId}`)).body.find((e) => e._id === fixed._id);
+  expect(edited.amount, "new fixed amount").toBe(600);
+  expect(edited.rate, "600 / 120").toBe(5);
+
+  for (const entry of entries) await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
+});
+
 test("Attendance: present / absent / leave per day; absent and leave cut a day of the per-day salary", async () => {
   const today = localDay();
   const yesterday = localDay(-1);
@@ -1790,22 +1851,43 @@ uiTest(
     await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
     await page.goto(`${BASE}/lots/${id}`);
     await page.waitForSelector('[data-testid="lot-work-panel"]', { timeout: 60_000 });
+    // the work sheet: every operation on one page; only E2E Pocket gets workers here
     await page.click('[data-testid="lot-assign-work"]');
-    await page.waitForSelector('[data-testid="assign-work-form"]', { timeout: 60_000 });
-    await page.locator('[data-testid="assign-operation"] button').click();
-    await page.locator('[data-testid="assign-operation"] li', { hasText: "E2E Pocket" }).click();
-    expect(await page.locator('[data-testid="assign-rate"]').inputValue(), "rate prefilled").toBe("4");
-    await page.click('[data-testid="assign-add-worker"]');
-    const rows = page.locator('[data-testid="assign-row"]');
-    await rows.nth(0).locator("button").first().click();
+    await page.waitForURL((url) => url.pathname === `/lots/${id}/work`, { timeout: 60_000 });
+    await page.waitForSelector('[data-testid="work-sheet"]', { timeout: 60_000 });
+    expect((await page.locator('[data-testid="sheet-op"]').count()) > 1, "every operation is on the sheet").toBe(true);
+    const pocketOp = page.locator('[data-testid="sheet-op"][data-operation="E2E Pocket"]');
+    expect(await pocketOp.locator('[data-testid="sheet-rate"]').inputValue(), "rate prefilled").toBe("4");
+    expect(await pocketOp.getAttribute("data-left"), "98 pcs left").toBe("98");
+    await pocketOp.locator('[data-testid="sheet-add-worker"]').click();
+    const rows = pocketOp.locator('[data-testid="sheet-row"]');
+    await rows.nth(0).locator('[data-testid="sheet-worker"] button').first().click();
     await rows.nth(0).locator("li", { hasText: "E2E Akram" }).click();
-    await rows.nth(1).locator("button").first().click();
+    await rows.nth(1).locator('[data-testid="sheet-worker"] button').first().click();
     await rows.nth(1).locator("li", { hasText: "E2E Bilal" }).click();
-    expect(await page.locator('[data-testid="assign-total"]').getAttribute("data-amount"), "98 x 4").toBe("392");
-    await page.click('[data-testid="assign-submit"]');
+    expect(await rows.nth(1).locator('[data-testid="sheet-pieces"]').inputValue(), "98 split in two").toBe("49");
+    const total = page.locator('[data-testid="sheet-total"]');
+    expect(await total.getAttribute("data-amount"), "98 x 4").toBe("392");
+    expect(await total.getAttribute("data-workers"), "two workers").toBe("2");
+    expect(await total.getAttribute("data-operations"), "one operation").toBe("1");
+    // a fixed amount replaces pieces x rate for that worker, and back
+    await rows.nth(1).locator('[data-testid="sheet-pay-fixed"]').click();
+    await rows.nth(1).locator('[data-testid="sheet-amount"]').fill("300");
+    expect(await total.getAttribute("data-amount"), "49 x 4 + 300").toBe("496");
+    await rows.nth(1).locator('[data-testid="sheet-pay-piece"]').click();
+    expect(await total.getAttribute("data-amount"), "back to per piece").toBe("392");
+    await page.click('[data-testid="sheet-submit"]');
+    await page.waitForURL((url) => url.pathname === `/lots/${id}`, { timeout: 60_000 });
     await page.waitForSelector('[data-testid="lot-work-group"][data-operation="E2E Pocket"]', { timeout: 60_000 });
     expect(await page.locator('[data-testid="lot-work-entry"]').count(), "two entries").toBe(2);
     expect(await page.locator('[data-testid="lot-work-amount"]').getAttribute("data-amount"), "lot labour").toBe("392");
+    // the same work per worker, and as one save in the history
+    await page.click('[data-testid="lot-work-view-workers"]');
+    expect(await page.locator('[data-testid="lot-work-worker"]').count(), "two workers").toBe(2);
+    await page.click('[data-testid="lot-work-view-history"]');
+    const batch = page.locator('[data-testid="lot-work-batch"]');
+    expect(await batch.count(), "one save").toBe(1);
+    expect(await batch.getAttribute("data-workers"), "two workers in it").toBe("2");
 
     await page.goto(`${BASE}/wages`);
     await page.waitForSelector('[data-testid="wages-row"]', { timeout: 60_000 });
@@ -1814,6 +1896,15 @@ uiTest(
       "akram net"
     ).toBe("196");
     expect(await page.locator('[data-testid="wages-total"]').getAttribute("data-net"), "total").toBe("392");
+    // the same week per invoice: how many workers and what it cost
+    const { lotNumber } = (await api(S.admin, "GET", `/api/lots/${id}`)).body;
+    await page.click('[data-testid="wages-view-invoices"]');
+    const invoiceRow = page.locator(`[data-testid="invoice-work-row"][data-lot="${lotNumber}"]`);
+    await invoiceRow.waitFor({ timeout: 60_000 });
+    expect(await invoiceRow.getAttribute("data-workers"), "workers on the invoice").toBe("2");
+    expect(await invoiceRow.getAttribute("data-amount"), "labour on the invoice").toBe("392");
+    await invoiceRow.locator("button").first().click();
+    expect(await invoiceRow.locator('[data-testid="invoice-work-worker"]').count(), "its workers").toBe(2);
 
     // one day of leave for Bilal on the Attendance page: cut at his per-day salary (100)
     await page.goto(`${BASE}/attendance`);
@@ -1938,11 +2029,39 @@ uiTest(
     await page.goto(`${BASE}/lots/${S.uiLotId}`);
     await page.waitForSelector('[data-testid="lot-work-op"][data-operation="E2E Pocket"]', { timeout: 60_000 });
     await page.click('[data-testid="lot-assign-work"]');
-    await page.waitForSelector('[data-testid="assign-rate-card"][data-from-card="true"]', { timeout: 60_000 });
-    await page.locator('[data-testid="assign-operation"] button').click();
-    expect(await page.locator('[data-testid="assign-operation"] li').count(), "only the card's operation").toBe(1);
-    await page.locator('[data-testid="assign-operation"] li', { hasText: "E2E Pocket" }).click();
-    expect(await page.locator('[data-testid="assign-rate"]').inputValue(), "card rate prefilled").toBe("5");
+    await page.waitForSelector('[data-testid="sheet-rate-card"][data-from-card="true"]', { timeout: 60_000 });
+    expect(await page.locator('[data-testid="sheet-op"]').count(), "only the card's operation").toBe(1);
+    const cardOp = page.locator('[data-testid="sheet-op"][data-operation="E2E Pocket"]');
+    expect(await cardOp.locator('[data-testid="sheet-rate"]').inputValue(), "card rate prefilled").toBe("5");
+
+    // a category made on the Workers page opens its rate card straight away (and is the same list as Inventory)
+    await page.goto(`${BASE}/workers`);
+    await page.waitForSelector('[data-testid="workers-page"]', { timeout: 60_000 });
+    await page.click('[data-testid="workers-tab-cards"]');
+    await page.click('[data-testid="categories-add"]');
+    await page.waitForSelector('[data-testid="category-form"]');
+    await page.fill('[data-testid="category-form-name"]', "E2E Sheet Pent");
+    await page.click('[data-testid="category-form-submit"]');
+    await page.waitForSelector('[data-testid="rate-card-form"]', { timeout: 60_000 });
+    expect(await page.locator('[data-testid="rate-card-form"] h3').innerText(), "its rate card").toContain(
+      "E2E Sheet Pent"
+    );
+    await page
+      .locator('[data-testid="rate-card-row"][data-operation="E2E Pocket"] [data-testid="rate-card-check"]')
+      .click();
+    await page.click('[data-testid="rate-card-submit"]');
+    await page.waitForFunction(
+      () => document.querySelector('[data-testid="rate-card"][data-category="E2E Sheet Pent"]')?.dataset.total === "4",
+      null,
+      { timeout: 60_000 }
+    );
+    const listed = (await api(S.admin, "GET", "/api/categories")).body.map((c) => c.name);
+    expect(listed.includes("E2E Sheet Pent"), "offered in Inventory too").toBe(true);
+    expect((await api(S.admin, "POST", "/api/categories", { name: "e2e sheet pent" })).status, "same name").toBe(409);
+    expect(
+      (await api(S.admin, "DELETE", `/api/categories/${encodeURIComponent("E2E Sheet Pent")}`)).status,
+      "category removed"
+    ).toBe(200);
 
     await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent(product.category)}`, { items: [] });
   }

@@ -9,6 +9,8 @@
 /** Money rounded to 2 decimals (rates like 3.5 are common). */
 export const round2 = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
+const rupeesOf = (value) => `Rs ${round2(value).toLocaleString("en-US")}`;
+
 export const WAGE_PERIODS = Object.freeze([
   { value: "today", label: "Today" },
   { value: "thisweek", label: "This Week" },
@@ -56,6 +58,33 @@ export const leaveAmount = (days, rate) => round2((Number(days) || 0) * (Number(
 /** Wage for a work entry. */
 export const entryAmount = (pieces, rate) => round2((Math.trunc(Number(pieces)) || 0) * (Number(rate) || 0));
 
+/**
+ * How a worker is paid for a piece of work on an invoice (client, 2026-11-06: "unki payments method"):
+ * `piece` = pieces × rate (the normal way); `fixed` = an agreed amount for the job (theka / dihari), typed in.
+ * Entries saved before pay types existed are `piece`.
+ */
+export const PAY_TYPES = Object.freeze(["piece", "fixed"]);
+
+export const PAY_TYPE_LABELS = Object.freeze({ piece: "Per piece", fixed: "Fixed amount" });
+
+export const payTypeOf = (entry) => (entry?.payType === "fixed" ? "fixed" : "piece");
+
+/** Wage of one worker row: pieces × rate, or the fixed amount. */
+export const rowAmount = ({ payType, pieces, rate, amount }) =>
+  payType === "fixed" ? round2(amount) : entryAmount(pieces, rate);
+
+/** Rate per piece a fixed amount works out to (kept on the entry so per-piece labour stays comparable). */
+export const effectiveRate = (amount, pieces) => {
+  const qty = Math.trunc(Number(pieces)) || 0;
+  return qty > 0 ? round2((Number(amount) || 0) / qty) : 0;
+};
+
+/** "40 pcs × Rs 3.5" or "40 pcs · Fixed Rs 2,000". */
+export const payLabel = (entry) =>
+  payTypeOf(entry) === "fixed"
+    ? `${entry.pieces} pcs · Fixed ${rupeesOf(entry.amount)}`
+    : `${entry.pieces} pcs × Rs ${Number(entry.rate) || 0}`;
+
 /** Labour cost of one finished piece = sum of all active operation rates. */
 export const perPieceLabour = (operations = []) =>
   round2(operations.filter((op) => op?.active !== false).reduce((sum, op) => sum + (Number(op.rate) || 0), 0));
@@ -89,15 +118,138 @@ export const lotWorkTotals = (entries = [], lot) => {
   return { amount, byOperation, perPiece: pieces > 0 ? round2(amount / pieces) : 0, entries: entries.length };
 };
 
-/** Why a work assignment cannot be saved yet, or "" when it is valid. */
-export const assignmentProblem = ({ operationId, rate, rows = [] }) => {
-  if (!operationId) return "Please choose an operation.";
-  if (!(Number(rate) >= 0)) return "Rate must be 0 or more.";
-  if (rows.length === 0) return "Add at least one worker.";
-  if (rows.some((row) => !row.workerId)) return "Every row needs a worker.";
-  if (new Set(rows.map((row) => row.workerId)).size !== rows.length) return "A worker can only appear once.";
-  if (rows.some((row) => !(Math.trunc(Number(row.pieces)) > 0))) return "Pieces must be more than 0 for every worker.";
+// ---- Work sheet: every operation of an invoice assigned in one go ---------------------------------------------
+
+const blankAmount = (value) => value === "" || value === null || value === undefined;
+
+/** The rows of a sheet operation that will be saved: the ones with a worker picked. */
+export const filledRows = (operation) => (operation?.rows || []).filter((row) => row.workerId);
+
+/**
+ * Why a work sheet (`{ operations: [{ name, rate, rows: [{ workerId, pieces, payType, amount }] }] }`) cannot be saved,
+ * or "". Rows without a worker are left out; at least one row must have one.
+ */
+export const workSheetProblem = ({ operations = [] } = {}) => {
+  const used = operations.filter((operation) => filledRows(operation).length > 0);
+  if (used.length === 0) return "Pick a worker for at least one operation.";
+  for (const operation of used) {
+    const rows = filledRows(operation);
+    const name = operation.name || "an operation";
+    if (rows.some((row) => row.payType !== "fixed") && !(Number(operation.rate) >= 0 && operation.rate !== ""))
+      return `${name}: rate must be 0 or more.`;
+    if (new Set(rows.map((row) => row.workerId)).size !== rows.length) return `${name}: a worker can only appear once.`;
+    if (rows.some((row) => !(Math.trunc(Number(row.pieces)) > 0))) return `${name}: pieces must be more than 0.`;
+    if (rows.some((row) => row.payType === "fixed" && (blankAmount(row.amount) || !(Number(row.amount) >= 0))))
+      return `${name}: type the fixed amount.`;
+  }
   return "";
+};
+
+/** Live totals of a work sheet: distinct workers, operations used, rows, amount. */
+export const workSheetTotals = ({ operations = [] } = {}) => {
+  const workers = new Set();
+  let used = 0;
+  let rows = 0;
+  let amount = 0;
+  for (const operation of operations) {
+    const filled = filledRows(operation);
+    if (filled.length) used += 1;
+    for (const row of filled) {
+      workers.add(row.workerId);
+      rows += 1;
+      amount = round2(amount + rowAmount({ ...row, rate: operation.rate }));
+    }
+  }
+  return { workers: workers.size, operations: used, rows, amount };
+};
+
+// ---- Work history (who worked on which invoice, how they were paid) -------------------------------------------
+
+const pushUnique = (list, value) => {
+  if (value && !list.includes(value)) list.push(value);
+};
+
+/** Work entries per worker (one invoice, or a period): operations, pieces, amount and pay types. Most paid first. */
+export const workByWorker = (entries = []) => {
+  const byWorker = new Map();
+  for (const entry of entries) {
+    const key = String(entry.workerId);
+    if (!byWorker.has(key)) {
+      byWorker.set(key, {
+        workerId: key,
+        workerName: entry.workerName || "",
+        operations: [],
+        payTypes: [],
+        pieces: 0,
+        amount: 0,
+        entries: [],
+      });
+    }
+    const row = byWorker.get(key);
+    pushUnique(row.operations, entry.operationName);
+    pushUnique(row.payTypes, payTypeOf(entry));
+    row.pieces += Math.trunc(Number(entry.pieces)) || 0;
+    row.amount = round2(row.amount + (Number(entry.amount) || 0));
+    row.entries.push(entry);
+  }
+  return [...byWorker.values()].sort((a, b) => b.amount - a.amount || a.workerName.localeCompare(b.workerName));
+};
+
+/**
+ * Work entries per invoice: how many workers and operations, labour, pay types, last work date, and the workers
+ * (see workByWorker). Latest work first.
+ */
+export const workByInvoice = (entries = []) => {
+  const byLot = new Map();
+  for (const entry of entries) {
+    const key = String(entry.lotId);
+    if (!byLot.has(key)) {
+      byLot.set(key, { lotId: key, lotNumber: entry.lotNumber || "", productName: entry.productName || "", list: [] });
+    }
+    byLot.get(key).list.push(entry);
+  }
+  return [...byLot.values()]
+    .map(({ list, ...lot }) => {
+      const workers = workByWorker(list);
+      const payTypes = [];
+      for (const entry of list) pushUnique(payTypes, payTypeOf(entry));
+      return {
+        ...lot,
+        workers,
+        workerCount: workers.length,
+        operationCount: new Set(list.map((entry) => entry.operationName || String(entry.operationId))).size,
+        amount: round2(list.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0)),
+        payTypes,
+        lastDate: list.reduce(
+          (latest, entry) => (new Date(entry.date) > new Date(latest) ? entry.date : latest),
+          list[0].date
+        ),
+      };
+    })
+    .sort((a, b) => new Date(b.lastDate) - new Date(a.lastDate));
+};
+
+/**
+ * Each save of work on an invoice ("history"): when, by whom, workers, operations, amount. Entries saved together
+ * share a `batchId`; older ones are grouped by their save time. Newest first.
+ */
+export const workBatches = (entries = []) => {
+  const batches = new Map();
+  for (const entry of entries) {
+    const key = entry.batchId ? String(entry.batchId) : `at:${new Date(entry.createdAt ?? entry.date).toISOString()}`;
+    if (!batches.has(key)) {
+      batches.set(key, { key, savedAt: entry.createdAt ?? entry.date, by: entry.by?.name || "", entries: [] });
+    }
+    batches.get(key).entries.push(entry);
+  }
+  return [...batches.values()]
+    .map((batch) => ({
+      ...batch,
+      workers: new Set(batch.entries.map((entry) => String(entry.workerId))).size,
+      operations: new Set(batch.entries.map((entry) => String(entry.operationId))).size,
+      amount: round2(batch.entries.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0)),
+    }))
+    .sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
 };
 
 /**
@@ -241,18 +393,16 @@ export const advanceAccounts = (adjustments = []) => {
   return { accounts, totals };
 };
 
-const rupees = (value) => `Rs ${round2(value).toLocaleString("en-US")}`;
-
 /** Why an advance cut of `amount` can't be recorded against `balance` outstanding, or "" when it can. */
 export const recoveryProblem = (amount, balance) => {
   const left = round2(balance);
   if (!(left > 0)) return "This worker has no advance left to cut.";
-  if (round2(amount) > left) return `Only ${rupees(left)} of advance is left to cut.`;
+  if (round2(amount) > left) return `Only ${rupeesOf(left)} of advance is left to cut.`;
   return "";
 };
 
 /** Why an advance can't be deleted (part of it was already cut), or "" when it can. */
 export const advanceDeleteProblem = (balance, amount) =>
   round2(balance) - round2(amount) < 0
-    ? `${rupees(round2(amount) - round2(balance))} of this advance was already cut. Delete those advance cuts first.`
+    ? `${rupeesOf(round2(amount) - round2(balance))} of this advance was already cut. Delete those advance cuts first.`
     : "";
