@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { BRAND } from "@/constants/brand";
-import { WAGE_PERIODS, DEFAULT_WAGE_PERIOD, filledRows, splitEvenly } from "@/constants/wages";
+import { WAGE_PERIODS, DEFAULT_WAGE_PERIOD, filledRows, splitEvenly, teamRowsFor } from "@/constants/wages";
 import { EMPTY_RANGE, isCompleteRange } from "@/features/analytics/utils";
 import { DEFAULT_MAIN_OPERATION, mainOperationOf, operationProgress } from "@/constants/operations";
 
@@ -96,13 +96,17 @@ export const sheetRow = (pieces = 0) => ({
 
 /**
  * The work sheet of an invoice: one block per offered operation (its rate card, else every active operation) with
- * the pieces already assigned and what is left, and one empty worker row.
+ * the pieces already assigned and what is left. An operation with pieces left starts with its category team's
+ * workers (`team.items`, only those in `activeIds`) splitting them as last time, else one empty worker row.
+ * `teamFilled` counts the operations the team filled.
  */
-export const emptyWorkSheet = (offered = [], entries = [], lotPieces = 0) => ({
-  date: toIsoDate(new Date()),
-  note: "",
-  operations: operationProgress(offered, entries, lotPieces).map((op) => {
+export const emptyWorkSheet = (offered = [], entries = [], lotPieces = 0, { team = null, activeIds = null } = {}) => {
+  const teamItems = new Map((team?.items || []).map((item) => [String(item.operationId), item]));
+  let teamFilled = 0;
+  const operations = operationProgress(offered, entries, lotPieces).map((op) => {
     const left = Math.max(0, lotPieces - op.pieces);
+    const fromTeam = left > 0 ? teamRowsFor(teamItems.get(op.operationId), left, activeIds) : null;
+    if (fromTeam) teamFilled += 1;
     return {
       operationId: op.operationId,
       name: op.name,
@@ -110,9 +114,17 @@ export const emptyWorkSheet = (offered = [], entries = [], lotPieces = 0) => ({
       rate: String(op.rate),
       done: op.pieces,
       left,
-      rows: [sheetRow(left)],
+      rows: fromTeam ?? [sheetRow(left)],
     };
-  }),
+  });
+  return { date: toIsoDate(new Date()), note: "", rememberTeam: true, teamFilled, operations };
+};
+
+/** Every operation back to one empty worker row (e.g. when the team filled in is not the one working today). */
+export const clearWorkers = (sheet) => ({
+  ...sheet,
+  teamFilled: 0,
+  operations: sheet.operations.map((op) => ({ ...op, rows: [sheetRow(op.left)] })),
 });
 
 /** Gives every operation that still has pieces left, and no worker picked yet, to `workerId` ("one karigar"). */
@@ -145,6 +157,7 @@ export const toWorkSheetPayload = (lotId, sheet) => ({
   lotId,
   date: sheet.date,
   note: String(sheet.note || "").trim(),
+  rememberTeam: Boolean(sheet.rememberTeam),
   operations: sheet.operations
     .filter((op) => filledRows(op).length > 0)
     .map((op) => ({

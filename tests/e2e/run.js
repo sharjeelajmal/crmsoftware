@@ -841,6 +841,78 @@ test("Work sheet: every operation of an invoice in one save, per-piece and fixed
   for (const entry of entries) await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
 });
 
+test("Category team: a remembered sheet fills the next invoice of the same category", async () => {
+  const workers = (await api(S.admin, "GET", "/api/workers")).body;
+  const akram = workers.find((w) => w.name === "E2E Akram");
+  const bilal = workers.find((w) => w.name === "E2E Bilal");
+  const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;
+  const belt = ops.find((o) => o.name === "E2E Belt");
+  const pocket = ops.find((o) => o.name === "E2E Pocket");
+  const product = await api(S.admin, "POST", "/api/products", {
+    name: "E2E Team Pent",
+    category: "E2E Team Cat",
+    purchasePrice: 900,
+    salePrice: 1500,
+  });
+  expect(product.status, "product").toBe(201);
+  S.ids.products.push(product.body._id);
+  const newLot = async (qty) => {
+    const res = await api(S.cutter, "POST", "/api/lots", {
+      productId: product.body._id,
+      fabric: { name: "E2E Team Denim", qty: 10, unit: "m" },
+      sizes: [{ size: "30", qty }],
+    });
+    expect(res.status, "invoice").toBe(201);
+    S.ids.lots.push(res.body._id);
+    return res.body;
+  };
+  const first = await newLot(100);
+  const second = await newLot(50);
+  expect((await api(S.admin, "GET", `/api/lots/${second._id}/operations`)).body.team, "no team yet").toBe(null);
+
+  const saved = await api(S.admin, "POST", "/api/work-entries", {
+    lotId: first._id,
+    rememberTeam: true,
+    operations: [
+      {
+        operationId: belt._id,
+        rows: [
+          { workerId: akram._id, pieces: 60 },
+          { workerId: bilal._id, pieces: 40 },
+        ],
+      },
+      { operationId: pocket._id, rows: [{ workerId: akram._id, pieces: 100, payType: "fixed", amount: 500 }] },
+    ],
+  });
+  expect(saved.status, "sheet saved").toBe(201);
+  const offer = (await api(S.admin, "GET", `/api/lots/${second._id}/operations`)).body;
+  expect(offer.team.lotNumber, "team from the first invoice").toBe(first.lotNumber);
+  const beltTeam = offer.team.items.find((item) => item.operationId === belt._id);
+  expect(
+    beltTeam.rows.map((r) => `${r.workerId === akram._id ? "akram" : "bilal"}:${r.weight}`).join(),
+    "belt team"
+  ).toBe("akram:60,bilal:40");
+  const pocketTeam = offer.team.items.find((item) => item.operationId === pocket._id);
+  expect(pocketTeam.rows[0].payType, "fixed pay remembered").toBe("fixed");
+  expect(pocketTeam.rows[0].amount, "fixed amount remembered").toBe(500);
+
+  // a save without "remember" (and the older one-operation body) leaves the team alone
+  const plain = await api(S.admin, "POST", "/api/work-entries", {
+    lotId: second._id,
+    operationId: belt._id,
+    rows: [{ workerId: bilal._id, pieces: 50 }],
+  });
+  expect(plain.status, "plain save").toBe(201);
+  const after = (await api(S.admin, "GET", `/api/lots/${first._id}/operations`)).body.team;
+  expect(after.items.find((item) => item.operationId === belt._id).rows.length, "team unchanged").toBe(2);
+
+  for (const lot of [first, second]) {
+    for (const entry of (await api(S.admin, "GET", `/api/work-entries?lotId=${lot._id}`)).body) {
+      await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
+    }
+  }
+});
+
 test("Attendance: present / absent / leave per day; absent and leave cut a day of the per-day salary", async () => {
   const today = localDay();
   const yesterday = localDay(-1);
@@ -1859,12 +1931,23 @@ uiTest(
     const pocketOp = page.locator('[data-testid="sheet-op"][data-operation="E2E Pocket"]');
     expect(await pocketOp.locator('[data-testid="sheet-rate"]').inputValue(), "rate prefilled").toBe("4");
     expect(await pocketOp.getAttribute("data-left"), "98 pcs left").toBe("98");
+    // the last worker menu opens upwards, above the sticky total bar, not behind it
+    const lastWorker = page.locator('[data-testid="sheet-worker"] button').last();
+    await page.locator("main").evaluate((main) => main.scrollTo(0, main.scrollHeight));
+    await lastWorker.click();
+    await page.waitForTimeout(300); // let the menu finish sliding in
+    const menuBox = await page.locator(".dropdown-portal").boundingBox();
+    const barBox = await page.locator('[data-testid="sheet-bar"]').boundingBox();
+    expect(menuBox.y + menuBox.height <= barBox.y, "last menu above the total bar").toBe(true);
+    await lastWorker.click();
+    await page.locator(".dropdown-portal").waitFor({ state: "detached" });
     await pocketOp.locator('[data-testid="sheet-add-worker"]').click();
     const rows = pocketOp.locator('[data-testid="sheet-row"]');
+    // worker menus are rendered on <body> (so they can open upwards above the sticky total bar)
     await rows.nth(0).locator('[data-testid="sheet-worker"] button').first().click();
-    await rows.nth(0).locator("li", { hasText: "E2E Akram" }).click();
+    await page.locator(".dropdown-portal li", { hasText: "E2E Akram" }).click();
     await rows.nth(1).locator('[data-testid="sheet-worker"] button').first().click();
-    await rows.nth(1).locator("li", { hasText: "E2E Bilal" }).click();
+    await page.locator(".dropdown-portal li", { hasText: "E2E Bilal" }).click();
     expect(await rows.nth(1).locator('[data-testid="sheet-pieces"]').inputValue(), "98 split in two").toBe("49");
     const total = page.locator('[data-testid="sheet-total"]');
     expect(await total.getAttribute("data-amount"), "98 x 4").toBe("392");
@@ -1888,6 +1971,33 @@ uiTest(
     const batch = page.locator('[data-testid="lot-work-batch"]');
     expect(await batch.count(), "one save").toBe(1);
     expect(await batch.getAttribute("data-workers"), "two workers in it").toBe("2");
+
+    // the next invoice of the same article category opens with this team already filled in
+    const { productId } = (await api(S.admin, "GET", `/api/lots/${id}`)).body;
+    const next = await api(S.cutter, "POST", "/api/lots", {
+      productId,
+      fabric: { name: "E2E Next Denim", qty: 10, unit: "m" },
+      sizes: [{ size: "30", qty: 40 }],
+    });
+    expect(next.status, "next invoice").toBe(201);
+    await page.goto(`${BASE}/lots/${next.body._id}/work`);
+    await page.waitForSelector('[data-testid="work-sheet"]', { timeout: 60_000 });
+    expect(await page.getAttribute('[data-testid="sheet-team"]', "data-filled"), "team filled one operation").toBe("1");
+    expect(await page.getAttribute('[data-testid="sheet-remember"]', "aria-checked"), "remember is on by default").toBe(
+      "true"
+    );
+    const nextPocket = page.locator('[data-testid="sheet-op"][data-operation="E2E Pocket"] [data-testid="sheet-row"]');
+    expect(await nextPocket.count(), "both workers again").toBe(2);
+    expect(await nextPocket.nth(0).locator('[data-testid="sheet-pieces"]').inputValue(), "40 split like 49:49").toBe(
+      "20"
+    );
+    const nextTotal = page.locator('[data-testid="sheet-total"]');
+    expect(await nextTotal.getAttribute("data-workers"), "two workers").toBe("2");
+    expect(await nextTotal.getAttribute("data-amount"), "40 x 4").toBe("160");
+    await page.click('[data-testid="sheet-clear"]');
+    expect(await page.locator('[data-testid="sheet-team"]').count(), "banner gone").toBe(0);
+    expect(await nextTotal.getAttribute("data-workers"), "cleared").toBe("0");
+    expect((await api(S.admin, "DELETE", `/api/lots/${next.body._id}`)).status, "next invoice removed").toBe(200);
 
     await page.goto(`${BASE}/wages`);
     await page.waitForSelector('[data-testid="wages-row"]', { timeout: 60_000 });

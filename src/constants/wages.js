@@ -163,6 +163,68 @@ export const workSheetTotals = ({ operations = [] } = {}) => {
   return { workers: workers.size, operations: used, rows, amount };
 };
 
+// ---- Category team: last time's workers fill the next invoice of the same category -----------------------------
+// Client (Rashid, 2026-11-06): once the workers of a Simple Pent are assigned, the next Simple Pent invoice should
+// come with them. Each save of a work sheet (with "remember") stores, per operation, who did it and in what share
+// (`weight` = their pieces) and how they were paid; the next sheet of that category opens with those rows filled in,
+// the pieces left split in the same proportion. The admin still checks and saves; nothing is paid automatically.
+
+/** Splits `total` pieces in proportion to `weights` (largest remainder); equal weights split evenly. */
+export const splitByWeight = (total, weights = []) => {
+  const pieces = Math.max(0, Math.trunc(Number(total)) || 0);
+  const w = weights.map((value) => Math.max(0, Number(value) || 0));
+  const sum = w.reduce((a, b) => a + b, 0);
+  if (w.length === 0) return [];
+  if (sum === 0) return splitEvenly(pieces, w.length);
+  const exact = w.map((value) => (pieces * value) / sum);
+  const shares = exact.map(Math.floor);
+  let left = pieces - shares.reduce((a, b) => a + b, 0);
+  const order = exact.map((value, i) => [value - shares[i], i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+  for (const [, i] of order) {
+    if (left <= 0) break;
+    shares[i] += 1;
+    left -= 1;
+  }
+  return shares;
+};
+
+/** Team items from the operations of a saved sheet (the validated POST body). */
+export const teamFromSheet = (operations = []) =>
+  operations.map((op) => ({
+    operationId: String(op.operationId),
+    rows: op.rows.map((row) => ({
+      workerId: String(row.workerId),
+      weight: Math.trunc(Number(row.pieces)) || 0,
+      payType: row.payType === "fixed" ? "fixed" : "piece",
+      ...(row.payType === "fixed" ? { amount: round2(row.amount) } : {}),
+    })),
+  }));
+
+/** The category team after a save: the saved operations replace theirs, the other operations keep their team. */
+export const mergeTeam = (previous = [], saved = []) => {
+  const savedIds = new Set(saved.map((item) => String(item.operationId)));
+  return [...previous.filter((item) => !savedIds.has(String(item.operationId))), ...saved];
+};
+
+/**
+ * Sheet rows for one operation from its team item: the workers who are still active, with `left` pieces split by
+ * their weights (a fixed amount comes back as it was). Null when none of them can work any more.
+ */
+export const teamRowsFor = (item, left, activeIds) => {
+  const rows = (item?.rows || []).filter((row) => !activeIds || activeIds.has(String(row.workerId)));
+  if (rows.length === 0) return null;
+  const pieces = splitByWeight(
+    left,
+    rows.map((row) => row.weight)
+  );
+  return rows.map((row, i) => ({
+    workerId: String(row.workerId),
+    pieces: pieces[i] > 0 ? String(pieces[i]) : "",
+    payType: row.payType === "fixed" ? "fixed" : "piece",
+    amount: row.payType === "fixed" ? String(round2(row.amount)) : "",
+  }));
+};
+
 // ---- Work history (who worked on which invoice, how they were paid) -------------------------------------------
 
 const pushUnique = (list, value) => {

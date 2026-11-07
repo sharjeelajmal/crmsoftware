@@ -3,9 +3,10 @@ import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, created, parseBody, parseQuery } from "@/lib/api";
 import { workAssignmentSchema, workEntriesQuerySchema } from "@/lib/validation";
 import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
-import { buildWorkEntry, requireLot, requireOperations, requireWorkers } from "@/lib/wages";
-import { lotCategory, rateCardOf } from "@/lib/operations";
+import { actorOf, buildWorkEntry, requireLot, requireOperations, requireWorkers } from "@/lib/wages";
+import { lotCategory, rateCardOf, rememberTeam } from "@/lib/operations";
 import { cardRateOf } from "@/constants/operations";
+import { teamFromSheet } from "@/constants/wages";
 
 /**
  * GET /api/work-entries?lotId=&workerId=&operationId=&filter=&from=&to=
@@ -29,7 +30,9 @@ export const GET = route(async (request) => {
  *   { lotId, date?, note?, operations: [{ operationId, rate?, rows: [{ workerId, pieces, payType?, amount? }] }] }
  * The work sheet: every operation of an invoice with its workers, saved in one go (one transaction, one `batchId`).
  * One work entry per row: pieces × rate, or the fixed amount. Without a rate: the rate on the invoice's category
- * rate card, else the operation's own rate. The older `{ lotId, operationId, rate?, rows }` body still works.
+ * rate card, else the operation's own rate. With `rememberTeam`, the rows become the team of the invoice's category,
+ * so the next invoice of that category opens with them (see rememberTeam). The older
+ * `{ lotId, operationId, rate?, rows }` body still works (and remembers nothing).
  */
 export const POST = route(async (request, { session }) => {
   const input = await parseBody(request, workAssignmentSchema);
@@ -46,7 +49,8 @@ export const POST = route(async (request, { session }) => {
       input.operations.flatMap((op) => op.rows.map((row) => row.workerId)),
       txn
     );
-    const card = await rateCardOf(db, await lotCategory(db, lot, txn), txn);
+    const category = await lotCategory(db, lot, txn);
+    const card = await rateCardOf(db, category, txn);
 
     const now = new Date();
     const batchId = new ObjectId();
@@ -71,6 +75,15 @@ export const POST = route(async (request, { session }) => {
       );
     });
     const { insertedIds } = await db.collection("work_entries").insertMany(entries, { session: txn });
+    if (input.rememberTeam) {
+      await rememberTeam(db, {
+        category,
+        items: teamFromSheet(input.operations),
+        lot,
+        actor: actorOf(session),
+        session: txn,
+      });
+    }
     return entries.map((doc, i) => ({ _id: insertedIds[i], ...doc }));
   });
   return created(docs);

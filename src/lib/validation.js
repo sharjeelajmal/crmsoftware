@@ -475,6 +475,7 @@ export const workAssignmentSchema = z.preprocess(
     lotId: objectId,
     date: dateLike.optional(),
     note: optionalText(500),
+    rememberTeam: z.boolean().default(false), // keep these workers as the category's team for its next invoice
     operations: z
       .array(sheetOperationSchema)
       .min(1, "Pick a worker for at least one operation")

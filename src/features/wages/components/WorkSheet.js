@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Check, ListChecks, Plus, Save, Scale, Trash2, Users } from "lucide-react";
+import { Check, ListChecks, Plus, Save, Scale, Trash2, UserCheck, Users } from "lucide-react";
 import { itemVariants } from "@/constants/animations";
 import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/ui/Loader";
 import { SelectDropdown } from "@/components/ui/CustomDropdown";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/ToastProvider";
 import { MAIN_OPERATION_LABELS } from "@/constants/operations";
 import { rowAmount, workPiecesOf, workSheetProblem, workSheetTotals } from "@/constants/wages";
@@ -17,7 +18,7 @@ import { formatMoney } from "@/lib/format";
 import { useWorkers } from "../hooks/useWorkers";
 import { useLotOperations } from "../hooks/useLotOperations";
 import { useLotWork } from "../hooks/useLotWork";
-import { emptyWorkSheet, fillWorker, sheetRow, splitOperation, workerOptions } from "../utils";
+import { clearWorkers, emptyWorkSheet, fillWorker, sheetRow, splitOperation, workerOptions } from "../utils";
 
 const CARD_CLASS = "bg-white p-4 sm:p-6 rounded-2xl shadow-sm";
 const LABEL_CLASS = "block text-sm font-medium text-gray-700 mb-1";
@@ -30,7 +31,8 @@ const PAY_OPTIONS = [
 /**
  * The work sheet of an invoice: every operation it needs (its category's rate card, else every active operation)
  * with the worker(s), pieces and pay of each, saved in one go. Pieces start at what is still left of each
- * operation; "one worker for every open operation" fills the sheet for a single karigar.
+ * operation; "one worker for every open operation" fills the sheet for a single karigar. The category's team (the
+ * workers saved last time for each operation) fills it in by itself, and saving with "remember" updates that team.
  */
 export function WorkSheet({ lot, backHref, onSaved }) {
   const offer = useLotOperations(lot._id);
@@ -55,10 +57,23 @@ export function WorkSheet({ lot, backHref, onSaved }) {
 function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backHref, onSaved }) {
   const toast = useToast();
   const lotPieces = workPiecesOf(lot);
-  const [sheet, setSheet] = useState(() => emptyWorkSheet(offer.operations, entries, lotPieces));
   const options = workerOptions(workers);
+  const [sheet, setSheet] = useState(() =>
+    emptyWorkSheet(offer.operations, entries, lotPieces, {
+      team: offer.team,
+      activeIds: new Set(options.map((option) => option.value)),
+    })
+  );
   const problem = workSheetProblem(sheet);
   const totals = workSheetTotals(sheet);
+
+  // The worker menus open upwards rather than behind the sticky total bar: the room it takes is measured from where
+  // it is on screen when a menu opens (the page's own padding keeps it a little above the bottom edge).
+  const footerRef = useRef(null);
+  const footerSpace = useCallback(() => {
+    const footer = footerRef.current;
+    return footer ? window.innerHeight - footer.getBoundingClientRect().top + 4 : 0;
+  }, []);
 
   const setField = (key, value) => setSheet((prev) => ({ ...prev, [key]: value }));
   const updateOperation = (operationId, change) =>
@@ -131,6 +146,31 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
             </span>
           )}
         </p>
+        {sheet.teamFilled > 0 && (
+          <div
+            className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-success-border bg-success-soft px-3 py-2.5 text-sm text-gray-700"
+            data-testid="sheet-team"
+            data-filled={sheet.teamFilled}
+          >
+            <span className="flex flex-1 items-start gap-2">
+              <UserCheck size={16} className="shrink-0 mt-0.5 text-success" />
+              <span>
+                Filled in from the last <b className="text-gray-800">{offer.category}</b> team
+                {offer.team?.lotNumber ? ` (${offer.team.lotNumber})` : ""} · {sheet.teamFilled}{" "}
+                {sheet.teamFilled === 1 ? "operation" : "operations"}. Check the workers and pieces, then save.
+              </span>
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setSheet(clearWorkers)}
+              className="whitespace-nowrap"
+              data-testid="sheet-clear"
+            >
+              Clear workers
+            </Button>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label htmlFor="sheet-date" className={LABEL_CLASS}>
@@ -169,6 +209,15 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
             />
           </div>
         </div>
+        {offer.category && (
+          <Switch
+            checked={sheet.rememberTeam}
+            onChange={(value) => setField("rememberTeam", value)}
+            label={`Remember this team for ${offer.category}`}
+            description={`The next ${offer.category} invoice opens with these workers already filled in.`}
+            testId="sheet-remember"
+          />
+        )}
       </motion.div>
 
       <motion.div
@@ -187,6 +236,7 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
               op={op}
               lotPieces={lotPieces}
               options={options}
+              menuInset={footerSpace}
               onRate={(rate) => updateOperation(op.operationId, (prev) => ({ ...prev, rate }))}
               onRow={(rowIndex, patch) => setRow(op.operationId, rowIndex, patch)}
               onAddRow={() => addRow(op.operationId)}
@@ -198,7 +248,7 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
       </motion.div>
 
       {/* One line even on a phone, so the sheet keeps the screen; "Back" at the top replaces Cancel there. */}
-      <div className="sticky bottom-0 z-20 pb-1">
+      <div ref={footerRef} className="sticky bottom-0 z-20 pb-1" data-testid="sheet-bar">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-gray-100">
           <div
             className="min-w-0"
@@ -244,7 +294,7 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
 }
 
 /** One operation of the sheet: rate, what is done / left, and its worker rows. */
-function SheetOperation({ op, lotPieces, options, onRate, onRow, onAddRow, onRemoveRow, onSplit }) {
+function SheetOperation({ op, lotPieces, options, menuInset, onRate, onRow, onAddRow, onRemoveRow, onSplit }) {
   const picked = new Set(op.rows.map((row) => row.workerId).filter(Boolean));
   return (
     <section
@@ -299,6 +349,8 @@ function SheetOperation({ op, lotPieces, options, onRate, onRow, onAddRow, onRem
                 placeholder="Select worker"
                 ariaLabel={`${op.name} worker`}
                 testId="sheet-worker"
+                portal
+                bottomInset={menuInset}
               />
             </div>
             <div className="col-span-2 row-start-2 grid grid-cols-[5rem_auto_minmax(0,1fr)] gap-2 items-center @2xl:contents">

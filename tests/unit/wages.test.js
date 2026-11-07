@@ -12,6 +12,10 @@ import {
   recoveryProblem,
   splitEvenly,
   summarizeWages,
+  mergeTeam,
+  splitByWeight,
+  teamFromSheet,
+  teamRowsFor,
   workBatches,
   workByInvoice,
   workByWorker,
@@ -19,7 +23,14 @@ import {
   workSheetProblem,
   workSheetTotals,
 } from "@/constants/wages";
-import { emptyWorkSheet, fillWorker, splitOperation, toWorkSheetPayload, workerWorkLine } from "@/features/wages/utils";
+import {
+  clearWorkers,
+  emptyWorkSheet,
+  fillWorker,
+  splitOperation,
+  toWorkSheetPayload,
+  workerWorkLine,
+} from "@/features/wages/utils";
 import { buildWageAdjustment, buildWorkEntry, workEntryEditOps } from "@/lib/wages";
 import { operationSchema, workAssignmentSchema, workerSchema, wageAdjustmentSchema } from "@/lib/validation";
 import { dateRangeFromFilter } from "@/lib/dates";
@@ -148,6 +159,7 @@ describe("work sheet", () => {
       lotId: "lot1",
       date: ready.date,
       note: "shift 2",
+      rememberTeam: true,
       operations: [
         {
           operationId: "o2",
@@ -160,6 +172,91 @@ describe("work sheet", () => {
         { operationId: "o3", rate: 2, rows: [{ workerId: "w1", pieces: 120, payType: "fixed", amount: 1000 }] },
       ],
     });
+  });
+});
+
+describe("category team (last time's workers fill the next invoice)", () => {
+  it("splits pieces in the same proportion as last time", () => {
+    expect(splitByWeight(120, [60, 60])).toEqual([60, 60]);
+    expect(splitByWeight(100, [60, 30])).toEqual([67, 33]);
+    expect(splitByWeight(10, [1, 1, 1])).toEqual([4, 3, 3]);
+    expect(splitByWeight(7, [0, 0])).toEqual([4, 3]);
+    expect(splitByWeight(5, [])).toEqual([]);
+  });
+
+  it("builds the team from a saved sheet and merges it by operation", () => {
+    const saved = teamFromSheet([
+      {
+        operationId: "o1",
+        rows: [
+          { workerId: "w1", pieces: 60 },
+          { workerId: "w2", pieces: 60, payType: "piece" },
+        ],
+      },
+      { operationId: "o2", rows: [{ workerId: "w3", pieces: 120, payType: "fixed", amount: 650 }] },
+    ]);
+    expect(saved).toEqual([
+      {
+        operationId: "o1",
+        rows: [
+          { workerId: "w1", weight: 60, payType: "piece" },
+          { workerId: "w2", weight: 60, payType: "piece" },
+        ],
+      },
+      { operationId: "o2", rows: [{ workerId: "w3", weight: 120, payType: "fixed", amount: 650 }] },
+    ]);
+    const previous = [
+      { operationId: "o2", rows: [{ workerId: "w9", weight: 1, payType: "piece" }] },
+      { operationId: "o3", rows: [{ workerId: "w4", weight: 1, payType: "piece" }] },
+    ];
+    // o2 is replaced by this save, o3 (not on this sheet) keeps its team
+    expect(
+      mergeTeam(previous, saved).map((item) => [item.operationId, item.rows.map((r) => r.workerId).join()])
+    ).toEqual([
+      ["o3", "w4"],
+      ["o1", "w1,w2"],
+      ["o2", "w3"],
+    ]);
+  });
+
+  it("fills a new invoice's sheet: active workers only, pieces left split by weight, done operations untouched", () => {
+    const item = {
+      operationId: "o1",
+      rows: [
+        { workerId: "w1", weight: 60, payType: "piece" },
+        { workerId: "w2", weight: 30, payType: "piece" },
+        { workerId: "w3", weight: 30, payType: "fixed", amount: 500 },
+      ],
+    };
+    expect(teamRowsFor(item, 80, new Set(["w1", "w3"]))).toEqual([
+      { workerId: "w1", pieces: "53", payType: "piece", amount: "" },
+      { workerId: "w3", pieces: "27", payType: "fixed", amount: "500" },
+    ]);
+    expect(teamRowsFor(item, 80, new Set(["w9"]))).toBeNull();
+    expect(teamRowsFor(undefined, 80, null)).toBeNull();
+
+    const offered = [
+      { operationId: "o1", name: "Belt", stage: "stitching", rate: 3.5 },
+      { operationId: "o2", name: "Pocket", stage: "stitching", rate: 4 },
+      { operationId: "o3", name: "Wash", stage: "washing", rate: 2 },
+    ];
+    const team = { items: [item, { operationId: "o2", rows: [{ workerId: "w2", weight: 1, payType: "piece" }] }] };
+    const sheet = emptyWorkSheet(offered, [{ operationId: "o2", pieces: 100 }], 100, {
+      team,
+      activeIds: new Set(["w1", "w2", "w3"]),
+    });
+    expect(sheet.teamFilled).toBe(1); // o2 is already done, o3 has no team
+    expect(sheet.rememberTeam).toBe(true);
+    expect(sheet.operations[0].rows.map((r) => [r.workerId, r.pieces])).toEqual([
+      ["w1", "50"],
+      ["w2", "25"],
+      ["w3", "25"],
+    ]);
+    expect(sheet.operations[1].rows).toEqual([{ workerId: "", pieces: "", payType: "piece", amount: "" }]);
+    expect(workSheetTotals(sheet)).toEqual({ workers: 3, operations: 1, rows: 3, amount: 762.5 }); // 50×3.5 + 25×3.5 + 500
+    const cleared = clearWorkers(sheet);
+    expect(cleared.teamFilled).toBe(0);
+    expect(cleared.operations[0].rows).toEqual([{ workerId: "", pieces: "100", payType: "piece", amount: "" }]);
   });
 });
 
@@ -432,6 +529,7 @@ describe("wage schemas and periods", () => {
       ],
     });
     expect(sheet.operations[1].rows[0]).toMatchObject({ payType: "fixed", amount: 300 });
+    expect(sheet.rememberTeam, "an API call remembers nothing unless asked").toBe(false);
     const fixedNoAmount = {
       lotId: id,
       operations: [{ operationId: id, rows: [{ workerId: id, pieces: 5, payType: "fixed" }] }],

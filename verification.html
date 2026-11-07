@@ -732,7 +732,7 @@ const CH=[
    {id:"w-assign",t:"Invoice par kaam dena (sab operations ek saath)",s:"Invoice page → Work &amp; wages → Assign work",who:"admin",
     steps:["Stitching wala invoice kholein aur “Assign work” dabayein. Naya page khulta hai jis par is invoice ke <b>saare operations</b> ek saath hote hain (rate card wale, apne rate ke saath).","Har operation ke saamne karigar chunein. Pieces khud bhar jate hain (jitne baqi hain). Ek operation par do karigar hon to “Add worker”, phir “Split … evenly”.","Saara kaam ek hi karigar ka ho to upar “One worker for every open operation” se ek click mein sab bhar dein.","Pay chunein: <b>Per pc</b> (pieces × rate) ya <b>Fixed</b> (theka / dihari — kul raqam khud likhein).","Neeche total dekhein (kitne karigar, kitne operations, kul raqam) aur “<b>Save work</b>” dabayein — sab ek hi dafa save."],
     ok:"Invoice page par wapas aa jate hain: kul mazdoori, aur rate card ho to har operation ka haal (misaal: <b>Overlock 98/98 ✓</b>). Neeche “Operations / Workers / History” se dekhein: kis karigar ne kya kiya, kitne paise aur kis tareeqe se, aur har save kab aur kis ne kiya.",
-    tip:"Jis operation par karigar na chuna ho woh save nahi hota; baad mein dobara “Assign work” se baqi kaam de sakte hain."},
+    tip:"Jis operation par karigar na chuna ho woh save nahi hota. Save par yeh karigar us category ki <b>team</b> ban jate hain (“Remember this team” ON ho to): agli dafa usi category ki invoice par woh khud bhar jate hain — “Clear workers” se hata sakte hain."},
    {id:"w-wages",t:"Salary dekhna",s:"Wages",who:"admin",
     steps:["Menu mein “Wages” kholein.","This Week, Last Week, 15 Days, This Month ya Custom chunein.","Kisi karigar ki row par click karein."],
     ok:"Har karigar ka <b>Net payable</b>; click par us ke kaam ki tafseel. “Print” aur “Download CSV” se kaghaz ya file."},
@@ -852,8 +852,8 @@ const DAILY=[
 ];
 
 
-const UPD={key:"updates",icon:"spark",title:"Updates",date:"6 November 2026",who:["admin"],
-  intro:"6 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, aur Workers page se hi <b>nayi category</b> banana. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
+const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–7 November 2026",who:["admin"],
+  intro:"6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
   groups:[
   {title:"Category banana (har pant ki apni category)",icon:"list",
    what:"Ab category <b>Workers</b> page se hi banti hai — Inventory jane ki zaroorat nahi. Banate hi us ka <b>rate card</b> khulta hai jahan is category ke operations aur un ke rate chunte hain. Yehi category Inventory mein bhi aa jati hai.",
@@ -891,6 +891,20 @@ const UPD={key:"updates",icon:"spark",title:"Updates",date:"6 November 2026",who
      steps:["Neeche total dekhein: <b>kitne karigar, kitne operations, kul raqam</b>.","“<b>Save work</b>” dabayein."],
      ok:"Sab <b>ek hi dafa</b> save hota hai, upar “Work saved · … workers” ka message aata hai aur invoice ka page wapas khulta hai.",
      tip:"Jis operation par karigar na chuna ho woh save nahi hota; baad mein dobara “Assign work” se baqi kaam de sakte hain."},
+   ]},
+  {title:"Pichli team khud aa jati hai (7 Nov)",icon:"users",
+   what:"Ek category (misaal: Simple Pent) ki invoice par jo karigar jis operation par lagaye, system woh <b>team yaad rakhta hai</b>. Agli dafa <b>usi category</b> ki invoice par “Assign work” kholte hi wahi karigar <b>khud bhar jate hain</b> — pieces pichli dafa wale tanasub se (misaal: 60/40). Aap sirf dekh kar <b>Save</b> karte hain; paise khud nahi lagte.",
+   tasks:[
+    {id:"u-team-save",t:"Team yaad rakhna",s:"Assign work → Remember this team",who:"admin",
+     steps:["Kisi invoice par “Assign work” kholein (article ki category honi chahiye, misaal: Simple Pent).","Upar “<b>Remember this team for Simple Pent</b>” ka switch dekhein — yeh pehle se ON hota hai.","Karigar chun kar “Save work” dabayein."],
+     ok:"Kaam save hota hai aur yeh karigar <b>Simple Pent ki team</b> ban jate hain. Jis operation par is dafa karigar nahi chuna, us ki purani team waise hi rehti hai."},
+    {id:"u-team-next",t:"Agli invoice par team khud",s:"Nayi Simple Pent invoice → Assign work",who:"admin",
+     steps:["Usi category ki <b>doosri</b> invoice kholein (ya nayi cutting entry ke baad).","“Assign work” dabayein."],
+     ok:"Upar hara (green) dabba: “<b>Filled in from the last Simple Pent team (INV-…)</b>”. Har operation mein wahi karigar pehle se chune hote hain, aur pieces naye invoice ke hisaab se usi tanasub mein bat jate hain. Neeche total bhi tayyar hota hai — check karein aur “Save work”."},
+    {id:"u-team-clear",t:"Aaj team alag hai?",s:"Clear workers",who:"admin",
+     steps:["Team wali sheet par “<b>Clear workers</b>” dabayein.","Ya sirf jo karigar aaj nahi hai us ki line ka 🗑️ daba kar doosra chunein."],
+     ok:"“Clear workers” se saari lines khaali ho jati hain aur aap naye sire se chun sakte hain. Save karne par yahi nayi team agli dafa ke liye yaad rehti hai (switch ON ho to).",
+     tip:"Jo karigar “inactive” kar diya ho woh team se khud nikal jata hai. Switch OFF kar ke save karein to team nahi badalti."},
    ]},
   {title:"Kaam ki history (invoice page)",icon:"scroll",
    what:"Invoice page ke “<b>Work &amp; wages</b>” card mein ab teen tab hain, taake pata rahe <b>kis invoice par kitne karigar the</b> aur un ko <b>kis tareeqe se</b> paise diye gaye.",
@@ -933,6 +947,7 @@ const FAQ=[
  ["Pehle “Lot” likha aata tha, ab “Invoice” kyun?","Client ki hidayat par jahan “Lot” likha tha wahan ab <b>Invoice</b> likha aata hai: menu, gate pass, reports sab jagah. Number system khud banata hai (<b>INV-1001, INV-1002 …</b>). Purani entries ka number bhi badal diya gaya hai, ginti wahi hai (LOT-1001 ab INV-1001 hai)."],
  ["Cutting gate pass kab banta hai?","Jaise hi cutting master (ya admin) cutting entry <b>Save</b> karta hai, usi waqt cutting gate pass khud ban jata hai — is par invoice no., article, cut no., sizes, pieces, shrinkage aur fabric hote hain. Invoice ke page par “Gate passes” mein Print dabayein. Agar baad mein cutting ki detail (sizes, bundle, shrinkage, fabric) edit ki jaye to naya cutting pass ban jata hai aur purana “Old” likha aata hai. Stitching gate pass “Send to stitching” par aur washing gate pass washing ko maal jaate waqt alag se bante hain — teeno alag alag hain."],
  ["Kaam dete waqt “Fixed” kab chunein?","Jab karigar ko pieces ke hisaab se nahi balke tay shuda raqam par kaam diya ho (theka ya dihari). Sheet mein us karigar ki row par “Fixed” dabayein aur kul raqam likhein; salary mein wahi raqam judti hai aur invoice ki history mein “Fixed amount” likha aata hai."],
+ ["Assign work kholte hi karigar pehle se kyun chune hue hain?","Yeh us category (misaal: Simple Pent) ki <b>pichli team</b> hai — pichli dafa jo karigar jis operation par lagaye the. Theek ho to bas “Save work” dabayein; aaj team alag ho to “Clear workers” dabayein ya line badal dein. Kuch bhi Save dabaye baghair darj nahi hota."],
  ["Gate pass dobara print karna hai?","Invoice ka page kholein → neeche “Gate passes” → Print. Jitni dafa chahein."],
  ["Vendor delete nahi ho raha?","Jis vendor ki payments Ledger mein darj hon woh delete nahi hota, taake us ka khata na bigray. Pehle us ki payments hatayein (agar ghalat thin)."],
  ["Phone par kaise chalayein?","Wahi link phone ke browser mein kholein. Menu upar ☰ wale button mein hai. Sab kuch phone par bhi chalta hai."],

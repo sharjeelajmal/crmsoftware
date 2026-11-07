@@ -117,13 +117,15 @@ export function CustomDropdown({
   );
 }
 
+// `itemHeight` (px) estimates a menu's height before it is on screen; once shown it is measured.
 const SELECT_SIZES = {
-  md: { wrap: "relative w-full", button: "w-full p-3 rounded-xl", icon: 20, item: "px-4 py-2" },
+  md: { wrap: "relative w-full", button: "w-full p-3 rounded-xl", icon: 20, item: "px-4 py-2", itemHeight: 40 },
   sm: {
     wrap: "relative inline-block",
     button: "gap-1 px-2 py-1 rounded-md text-xs",
     icon: 14,
     item: "px-3 py-1.5 text-sm",
+    itemHeight: 32,
   },
   // Month / year in a calendar caption (CalendarDropdown).
   calendar: {
@@ -131,29 +133,37 @@ const SELECT_SIZES = {
     button: "gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold",
     icon: 16,
     item: "px-3 py-1.5 text-sm",
+    itemHeight: 32,
   },
 };
 const MENU_MAX_HEIGHT = 240;
 const MENU_MIN_WIDTH = 128;
+const MENU_GAP = 4; // between the button and its menu
 const MENU_CLASS = "bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto py-1";
 
-/** Fixed-position box for a portaled menu: below the button, or above it when there is no room below. */
-const menuBoxFor = (button, optionCount) => {
+/**
+ * Fixed-position box for a portaled menu: below the button, or above it when there is no room below. `menuHeight` is
+ * the menu's measured height (0 before it is on screen: estimated from the options). `bottomInset` (px) is screen
+ * space at the bottom that something else covers (a sticky bar), so it does not count as room.
+ */
+const menuBoxFor = (button, { optionCount, itemHeight, menuHeight = 0, bottomInset = 0 }) => {
   const rect = button.getBoundingClientRect();
   const width = Math.max(rect.width, MENU_MIN_WIDTH);
-  const below = window.innerHeight - rect.bottom;
-  const needed = Math.min(MENU_MAX_HEIGHT, optionCount * 36 + 8);
+  const below = window.innerHeight - bottomInset - rect.bottom - MENU_GAP;
+  const needed = menuHeight || Math.min(MENU_MAX_HEIGHT, optionCount * itemHeight + 8);
   const up = below < needed && rect.top > below;
   const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
   return up
-    ? { up, style: { left, minWidth: width, bottom: window.innerHeight - rect.top + 4 } }
-    : { up, style: { left, minWidth: width, top: rect.bottom + 4 } };
+    ? { up, style: { left, minWidth: width, bottom: window.innerHeight - rect.top + MENU_GAP } }
+    : { up, style: { left, minWidth: width, top: rect.bottom + MENU_GAP } };
 };
 
 /**
  * Dropdown over `{ value, label, short? }` options (vendors, products, sizes…).
  * - `size="sm"`: compact trigger for table cells (shows `short` when an option has one).
- * - `portal`: renders the menu on <body> with fixed positioning, so tables/modals with `overflow` can't clip it.
+ * - `portal`: renders the menu on <body> with fixed positioning, so tables/modals with `overflow` can't clip it;
+ *   it opens upwards when there is no room below. `bottomInset` is a sticky bar at the bottom of the screen that
+ *   the menu must not open behind: its height in px, or a function measuring it when the menu opens.
  * - Keyboard: ↑/↓ open and move, Enter/Space pick, Esc closes. The selected option is highlighted.
  */
 export function SelectDropdown({
@@ -163,6 +173,7 @@ export function SelectDropdown({
   placeholder = "Select...",
   size = "md",
   portal = false,
+  bottomInset = 0,
   className = "",
   testId,
   ariaLabel,
@@ -188,16 +199,28 @@ export function SelectDropdown({
   useClickOutside([ref, menuRef], close);
 
   const place = useCallback(() => {
-    if (buttonRef.current) setBox(menuBoxFor(buttonRef.current, options.length));
-  }, [options.length]);
+    if (!buttonRef.current) return;
+    const inset = typeof bottomInset === "function" ? bottomInset() : bottomInset;
+    setBox(
+      menuBoxFor(buttonRef.current, {
+        optionCount: options.length,
+        itemHeight: styles.itemHeight,
+        menuHeight: menuRef.current?.offsetHeight ?? 0,
+        bottomInset: Math.max(0, Number(inset) || 0),
+      })
+    );
+  }, [options.length, styles.itemHeight, bottomInset]);
 
-  // A portaled menu follows its button while anything scrolls or the window resizes.
+  // A portaled menu follows its button while anything scrolls or the window resizes. It is placed once from an
+  // estimate and again on the next frame, when its real height is known.
   useEffect(() => {
     if (!isOpen || !portal) return undefined;
     place();
+    const frame = requestAnimationFrame(place);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };

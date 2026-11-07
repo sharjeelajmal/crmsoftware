@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { badRequest } from "@/lib/api";
+import { mergeTeam } from "@/constants/wages";
 
 /**
  * Category rate cards — server helpers. Collection `operation_sets`: one document per category
@@ -35,6 +36,35 @@ export async function lotCategory(db, lot, session) {
     .collection("products")
     .findOne({ _id: new ObjectId(lot.productId) }, { projection: { category: 1 }, session });
   return product?.category || "";
+}
+
+/**
+ * Category teams (`work_teams`): one document per category `{ category, items: [{ operationId, rows: [{ workerId,
+ * weight, payType, amount? }] }], lotNumber, updatedAt, updatedBy }` — the workers last saved for each operation of
+ * that category (see the team rules in src/constants/wages.js). Ids are kept as strings.
+ */
+export const WORK_TEAMS = "work_teams";
+
+export const teamOf = (db, category, session) =>
+  category ? db.collection(WORK_TEAMS).findOne({ category }, { session }) : null;
+
+/** Stores the operations of a saved sheet as the category's team; the category's other operations keep theirs. */
+export async function rememberTeam(db, { category, items, lot, actor, session }) {
+  if (!category || items.length === 0) return;
+  const previous = await teamOf(db, category, session);
+  await db.collection(WORK_TEAMS).updateOne(
+    { category },
+    {
+      $set: {
+        category,
+        items: mergeTeam(previous?.items, items),
+        lotNumber: lot.lotNumber,
+        updatedAt: new Date(),
+        updatedBy: actor,
+      },
+    },
+    { upsert: true, session }
+  );
 }
 
 /** Replaces a category's rate card (an empty list removes it). Every operation must exist. */
