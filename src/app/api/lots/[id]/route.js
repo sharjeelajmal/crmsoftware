@@ -2,7 +2,17 @@ import { ObjectId } from "mongodb";
 import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, parseBody, requireObjectId, notFound, forbidden, conflict } from "@/lib/api";
 import { lotUpdateSchema } from "@/lib/validation";
-import { buildLotEvent, canDeleteLot, canEditCutting, canViewLot, cutQtyOf, isAdmin, lotEvents } from "@/lib/lots";
+import {
+  buildLotEvent,
+  canEditCutting,
+  canViewLot,
+  cutQtyOf,
+  deleteProblem,
+  isAdmin,
+  lotEvents,
+  requireRunning,
+} from "@/lib/lots";
+import { returnReadyStock } from "@/lib/production";
 import { CUTTING_EVENT_TYPES } from "@/constants/lots";
 import { issueGatePass } from "@/lib/gatepass";
 import { cuttingPassChanged } from "@/constants/gatepass";
@@ -38,6 +48,7 @@ export const PUT = route(
       const lot = await db.collection("lots").findOne({ _id }, { session: tx });
       if (!lot) throw notFound("Invoice");
       if (!canViewLot(lot, session)) throw forbidden();
+      requireRunning(lot);
       if (!canEditCutting(lot, session)) throw conflict("Invoice can only be edited before stitching starts");
 
       const $set = { updatedAt: new Date() };
@@ -65,7 +76,7 @@ export const PUT = route(
         .insertOne(buildLotEvent(_id, "edited", session, { qty: $set.cutQty ?? lot.cutQty }), { session: tx });
       const next = { ...lot, ...$set };
       const gatePasses = cuttingPassChanged(lot, next)
-        ? [await issueGatePass(db, tx, { lot: next, type: "cutting", session })]
+        ? [await issueGatePass(db, tx, { lot: next, type: "cutting", action: "cutting", session })]
         : [];
       return { ...next, gatePasses };
     });
@@ -75,18 +86,35 @@ export const PUT = route(
   { roles: ALL_ROLES }
 );
 
-/** DELETE /api/lots/:id — admin only, only before production started (its cutting gate passes go with it). */
+/**
+ * DELETE /api/lots/:id — admin only, at any stage (client, 2026-11-09), in one transaction: pieces still in stock go
+ * back out, and its history, gate passes and work entries (wages) are removed. Loose items / B-pair entries stay in
+ * the register without the link. Refused once pieces were dispatched (deleteProblem). Returns what was removed.
+ */
 export const DELETE = route(async (_request, { session, ...context }) => {
   const _id = await requireObjectId(context);
 
-  await withTransaction(async (db, tx) => {
+  const removed = await withTransaction(async (db, tx) => {
     const lot = await db.collection("lots").findOne({ _id }, { session: tx });
     if (!lot) throw notFound("Invoice");
-    if (!canDeleteLot(lot, session)) throw conflict("Only invoices at the cutting stage can be deleted");
+    const problem = deleteProblem(lot);
+    if (problem) throw conflict(problem);
+
+    const stockReturned = lot.stockApplied
+      ? await returnReadyStock(db, tx, { lot, note: `${lot.lotNumber} deleted`, session })
+      : 0;
+    const passes = await db.collection("gate_passes").deleteMany({ lotId: _id }, { session: tx });
+    const work = await db.collection("work_entries").deleteMany({ lotId: _id }, { session: tx });
     await db.collection("lot_events").deleteMany({ lotId: _id }, { session: tx });
-    await db.collection("gate_passes").deleteMany({ lotId: _id }, { session: tx });
+    await db
+      .collection("ledger_entries")
+      .updateMany({ lotId: _id }, { $set: { lotId: null, updatedAt: new Date() } }, { session: tx });
+    await db
+      .collection("products")
+      .updateMany({ "lastProduction.lotId": _id }, { $unset: { lastProduction: "" } }, { session: tx });
     await db.collection("lots").deleteOne({ _id }, { session: tx });
+    return { gatePasses: passes.deletedCount, workEntries: work.deletedCount, stockReturned };
   });
 
-  return ok({ deleted: true });
+  return ok({ deleted: true, ...removed });
 });

@@ -1,7 +1,7 @@
 import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, created, parseBody, requireObjectId, notFound, forbidden, conflict } from "@/lib/api";
 import { gatePassIssueSchema } from "@/lib/validation";
-import { canViewLot, isAdmin } from "@/lib/lots";
+import { canViewLot, isAdmin, requireRunning } from "@/lib/lots";
 import { CUTTING_GATE_PASS_TYPES } from "@/constants/lots";
 import { canIssueGatePass, GATE_PASS_LABELS } from "@/constants/gatepass";
 import { issueGatePass, lotGatePasses } from "@/lib/gatepass";
@@ -36,13 +36,14 @@ export const POST = route(async (request, context) => {
   const pass = await withTransaction(async (db, tx) => {
     const lot = await db.collection("lots").findOne({ _id }, { session: tx });
     if (!lot) throw notFound("Invoice");
+    requireRunning(lot);
     if (!canIssueGatePass(lot, type)) {
       throw conflict(`${GATE_PASS_LABELS[type]} can only be issued once the invoice has reached ${type}`);
     }
     if (type === "washing" && washType) {
       await db.collection("lots").updateOne({ _id }, { $set: { washType, updatedAt: new Date() } }, { session: tx });
     }
-    return issueGatePass(db, tx, { lot, type, washType, session });
+    return issueGatePass(db, tx, { lot, type, washType, action: "manual", session });
   });
 
   return created(pass);

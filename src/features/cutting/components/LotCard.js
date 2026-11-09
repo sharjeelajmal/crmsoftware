@@ -7,6 +7,7 @@ import { itemVariants } from "@/constants/animations";
 import { formatDate } from "@/lib/format";
 import { formatPieces } from "../utils";
 import { LotStageBadge } from "./LotStageBadge";
+import { StoppedChip } from "@/features/lots/components/StoppedChip";
 
 const CARD_CLASS =
   "flex items-center gap-4 p-4 sm:p-5 bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-300";
@@ -23,6 +24,7 @@ export function LotCard({ lot, href, showStage = true }) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="font-bold text-gray-800">{lot.lotNumber}</span>
             {showStage && <LotStageBadge stage={lot.stage} />}
+            <StoppedChip lot={lot} />
             {lot.bundleNumber && <span className="text-xs font-semibold text-gray-500">Cut {lot.bundleNumber}</span>}
           </div>
           <p className="text-gray-700 truncate mt-0.5">{lot.productName}</p>

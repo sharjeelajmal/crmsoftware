@@ -84,11 +84,23 @@ export function WorkPanel({ lot }) {
             )}
           </p>
         </div>
-        <Link href={`/lots/${lot._id}/work`} className="w-full sm:w-auto">
-          <Button icon={UserPlus} className="w-full" data-testid="lot-assign-work">
+        {lot.hold ? (
+          <Button
+            icon={UserPlus}
+            disabled
+            className="w-full sm:w-auto"
+            data-tip="Stopped — resume the invoice first"
+            data-testid="lot-assign-work"
+          >
             Assign work
           </Button>
-        </Link>
+        ) : (
+          <Link href={`/lots/${lot._id}/work`} className="w-full sm:w-auto">
+            <Button icon={UserPlus} className="w-full" data-testid="lot-assign-work">
+              Assign work
+            </Button>
+          </Link>
+        )}
       </div>
 
       {progress.length > 0 && (

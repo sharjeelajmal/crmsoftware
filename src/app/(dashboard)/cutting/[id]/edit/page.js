@@ -30,7 +30,7 @@ export default function EditCuttingEntryPage() {
     );
   }
 
-  if (lot.stage !== "cutting") {
+  if (lot.stage !== "cutting" || lot.hold) {
     return (
       <div
         className="max-w-3xl mx-auto bg-white p-6 sm:p-8 rounded-2xl shadow-sm text-center space-y-4"
@@ -38,7 +38,11 @@ export default function EditCuttingEntryPage() {
       >
         <Lock size={40} className="mx-auto text-gray-400" />
         <h1 className="text-2xl font-bold text-gray-800">{lot.lotNumber} can no longer be edited</h1>
-        <p className="text-gray-600">Cutting details are locked once the invoice has left cutting.</p>
+        <p className="text-gray-600">
+          {lot.hold
+            ? "The invoice is stopped by the admin; it can be edited again once it is resumed."
+            : "Cutting details are locked once the invoice has left cutting."}
+        </p>
         <Link href={detailHref} className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
           <ArrowLeft size={16} /> Back to {lot.lotNumber}
         </Link>

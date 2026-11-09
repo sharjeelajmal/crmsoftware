@@ -2,6 +2,7 @@ import { withTransaction } from "@/lib/mongodb";
 import { route, created, parseBody, requireObjectId, notFound } from "@/lib/api";
 import { dispatchOutSchema } from "@/lib/validation";
 import { dispatchReadyLot } from "@/lib/dispatch";
+import { requireRunning } from "@/lib/lots";
 
 /**
  * POST /api/lots/:id/dispatch-out  { party, sizes: [{ size, qty }], note? } — admin.
@@ -15,6 +16,7 @@ export const POST = route(async (request, { session, ...context }) => {
   const result = await withTransaction(async (db, tx) => {
     const lot = await db.collection("lots").findOne({ _id }, { session: tx });
     if (!lot) throw notFound("Invoice");
+    requireRunning(lot);
     return dispatchReadyLot(db, tx, { lot, party, sizes, note, session });
   });
 

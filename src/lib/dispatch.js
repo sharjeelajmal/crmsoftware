@@ -75,6 +75,7 @@ export async function dispatchReadyLot(db, tx, { lot, party, sizes, note, sessio
   const pass = await issueGatePass(db, tx, {
     lot,
     type: "dispatch",
+    action: "dispatch",
     pieces,
     partial: pieces < balance.left,
     sizes: rows,

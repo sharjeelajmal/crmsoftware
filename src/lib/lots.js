@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import { ROLES, normalizeRole } from "@/constants/roles";
+import { conflict } from "@/lib/api";
 
 /**
  * Production lots: one lot = one article (product), cut into sizes, moving through
@@ -26,6 +27,11 @@ import {
   lotShortfall,
   distributeBySizes,
   readySizesProblem,
+  isStopped,
+  stoppedProblem,
+  previousStage,
+  reversePlan,
+  deleteProblem,
 } from "@/constants/lots";
 
 export {
@@ -45,6 +51,11 @@ export {
   lotShortfall,
   distributeBySizes,
   readySizesProblem,
+  isStopped,
+  stoppedProblem,
+  previousStage,
+  reversePlan,
+  deleteProblem,
 };
 
 export const isAdmin = (session) => normalizeRole(session?.role) === ROLES.ADMIN;
@@ -57,8 +68,14 @@ export const canViewLot = (lot, session) => isAdmin(session) || isOwner(lot, ses
 /** Cutting data may only change while the lot is still at the cutting stage. */
 export const canEditCutting = (lot, session) => lot?.stage === "cutting" && (isAdmin(session) || isOwner(lot, session));
 
-/** Only admins delete, and only before production started. */
-export const canDeleteLot = (lot, session) => lot?.stage === "cutting" && isAdmin(session);
+/** Only admins delete; any stage, unless pieces were dispatched (see deleteProblem). */
+export const canDeleteLot = (lot, session) => isAdmin(session) && !deleteProblem(lot);
+
+/** 409 while the invoice is stopped: every action that moves it on or adds to it calls this first. */
+export function requireRunning(lot) {
+  const problem = stoppedProblem(lot);
+  if (problem) throw conflict(problem);
+}
 
 /** Highest lot sequence so far, 0 when there are no lots. */
 export async function latestLotSeq(db, session) {

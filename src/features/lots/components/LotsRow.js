@@ -7,6 +7,7 @@ import { itemVariants } from "@/constants/animations";
 import { formatDate } from "@/lib/format";
 import { formatPieces } from "@/features/cutting/utils";
 import { LotStageBadge } from "@/features/cutting/components/LotStageBadge";
+import { StoppedChip } from "./StoppedChip";
 
 /** Column widths shared with the table header. */
 export const LOTS_COLUMNS = {
@@ -39,7 +40,10 @@ export function LotsRow({ lot }) {
           hover:shadow-md transition-shadow"
       >
         <div className="flex items-center justify-between md:contents">
-          <span className={`font-bold text-gray-800 ${LOTS_COLUMNS.lot}`}>{lot.lotNumber}</span>
+          <span className={`flex flex-wrap items-center gap-1.5 font-bold text-gray-800 ${LOTS_COLUMNS.lot}`}>
+            {lot.lotNumber}
+            <StoppedChip lot={lot} />
+          </span>
           <span className="md:hidden">
             <LotStageBadge stage={lot.stage} />
           </span>

@@ -1,7 +1,7 @@
 import { withTransaction } from "@/lib/mongodb";
 import { route, ok, parseBody, requireObjectId, notFound, conflict } from "@/lib/api";
 import { lotDispatchSchema } from "@/lib/validation";
-import { buildLotEvent, lotEvents } from "@/lib/lots";
+import { buildLotEvent, lotEvents, requireRunning } from "@/lib/lots";
 import { dispatchProblem } from "@/constants/gatepass";
 import { issueGatePass, lotGatePasses } from "@/lib/gatepass";
 
@@ -19,6 +19,7 @@ export const POST = route(async (request, context) => {
   const result = await withTransaction(async (db, tx) => {
     const lot = await db.collection("lots").findOne({ _id }, { session: tx });
     if (!lot) throw notFound("Invoice");
+    requireRunning(lot);
     const problem = dispatchProblem(lot, pieces);
     if (problem) throw conflict(problem);
 
@@ -28,6 +29,7 @@ export const POST = route(async (request, context) => {
       washType,
       pieces,
       partial: true,
+      action: "stitch_out",
       session,
     });
     const $set = { updatedAt: new Date(), ...(washType ? { washType } : {}) };

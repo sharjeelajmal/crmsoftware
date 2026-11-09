@@ -1,18 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { AnimatePresence } from "framer-motion";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowLeft, PauseCircle } from "lucide-react";
+import { itemVariants } from "@/constants/animations";
 import { errorMessage } from "@/lib/api-client";
 import { clearAsyncDataCache } from "@/hooks/useAsyncData";
 import { Loader } from "@/components/ui/Loader";
-import { Button } from "@/components/ui/Button";
-import { ConfirmDialog } from "@/components/ui/Dialogs";
 import { useLotDetail } from "@/features/cutting/hooks/useLotDetail";
-import { useDeleteLot } from "@/features/lots/hooks/useDeleteLot";
 import { LotDetail } from "@/features/cutting/components/LotDetail";
+import { LotActions } from "@/features/lots/components/LotActions";
 import { StageActionPanel } from "@/features/lots/components/StageActionPanel";
 import { ShortfallPanel } from "@/features/lots/components/ShortfallPanel";
 import { WorkPanel } from "@/features/wages/components/WorkPanel";
@@ -22,8 +20,6 @@ export default function AdminLotPage() {
   const { id } = useParams();
   const router = useRouter();
   const { lot, isLoading, error, reload } = useLotDetail(id);
-  const { deleteLot, isDeleting } = useDeleteLot();
-  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (isLoading) return <Loader />;
 
@@ -38,68 +34,45 @@ export default function AdminLotPage() {
     );
   }
 
-  const handleDelete = async () => {
-    const ok = await deleteLot(lot._id);
-    setConfirmDelete(false);
-    if (ok) router.push("/lots");
-  };
-
-  // The stage endpoint returns the updated lot with its events; the cached copy is stale, so refetch.
+  // Stage moves, reverse, stop and resume answer with the updated lot; the cached copy is stale, so refetch.
   const handleStageUpdated = () => {
     clearAsyncDataCache(`lot:${lot._id}`);
     reload();
   };
 
-  const canDelete = lot.stage === "cutting";
-
   return (
-    <>
-      <AnimatePresence>
-        {confirmDelete && (
-          <ConfirmDialog
-            title={`Delete ${lot.lotNumber}?`}
-            message="The cutting entry and its history will be removed. This cannot be undone."
-            confirmLabel={isDeleting ? "Deleting…" : "Delete invoice"}
-            onConfirm={isDeleting ? undefined : handleDelete}
-            onCancel={() => setConfirmDelete(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      <LotDetail
-        lot={lot}
-        backHref="/lots"
-        backLabel="Invoices"
-        editHref={`/cutting/${lot._id}/edit`}
-        canIssueGatePass
-        actions={
-          canDelete ? (
-            <Button
-              variant="danger"
-              icon={Trash2}
-              onClick={() => setConfirmDelete(true)}
-              data-testid="lot-delete"
-              className="w-full sm:w-auto"
-            >
-              Delete invoice
-            </Button>
-          ) : null
-        }
-        afterPipeline={
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-              <div className="lg:col-span-3">
+    <LotDetail
+      lot={lot}
+      backHref="/lots"
+      backLabel="Invoices"
+      editHref={`/cutting/${lot._id}/edit`}
+      canIssueGatePass
+      actions={<LotActions lot={lot} onChanged={handleStageUpdated} onDeleted={() => router.push("/lots")} />}
+      afterPipeline={
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+            <div className="lg:col-span-3">
+              {lot.hold ? (
+                <motion.div
+                  variants={itemVariants}
+                  className="h-full flex items-center gap-3 bg-white p-4 sm:p-6 rounded-2xl shadow-sm text-sm text-gray-600"
+                  data-testid="lot-stage-stopped"
+                >
+                  <PauseCircle size={20} className="shrink-0 text-amber-600" />
+                  The invoice is stopped. Press “Resume” at the top to continue with the next step.
+                </motion.div>
+              ) : (
                 <StageActionPanel lot={lot} onUpdated={handleStageUpdated} />
-              </div>
-              <div className="lg:col-span-2">
-                <ShortfallPanel lot={lot} ledgerHref={`/ledger?lot=${lot._id}`} />
-              </div>
+              )}
             </div>
-            {lot.stage === "ready" && <DispatchOutPanel lot={lot} onUpdated={handleStageUpdated} />}
-            <WorkPanel lot={lot} />
-          </>
-        }
-      />
-    </>
+            <div className="lg:col-span-2">
+              <ShortfallPanel lot={lot} ledgerHref={`/ledger?lot=${lot._id}`} />
+            </div>
+          </div>
+          {lot.stage === "ready" && !lot.hold && <DispatchOutPanel lot={lot} onUpdated={handleStageUpdated} />}
+          <WorkPanel lot={lot} />
+        </>
+      }
+    />
   );
 }

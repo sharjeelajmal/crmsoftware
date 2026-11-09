@@ -25,7 +25,8 @@ export const stageIndex = (stage) => STAGES.indexOf(stage);
  * What a cutting master may see of a lot after cutting (client, 2026-10-29): only its own history entries and the
  * cutting gate pass — never where the pieces went next.
  */
-export const CUTTING_EVENT_TYPES = Object.freeze(["created", "edited"]);
+// "stopped" / "resumed" are shown too: a stopped entry can't be edited, and the cutting master should know why.
+export const CUTTING_EVENT_TYPES = Object.freeze(["created", "edited", "stopped", "resumed"]);
 export const CUTTING_GATE_PASS_TYPES = Object.freeze(["cutting"]);
 
 /** Next stage in the pipeline, or null when the lot is already ready. */
@@ -131,6 +132,83 @@ export function lotShortfall(lot) {
     lastQty: washed ?? stitched ?? cut,
   };
 }
+
+// ---- Stop, reverse and delete from any stage (client, Rashid, 2026-11-09) -------------------------------------
+// The admin can stop an invoice wherever it is, take it back one stage, or delete it at any stage.
+
+/** A stopped invoice: no stage move, gate pass, gate pass out, dispatch, work or cutting edit until it is resumed. */
+export const isStopped = (lot) => Boolean(lot?.hold);
+
+/** Why an action can't run on a stopped invoice, or "" while it runs. */
+export const stoppedProblem = (lot) => (isStopped(lot) ? `${lot.lotNumber} is stopped — resume it first` : "");
+
+/** The stage "Reverse" takes an invoice back to, or null at the first stage. */
+export const previousStage = (stage) => (stageIndex(stage) > 0 ? STAGES[stageIndex(stage) - 1] : null);
+
+const dispatchedOf = (lot) => Number(lot?.dispatchQty) || 0;
+
+const latestEventAt = (events, type) =>
+  events
+    .filter((event) => event.type === type)
+    .reduce((latest, event) => (!latest || new Date(event.at) > latest ? new Date(event.at) : latest), null);
+
+/**
+ * What "Reverse" undoes at the invoice's stage — the last move forward:
+ * - stitching → cutting: back before "Send to stitching"; its stitching gate pass and any washing passes for pieces
+ *   sent out of stitching are cancelled, and nothing counts as sent out any more;
+ * - washing → stitching: the stitched pieces are cleared and the washing pass issued with them is cancelled (passes
+ *   for pieces sent out earlier stay — those pieces are still out);
+ * - packing → washing: the washed pieces are cleared;
+ * - ready → packing: the pieces go back out of stock (`stock: true`), not once any of them were dispatched.
+ * Gate passes are never deleted, only marked cancelled. Work entries are not touched.
+ * `passes` are the invoice's gate passes and `events` its history (for passes issued before passes kept their action).
+ * Returns `{ to, set, cancel, stock }` or `{ problem }`.
+ */
+export function reversePlan(lot, passes = [], events = []) {
+  const to = previousStage(lot?.stage);
+  if (!to) return { problem: "The invoice is at the first stage — there is nothing to reverse" };
+  const open = passes.filter((pass) => !pass.cancelled);
+  switch (lot.stage) {
+    case "stitching":
+      return {
+        to,
+        set: { stage: to, stitchOutQty: 0 },
+        cancel: open.filter((pass) => pass.type === "stitching" || pass.type === "washing"),
+        stock: false,
+      };
+    case "washing": {
+      const stitchedAt = latestEventAt(events, "stitched");
+      const issuedWithStitched = (pass) =>
+        pass.action ? pass.action === "stitched" : Boolean(stitchedAt) && new Date(pass.issuedAt) >= stitchedAt;
+      return {
+        to,
+        set: { stage: to, stitchedQty: null },
+        cancel: open.filter((pass) => pass.type === "washing" && issuedWithStitched(pass)),
+        stock: false,
+      };
+    }
+    case "packing":
+      return { to, set: { stage: to, washedQty: null }, cancel: [], stock: false };
+    case "ready":
+      if (dispatchedOf(lot) > 0) {
+        return {
+          problem: `${dispatchedOf(lot)} pieces of ${lot.lotNumber} were already dispatched — it can't be reversed`,
+        };
+      }
+      return { to, set: null, cancel: [], stock: Boolean(lot.stockApplied) };
+    default:
+      return { problem: `Unknown stage "${lot.stage}"` };
+  }
+}
+
+/**
+ * Why an invoice can't be deleted, or "". Any stage can be deleted (its gate passes, history and work entries go,
+ * pieces in stock come back out), except once pieces were dispatched: the record of what left the factory stays.
+ */
+export const deleteProblem = (lot) =>
+  dispatchedOf(lot) > 0
+    ? `${dispatchedOf(lot)} pieces of ${lot.lotNumber} were dispatched — the invoice stays as the record of what left the factory`
+    : "";
 
 // ---- Ready for sale: size distribution (Phase 3) ------------------------------
 /**

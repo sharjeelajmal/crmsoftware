@@ -438,7 +438,7 @@ test("Phase 2: admin moves a lot cutting → stitching → washing → packing w
   expect(res.body.stage, "stage after washed").toBe("packing");
   expect(res.body.events.map((e) => e.type).join(","), "history").toBe("created,sent_stitching,stitched,washed");
 
-  expect((await api(S.admin, "DELETE", `/api/lots/${id}`)).status, "no delete after cutting").toBe(409);
+  expect((await api(S.cutter, "DELETE", `/api/lots/${id}`)).status, "only the admin deletes").toBe(403);
   expect((await api(S.cutter, "PUT", `/api/lots/${id}`, { note: "x" })).status, "no edit after cutting").toBe(409);
 });
 
@@ -527,10 +527,6 @@ test("Phase 3: Ready for Sale adds stock per size once, reverse takes it back", 
   expect(reversed.body.stockApplied, "stock flag cleared").toBe(false);
   product = (await api(S.admin, "GET", "/api/products")).body.find((p) => p._id === S.productId);
   expect(product.remaining, "stock restored").toBe(before.remaining);
-  expect(
-    (await api(S.admin, "POST", `/api/lots/${id}/reverse`, { reason: "again" })).status,
-    "second reverse refused"
-  ).toBe(409);
 
   // can be marked ready again after a reverse (proportional split when sizes omitted)
   const again = await api(S.admin, "POST", `/api/lots/${id}/stage`, { action: "ready", qty: 100 });
@@ -839,6 +835,117 @@ test("Work sheet: every operation of an invoice in one save, per-piece and fixed
   expect(edited.rate, "600 / 120").toBe(5);
 
   for (const entry of entries) await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
+});
+
+test("Stop, reverse and delete an invoice from any stage", async () => {
+  const product = await api(S.admin, "POST", "/api/products", {
+    name: "E2E Control Pent",
+    category: "E2E Control Cat",
+    purchasePrice: 500,
+    salePrice: 900,
+  });
+  S.ids.products.push(product.body._id);
+  const stockOf = async () =>
+    (await api(S.admin, "GET", "/api/products")).body.find((p) => p._id === product.body._id).remaining;
+  const startStock = await stockOf();
+  const created = await api(S.cutter, "POST", "/api/lots", {
+    productId: product.body._id,
+    fabric: { name: "E2E Control Denim", qty: 10, unit: "m" },
+    sizes: [{ size: "30", qty: 50 }],
+  });
+  expect(created.status, "invoice").toBe(201);
+  const id = created.body._id;
+  S.ids.lots.push(id);
+  const stage = (action, extra = {}) => api(S.admin, "POST", `/api/lots/${id}/stage`, { action, ...extra });
+  const reverse = (reason) => api(S.admin, "POST", `/api/lots/${id}/reverse`, { reason });
+  const workers = (await api(S.admin, "GET", "/api/workers")).body;
+  const akram = workers.find((w) => w.name === "E2E Akram");
+  const belt = (await api(S.admin, "GET", "/api/operations")).body.operations.find((o) => o.name === "E2E Belt");
+  expect((await stage("send_stitching")).status, "to stitching").toBe(200);
+
+  // stop: nothing moves on and nothing is added until it is resumed
+  expect((await api(S.cutter, "POST", `/api/lots/${id}/hold`, {})).status, "admin only").toBe(403);
+  const stopped = await api(S.admin, "POST", `/api/lots/${id}/hold`, { reason: "waiting for buttons" });
+  expect(stopped.status, "stop").toBe(200);
+  expect(stopped.body.hold.reason, "reason kept").toBe("waiting for buttons");
+  expect((await api(S.admin, "POST", `/api/lots/${id}/hold`, {})).status, "already stopped").toBe(409);
+  expect((await stage("stitched", { qty: 50 })).status, "no next step").toBe(409);
+  expect((await api(S.admin, "POST", `/api/lots/${id}/dispatch`, { pieces: 10 })).status, "no gate pass out").toBe(409);
+  expect(
+    (await api(S.admin, "POST", `/api/lots/${id}/gate-passes`, { type: "stitching" })).status,
+    "no gate pass"
+  ).toBe(409);
+  expect(
+    (
+      await api(S.admin, "POST", "/api/work-entries", {
+        lotId: id,
+        operationId: belt._id,
+        rows: [{ workerId: akram._id, pieces: 5 }],
+      })
+    ).status,
+    "no work"
+  ).toBe(409);
+  const cutterView = (await api(S.cutter, "GET", `/api/lots/${id}`)).body;
+  expect(
+    cutterView.events.some((e) => e.type === "stopped"),
+    "the cutting master sees it stopped"
+  ).toBe(true);
+  const resumed = await api(S.admin, "DELETE", `/api/lots/${id}/hold`);
+  expect(resumed.status, "resume").toBe(200);
+  expect(resumed.body.hold, "running again").toBe(null);
+  expect((await api(S.admin, "DELETE", `/api/lots/${id}/hold`)).status, "not stopped").toBe(409);
+
+  // 20 pieces go out of stitching, then 48 are received: a partial and a final washing pass
+  expect((await api(S.admin, "POST", `/api/lots/${id}/dispatch`, { pieces: 20 })).status, "gate pass out").toBe(200);
+  expect((await stage("stitched", { qty: 48 })).status, "stitched").toBe(200);
+
+  // reverse washing → stitching: the final washing pass is cancelled, the 20 sent out stay out
+  expect((await api(S.admin, "POST", `/api/lots/${id}/reverse`, {})).status, "reason required").toBe(400);
+  let back = await reverse("counted wrong");
+  expect(back.status, "reverse").toBe(200);
+  expect(back.body.stage, "back to stitching").toBe("stitching");
+  expect(back.body.stitchedQty, "stitched pieces cleared").toBe(null);
+  expect(back.body.stitchOutQty, "the 20 are still out").toBe(20);
+  expect(
+    back.body.gatePasses
+      .filter((p) => p.cancelled)
+      .map((p) => `${p.type}:${p.pieces}`)
+      .join(),
+    "only the final washing pass cancelled"
+  ).toBe("washing:28");
+
+  // reverse stitching → cutting: the stitching pass and the partial washing pass are cancelled too
+  back = await reverse("sent by mistake");
+  expect(back.body.stage, "back to cutting").toBe("cutting");
+  expect(back.body.stitchOutQty, "nothing counts as sent out").toBe(0);
+  expect(back.body.gatePasses.filter((p) => p.cancelled).length, "three passes cancelled").toBe(3);
+  expect(back.body.gatePasses.find((p) => p.type === "cutting").cancelled, "the cutting pass stays").toBeUndefined();
+  expect(back.body.events.filter((e) => e.type === "stepped_back").length, "two reverses in the history").toBe(2);
+  expect((await reverse("again")).status, "nothing before cutting").toBe(409);
+
+  // forward again to ready: fresh passes, stock in
+  expect((await stage("send_stitching")).status, "to stitching again").toBe(200);
+  expect((await stage("stitched", { qty: 50 })).status, "stitched again").toBe(200);
+  expect((await stage("washed", { qty: 50 })).status, "washed").toBe(200);
+  expect((await stage("ready", { qty: 50 })).status, "ready").toBe(200);
+  expect(await stockOf(), "50 in stock").toBe(startStock + 50);
+  const work = await api(S.admin, "POST", "/api/work-entries", {
+    lotId: id,
+    operationId: belt._id,
+    rows: [{ workerId: akram._id, pieces: 50 }],
+  });
+  expect(work.status, "work").toBe(201);
+
+  // delete at ready: stock back out, passes, history and work entries gone
+  expect((await api(S.cutter, "DELETE", `/api/lots/${id}`)).status, "cutter can't delete").toBe(403);
+  const removed = await api(S.admin, "DELETE", `/api/lots/${id}`);
+  expect(removed.status, "delete").toBe(200);
+  expect(removed.body.stockReturned, "stock returned").toBe(50);
+  expect(removed.body.workEntries, "work entry removed").toBe(1);
+  expect(removed.body.gatePasses >= 6, "passes removed").toBe(true);
+  expect(await stockOf(), "stock back").toBe(startStock);
+  expect((await api(S.admin, "GET", `/api/lots/${id}`)).status, "gone").toBe(404);
+  expect((await api(S.admin, "GET", `/api/work-entries?lotId=${id}`)).body.length, "no wages left").toBe(0);
 });
 
 test("Category team: a remembered sheet fills the next invoice of the same category", async () => {
@@ -1633,6 +1740,7 @@ test("Dispatch: ready pieces leave in parts with a dispatch gate pass, out of th
     (await api(S.admin, "POST", `/api/lots/${id}/reverse`, { reason: "oops" })).status,
     "no reverse once pieces left"
   ).toBe(409);
+  expect((await api(S.admin, "DELETE", `/api/lots/${id}`)).status, "no delete once pieces left").toBe(409);
   const parties = await api(S.admin, "GET", "/api/gate-passes/parties");
   expect(parties.body.includes("E2E Shop") && parties.body.includes("E2E Market"), "parties remembered").toBe(true);
   expect(
@@ -1931,11 +2039,19 @@ uiTest(
     const pocketOp = page.locator('[data-testid="sheet-op"][data-operation="E2E Pocket"]');
     expect(await pocketOp.locator('[data-testid="sheet-rate"]').inputValue(), "rate prefilled").toBe("4");
     expect(await pocketOp.getAttribute("data-left"), "98 pcs left").toBe("98");
-    // the last worker menu opens upwards, above the sticky total bar, not behind it
+    // the last worker menu is never hidden behind the sticky total bar: drawn on top, and opening upwards above it
     const lastWorker = page.locator('[data-testid="sheet-worker"] button').last();
+    await page.waitForTimeout(600); // the sheet slides in on load
     await page.locator("main").evaluate((main) => main.scrollTo(0, main.scrollHeight));
+    await page.waitForTimeout(300);
     await lastWorker.click();
     await page.waitForTimeout(300); // let the menu finish sliding in
+    const onTop = await page.evaluate(() => {
+      const menu = document.querySelector(".dropdown-portal").getBoundingClientRect();
+      const hit = document.elementFromPoint(menu.left + menu.width / 2, menu.bottom - 6);
+      return Boolean(hit?.closest(".dropdown-portal"));
+    });
+    expect(onTop, "last menu drawn on top").toBe(true);
     const menuBox = await page.locator(".dropdown-portal").boundingBox();
     const barBox = await page.locator('[data-testid="sheet-bar"]').boundingBox();
     expect(menuBox.y + menuBox.height <= barBox.y, "last menu above the total bar").toBe(true);
@@ -2176,6 +2292,58 @@ uiTest(
     await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent(product.category)}`, { items: [] });
   }
 );
+
+uiTest("UI: admin stops, resumes, reverses and deletes an invoice from its page", async (page) => {
+  const created = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "E2E UI Control", qty: 5, unit: "m" },
+    sizes: [{ size: "30", qty: 12 }],
+  });
+  const id = created.body._id;
+  S.ids.lots.push(id);
+  for (const [action, extra] of [
+    ["send_stitching", {}],
+    ["stitched", { qty: 12 }],
+  ]) {
+    expect((await api(S.admin, "POST", `/api/lots/${id}/stage`, { action, ...extra })).status, action).toBe(200);
+  }
+  await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+  await page.goto(`${BASE}/lots/${id}`);
+  await page.waitForSelector('[data-testid="lot-detail"][data-stage="washing"]', { timeout: 60_000 });
+
+  // stop: banner, chip, no next step; resume brings it back
+  await page.click('[data-testid="lot-stop"]');
+  await page.fill('[data-testid="lot-stop-reason"]', "waiting for buttons");
+  await page.click('[data-testid="lot-stop-confirm"]');
+  await page.waitForSelector('[data-testid="lot-hold-banner"]', { timeout: 60_000 });
+  expect(await page.locator('[data-testid="lot-hold-banner"]').innerText(), "reason shown").toContain(
+    "waiting for buttons"
+  );
+  expect(await page.locator('[data-testid="lot-stage-stopped"]').count(), "no next step while stopped").toBe(1);
+  expect((await page.locator('[data-testid="lot-stopped-chip"]').count()) > 0, "stopped chip").toBe(true);
+  await page.click('[data-testid="lot-resume"]');
+  await page.waitForSelector('[data-testid="lot-hold-banner"]', { state: "detached", timeout: 60_000 });
+  await page.waitForSelector('[data-testid="lot-stage-panel"]', { timeout: 60_000 });
+
+  // reverse washing → stitching: the popup says what happens, the washing pass is cancelled
+  await page.click('[data-testid="lot-reverse-step"]');
+  await page.waitForSelector('[data-testid="lot-reverse-lines"] li', { timeout: 60_000 });
+  expect(await page.locator('[data-testid="lot-reverse-lines"]').innerText(), "explains").toContain("Stitching");
+  await page.fill('[data-testid="lot-reverse-reason"]', "e2e step back");
+  await page.click('[data-testid="lot-reverse-confirm"]');
+  await page.waitForSelector('[data-testid="lot-detail"][data-stage="stitching"]', { timeout: 60_000 });
+  await page.waitForSelector('[data-testid="gate-pass-row"][data-cancelled="true"]', { timeout: 60_000 });
+
+  // delete past cutting needs the invoice number typed
+  const { lotNumber } = (await api(S.admin, "GET", `/api/lots/${id}`)).body;
+  await page.click('[data-testid="lot-delete"]');
+  await page.waitForSelector('[data-testid="lot-delete-lines"] li', { timeout: 60_000 });
+  expect(await page.isDisabled('[data-testid="lot-delete-confirm"]'), "locked until typed").toBe(true);
+  await page.fill('[data-testid="lot-delete-typed"]', lotNumber.toLowerCase());
+  await page.click('[data-testid="lot-delete-confirm"]');
+  await page.waitForURL((url) => url.pathname === "/lots", { timeout: 60_000 });
+  expect((await api(S.admin, "GET", `/api/lots/${id}`)).status, "deleted").toBe(404);
+});
 
 uiTest("UI (Phase 7): the lot page lists gate passes and the preview shows both phone numbers", async (page) => {
   const lot = (await api(S.admin, "GET", "/api/lots")).body.find((l) => l.note === "phase7");

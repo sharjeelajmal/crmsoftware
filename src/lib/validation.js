@@ -335,6 +335,11 @@ export const lotReverseSchema = z.object({
   reason: trimmed(500),
 });
 
+/** Stopping an invoice: the reason is optional ("waiting for buttons", "party cancelled"…). */
+export const lotHoldSchema = z.object({
+  reason: optionalText(500),
+});
+
 export const lotsQuerySchema = z.object({
   stage: z.enum(LOT_STAGES).optional(),
   mine: z.enum(["1", "true"]).optional(),

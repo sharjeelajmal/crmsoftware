@@ -84,9 +84,10 @@ describe("permissions", () => {
     expect(canEditCutting({ ...lot, stage: "stitching" }, cutter)).toBe(false);
   });
 
-  it("only admins delete, and only before production", () => {
+  it("only admins delete, at any stage, but not once pieces were dispatched", () => {
     expect(canDeleteLot(lot, admin)).toBe(true);
     expect(canDeleteLot(lot, cutter)).toBe(false);
-    expect(canDeleteLot({ ...lot, stage: "washing" }, admin)).toBe(false);
+    expect(canDeleteLot({ ...lot, stage: "washing" }, admin)).toBe(true);
+    expect(canDeleteLot({ ...lot, stage: "ready", dispatchQty: 5 }, admin)).toBe(false);
   });
 });

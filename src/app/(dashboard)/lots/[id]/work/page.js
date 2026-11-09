@@ -49,7 +49,17 @@ export default function LotWorkPage() {
           everything in one go.
         </p>
       </motion.div>
-      <WorkSheet lot={lot} backHref={backHref} onSaved={() => router.push(backHref)} />
+      {lot.hold ? (
+        <motion.div
+          variants={itemVariants}
+          className="bg-white p-6 rounded-2xl shadow-sm text-center text-gray-600"
+          data-testid="work-sheet-stopped"
+        >
+          {lot.lotNumber} is stopped. Resume it on the invoice page to assign work.
+        </motion.div>
+      ) : (
+        <WorkSheet lot={lot} backHref={backHref} onSaved={() => router.push(backHref)} />
+      )}
     </motion.div>
   );
 }

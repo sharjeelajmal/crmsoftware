@@ -37,6 +37,9 @@ export const EVENT_LABELS = {
   ready: "Ready for sale — stock added",
   reversed: "Ready reversed",
   dispatched_out: "Dispatched (gate pass out)",
+  stopped: "Stopped",
+  resumed: "Resumed",
+  stepped_back: "Reversed one stage",
 };
 
 export const eventLabel = (type) => EVENT_LABELS[type] || type;

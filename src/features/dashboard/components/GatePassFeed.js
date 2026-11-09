@@ -54,6 +54,7 @@ export function GatePassFeed({ passes, className = "" }) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-800 truncate">
                       {pass.number}
+                      {pass.cancelled && <span className="ml-1 text-xs font-semibold text-danger">Cancelled</span>}
                       <span className="font-normal text-gray-500">
                         {" "}
                         · {pass.lotNumber} · {pass.productName}

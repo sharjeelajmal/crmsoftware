@@ -4,6 +4,7 @@ import { route, ok, created, parseBody, parseQuery } from "@/lib/api";
 import { workAssignmentSchema, workEntriesQuerySchema } from "@/lib/validation";
 import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
 import { actorOf, buildWorkEntry, requireLot, requireOperations, requireWorkers } from "@/lib/wages";
+import { requireRunning } from "@/lib/lots";
 import { lotCategory, rateCardOf, rememberTeam } from "@/lib/operations";
 import { cardRateOf } from "@/constants/operations";
 import { teamFromSheet } from "@/constants/wages";
@@ -39,6 +40,7 @@ export const POST = route(async (request, { session }) => {
   const docs = await withTransaction(async (db, txn) => {
     // One after the other: operations of a transaction share its session and must not run in parallel.
     const lot = await requireLot(db, input.lotId, txn);
+    requireRunning(lot);
     const operations = await requireOperations(
       db,
       input.operations.map((op) => op.operationId),

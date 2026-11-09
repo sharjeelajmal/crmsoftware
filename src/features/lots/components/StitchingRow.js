@@ -7,6 +7,7 @@ import { itemVariants } from "@/constants/animations";
 import { stitchBalanceOf, stitchOutQtyOf } from "@/constants/lots";
 import { Button } from "@/components/ui/Button";
 import { formatDate } from "@/lib/format";
+import { StoppedChip } from "./StoppedChip";
 
 /** One lot in the stitching unit: received, sent out, lying (with a bar) and the "Gate pass out" action. */
 export function StitchingRow({ lot, onDispatch }) {
@@ -26,9 +27,12 @@ export function StitchingRow({ lot, onDispatch }) {
       data-lying={lying}
     >
       <div className="md:flex-1 min-w-0">
-        <Link href={`/lots/${lot._id}`} className="font-bold text-primary hover:underline">
-          {lot.lotNumber}
-        </Link>
+        <span className="flex flex-wrap items-center gap-1.5">
+          <Link href={`/lots/${lot._id}`} className="font-bold text-primary hover:underline">
+            {lot.lotNumber}
+          </Link>
+          <StoppedChip lot={lot} />
+        </span>
         <p className="text-sm text-gray-700 truncate">{lot.productName}</p>
         <p className="text-xs text-gray-500">
           {lot.bundleNumber ? `Cut ${lot.bundleNumber} · ` : ""}since {formatDate(lot.updatedAt || lot.createdAt)}
@@ -61,7 +65,8 @@ export function StitchingRow({ lot, onDispatch }) {
         size="sm"
         icon={Send}
         onClick={() => onDispatch(lot)}
-        disabled={lying <= 0}
+        disabled={lying <= 0 || Boolean(lot.hold)}
+        data-tip={lot.hold ? "Stopped — resume the invoice first" : undefined}
         className="w-full md:w-auto whitespace-nowrap"
         data-testid="stitching-row-dispatch"
       >

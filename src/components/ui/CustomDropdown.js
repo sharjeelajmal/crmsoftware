@@ -198,33 +198,35 @@ export function SelectDropdown({
   }, []);
   useClickOutside([ref, menuRef], close);
 
-  const place = useCallback(() => {
-    if (!buttonRef.current) return;
-    const inset = typeof bottomInset === "function" ? bottomInset() : bottomInset;
-    setBox(
-      menuBoxFor(buttonRef.current, {
-        optionCount: options.length,
-        itemHeight: styles.itemHeight,
-        menuHeight: menuRef.current?.offsetHeight ?? 0,
-        bottomInset: Math.max(0, Number(inset) || 0),
-      })
-    );
-  }, [options.length, styles.itemHeight, bottomInset]);
-
-  // A portaled menu follows its button while anything scrolls or the window resizes. It is placed once from an
-  // estimate and again on the next frame, when its real height is known.
+  // While open, a portaled menu follows its button every frame: scrolling, resizing, the page still sliding in, or rows
+  // added above all move the button. It is placed from an estimate first and from its real height once it is on
+  // screen. Only an actual move re-renders.
+  const optionCount = options.length;
+  const itemHeight = styles.itemHeight;
   useEffect(() => {
     if (!isOpen || !portal) return undefined;
-    place();
-    const frame = requestAnimationFrame(place);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+    let frame = 0;
+    let last = "";
+    const follow = () => {
+      if (buttonRef.current) {
+        const inset = typeof bottomInset === "function" ? bottomInset() : bottomInset;
+        const next = menuBoxFor(buttonRef.current, {
+          optionCount,
+          itemHeight,
+          menuHeight: menuRef.current?.offsetHeight ?? 0,
+          bottomInset: Math.max(0, Number(inset) || 0),
+        });
+        const key = JSON.stringify(next);
+        if (key !== last) {
+          last = key;
+          setBox(next);
+        }
+      }
+      frame = requestAnimationFrame(follow);
     };
-  }, [isOpen, portal, place]);
+    follow();
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, portal, optionCount, itemHeight, bottomInset]);
 
   const openMenu = () => {
     setIsOpen(true);

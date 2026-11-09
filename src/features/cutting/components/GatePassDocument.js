@@ -51,6 +51,14 @@ export function GatePassDocument({ pass, id = "gate-pass-print" }) {
         >
           {GATE_PASS_LABELS[pass.type] || "Gate pass"}
         </p>
+        {pass.cancelled && (
+          <p
+            style={{ margin: "6px 0 0", color: "var(--color-danger)", fontWeight: 800, letterSpacing: "2px" }}
+            data-testid="gate-pass-cancelled-mark"
+          >
+            CANCELLED
+          </p>
+        )}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", margin: "12px 0", fontSize: "13px" }}>

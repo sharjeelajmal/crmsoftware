@@ -22,7 +22,12 @@ export function GatePassesCard({ lot, canIssue = false, types = null }) {
   const passes = types ? all.filter((pass) => types.includes(pass.type)) : all;
   const [open, setOpen] = useState(null);
   const missing = ISSUABLE_GATE_PASS_TYPES.filter(
-    (type) => canIssue && !isLoading && canIssueGatePass(lot, type) && !passes.some((pass) => pass.type === type)
+    (type) =>
+      canIssue &&
+      !lot?.hold &&
+      !isLoading &&
+      canIssueGatePass(lot, type) &&
+      !passes.some((pass) => pass.type === type && !pass.cancelled)
   );
   // An edit of the cutting details issues a fresh cutting pass; the older ones stay listed but are marked old.
   const latestCutting = passes.reduce(
@@ -76,6 +81,7 @@ export function GatePassesCard({ lot, canIssue = false, types = null }) {
         <ul className="divide-y divide-gray-100 rounded-xl border border-gray-100">
           {passes.map((pass) => {
             const replaced = pass.type === "cutting" && latestCutting && pass.seq < latestCutting.seq;
+            const cancelled = Boolean(pass.cancelled);
             return (
               <li
                 key={pass._id}
@@ -84,10 +90,19 @@ export function GatePassesCard({ lot, canIssue = false, types = null }) {
                 data-number={pass.number}
                 data-type={pass.type}
                 data-replaced={replaced ? "true" : undefined}
+                data-cancelled={cancelled ? "true" : undefined}
               >
-                <span className={`flex-grow min-w-0 ${replaced ? "opacity-60" : ""}`}>
+                <span className={`flex-grow min-w-0 ${replaced || cancelled ? "opacity-60" : ""}`}>
                   <span className="font-semibold text-gray-800">{pass.number}</span>
                   <span className="text-gray-600"> · {GATE_PASS_LABELS[pass.type]}</span>
+                  {cancelled && (
+                    <span
+                      className="ml-1.5 inline-block rounded-md bg-danger-soft px-1.5 py-0.5 text-[11px] font-semibold text-danger"
+                      data-testid="gate-pass-cancelled"
+                    >
+                      Cancelled
+                    </span>
+                  )}
                   {replaced && (
                     <span
                       className="ml-1.5 inline-block rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600"

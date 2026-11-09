@@ -20,6 +20,8 @@ export async function nextGatePassSeq(db, session) {
 /**
  * `pieces` overrides the default (partial passes); `partial: true` marks a pass that carried only part of the lot.
  * A dispatch pass brings its own `sizes` (what goes out), the `party` it goes to, its `cost` and a `note`.
+ * `action` names what issued it (send_stitching, stitched, stitch_out, dispatch, manual, cutting), so "Reverse" knows
+ * which passes to cancel.
  */
 export function buildGatePass({
   lot,
@@ -32,6 +34,7 @@ export function buildGatePass({
   party = "",
   cost = null,
   note = "",
+  action = "",
   session,
   now = new Date(),
 }) {
@@ -57,6 +60,7 @@ export function buildGatePass({
       : null,
     washType: type === "washing" ? washType || lot.washType || "" : "",
     ...(type === "dispatch" ? { party, cost, note } : {}),
+    ...(action ? { action } : {}),
     issuedBy: { id: session?.sub ?? null, name: session?.name ?? "" },
     issuedAt: now,
   };
@@ -68,6 +72,21 @@ export async function issueGatePass(db, tx, { lot, type, session, ...details }) 
   const doc = buildGatePass({ lot, type, seq, session, ...details });
   const { insertedId } = await db.collection("gate_passes").insertOne(doc, { session: tx });
   return { _id: insertedId, ...doc };
+}
+
+/**
+ * Marks passes cancelled (a "Reverse" undid what they carried). Printed numbers never change and nothing is deleted:
+ * the pass stays listed, marked cancelled, with when, by whom and why.
+ */
+export async function cancelGatePasses(db, tx, passes, { reason = "", session, now = new Date() }) {
+  if (passes.length === 0) return;
+  await db
+    .collection("gate_passes")
+    .updateMany(
+      { _id: { $in: passes.map((pass) => new ObjectId(pass._id)) }, cancelled: { $exists: false } },
+      { $set: { cancelled: { at: now, by: { id: session?.sub ?? null, name: session?.name ?? "" }, reason } } },
+      { session: tx }
+    );
 }
 
 export const lotGatePasses = (db, lotId, session) =>

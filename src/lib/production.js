@@ -98,6 +98,46 @@ export async function markLotReady(db, tx, { lot, qty, sizes, note, session }) {
   return $set;
 }
 
+/**
+ * Takes an invoice's ready pieces back out of stock (per size when the article tracks sizes) and records each
+ * movement as "lot_reversed", so produced-pieces totals net out. Used by "Reverse" at ready and by delete.
+ * Returns the pieces taken back.
+ */
+export async function returnReadyStock(db, tx, { lot, note, session }) {
+  const product = await db.collection("products").findOne({ _id: new ObjectId(lot.productId) }, { session: tx });
+  if (!product) throw notFound("Product of this invoice");
+
+  const by = actor(session);
+  const movement = (qty, size) =>
+    recordStockMovement(
+      db,
+      {
+        productId: product._id,
+        productName: product.name,
+        qty: -qty,
+        ...(size ? { size } : {}),
+        reason: "lot_reversed",
+        lotId: lot._id,
+        lotNumber: lot.lotNumber,
+        by,
+        note,
+      },
+      tx
+    );
+  const readySizes = Array.isArray(lot.readySizes) ? lot.readySizes : [];
+  if (productTracksSizes(product) && readySizes.length > 0) {
+    for (const row of readySizes) {
+      if (!row.qty) continue;
+      await addStock(db, product._id, -row.qty, { size: row.size, session: tx });
+      await movement(row.qty, row.size);
+    }
+  } else if (lot.readyQty > 0) {
+    await addStock(db, product._id, -lot.readyQty, { session: tx });
+    await movement(lot.readyQty);
+  }
+  return Number(lot.readyQty) || 0;
+}
+
 export async function reverseLotReady(db, tx, { lot, reason, session }) {
   if (lot.stage !== "ready" || !lot.stockApplied)
     throw conflict(`${lot.lotNumber} is not in stock, nothing to reverse`);
@@ -105,48 +145,7 @@ export async function reverseLotReady(db, tx, { lot, reason, session }) {
     throw conflict(`${lot.dispatchQty} pieces of ${lot.lotNumber} were already dispatched — it can't be reversed`);
   }
 
-  const product = await db.collection("products").findOne({ _id: new ObjectId(lot.productId) }, { session: tx });
-  if (!product) throw notFound("Product of this invoice");
-
-  const by = actor(session);
-  const readySizes = Array.isArray(lot.readySizes) ? lot.readySizes : [];
-  if (productTracksSizes(product) && readySizes.length > 0) {
-    for (const row of readySizes) {
-      if (!row.qty) continue;
-      await addStock(db, product._id, -row.qty, { size: row.size, session: tx });
-      await recordStockMovement(
-        db,
-        {
-          productId: product._id,
-          productName: product.name,
-          qty: -row.qty,
-          size: row.size,
-          reason: "lot_reversed",
-          lotId: lot._id,
-          lotNumber: lot.lotNumber,
-          by,
-          note: reason,
-        },
-        tx
-      );
-    }
-  } else if (lot.readyQty > 0) {
-    await addStock(db, product._id, -lot.readyQty, { session: tx });
-    await recordStockMovement(
-      db,
-      {
-        productId: product._id,
-        productName: product.name,
-        qty: -lot.readyQty,
-        reason: "lot_reversed",
-        lotId: lot._id,
-        lotNumber: lot.lotNumber,
-        by,
-        note: reason,
-      },
-      tx
-    );
-  }
+  await returnReadyStock(db, tx, { lot, note: reason, session });
 
   const now = new Date();
   const $set = { stage: "packing", stockApplied: false, reversedAt: now, reverseReason: reason, updatedAt: now };

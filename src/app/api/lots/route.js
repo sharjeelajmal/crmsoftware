@@ -45,7 +45,7 @@ export const POST = route(
           session: session_,
         });
       const lot = { _id: insertedId, ...doc };
-      const pass = await issueGatePass(db, session_, { lot, type: "cutting", session });
+      const pass = await issueGatePass(db, session_, { lot, type: "cutting", action: "cutting", session });
       return { ...lot, gatePasses: [pass] };
     });
 
