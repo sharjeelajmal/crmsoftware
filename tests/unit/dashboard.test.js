@@ -160,5 +160,8 @@ describe("dashboard: pipeline", () => {
     expect(waiting.map((lot) => lot.lotNumber)).toEqual(["LOT-1002", "LOT-1003", "LOT-1001"]);
     expect(waiting[0]).toMatchObject({ stage: "stitching", pieces: 100, idleDays: 9 });
     expect(waiting[0].idleDays >= IDLE_WARN_DAYS).toBe(true);
+    expect(waiting[0].hold, "running").toBe(null);
+    const stopped = waitingLongest([{ ...lots[1], hold: { reason: "buttons" } }], NOW);
+    expect(stopped[0].hold, "a stopped invoice is shown as stopped").toEqual({ reason: "buttons" });
   });
 });

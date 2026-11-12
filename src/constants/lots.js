@@ -147,6 +147,10 @@ export const previousStage = (stage) => (stageIndex(stage) > 0 ? STAGES[stageInd
 
 const dispatchedOf = (lot) => Number(lot?.dispatchQty) || 0;
 
+// Washing passes that belong to the move into washing: the one issued when stitching was received and any reissue by
+// hand (only possible once the invoice reached washing). "stitch_out" passes carried pieces that are still out.
+const WASHING_MOVE_ACTIONS = Object.freeze(["stitched", "manual"]);
+
 const latestEventAt = (events, type) =>
   events
     .filter((event) => event.type === type)
@@ -156,8 +160,8 @@ const latestEventAt = (events, type) =>
  * What "Reverse" undoes at the invoice's stage — the last move forward:
  * - stitching → cutting: back before "Send to stitching"; its stitching gate pass and any washing passes for pieces
  *   sent out of stitching are cancelled, and nothing counts as sent out any more;
- * - washing → stitching: the stitched pieces are cleared and the washing pass issued with them is cancelled (passes
- *   for pieces sent out earlier stay — those pieces are still out);
+ * - washing → stitching: the stitched pieces are cleared and the washing pass issued with them is cancelled, and so
+ *   is a washing pass reissued by hand since (passes for pieces sent out earlier stay — those pieces are still out);
  * - packing → washing: the washed pieces are cleared;
  * - ready → packing: the pieces go back out of stock (`stock: true`), not once any of them were dispatched.
  * Gate passes are never deleted, only marked cancelled. Work entries are not touched.
@@ -179,7 +183,9 @@ export function reversePlan(lot, passes = [], events = []) {
     case "washing": {
       const stitchedAt = latestEventAt(events, "stitched");
       const issuedWithStitched = (pass) =>
-        pass.action ? pass.action === "stitched" : Boolean(stitchedAt) && new Date(pass.issuedAt) >= stitchedAt;
+        pass.action
+          ? WASHING_MOVE_ACTIONS.includes(pass.action)
+          : Boolean(stitchedAt) && new Date(pass.issuedAt) >= stitchedAt;
       return {
         to,
         set: { stage: to, stitchedQty: null },

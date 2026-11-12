@@ -52,7 +52,8 @@ export default function AdminLotPage() {
         <>
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
             <div className="lg:col-span-3">
-              {lot.hold ? (
+              {/* At ready there is nothing to move on: the Completed card (with its Reverse) stays while stopped. */}
+              {lot.hold && lot.stage !== "ready" ? (
                 <motion.div
                   variants={itemVariants}
                   className="h-full flex items-center gap-3 bg-white p-4 sm:p-6 rounded-2xl shadow-sm text-sm text-gray-600"

@@ -101,7 +101,7 @@ export const DELETE = route(async (_request, { session, ...context }) => {
     if (problem) throw conflict(problem);
 
     const stockReturned = lot.stockApplied
-      ? await returnReadyStock(db, tx, { lot, note: `${lot.lotNumber} deleted`, session })
+      ? await returnReadyStock(db, tx, { lot, note: `${lot.lotNumber} deleted`, session, ifArticleExists: true })
       : 0;
     const passes = await db.collection("gate_passes").deleteMany({ lotId: _id }, { session: tx });
     const work = await db.collection("work_entries").deleteMany({ lotId: _id }, { session: tx });

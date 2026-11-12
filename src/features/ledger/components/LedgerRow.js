@@ -39,7 +39,7 @@ export function LedgerRow({ entry, onEdit, onDelete, onHistory }) {
           <p className="font-semibold break-words">{entry.item}</p>
         </div>
         <p className="text-xs text-gray-300 flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
-          {entry.lotNumber ? (
+          {entry.lotNumber && entry.lotId ? (
             <Link
               href={`/lots/${entry.lotId}`}
               className="inline-flex items-center gap-1 font-semibold text-white hover:underline"
@@ -47,6 +47,11 @@ export function LedgerRow({ entry, onEdit, onDelete, onHistory }) {
             >
               <Layers size={12} /> {entry.lotNumber}
             </Link>
+          ) : entry.lotNumber ? (
+            // the invoice was deleted; the entry stays in the register without the link
+            <span className="inline-flex items-center gap-1 font-semibold" data-testid="ledger-row-lot-deleted">
+              <Layers size={12} /> {entry.lotNumber} (deleted)
+            </span>
           ) : null}
           <span>by {entry.by?.name || "—"}</span>
           {edits > 0 ? <span className="italic">edited ×{edits}</span> : null}

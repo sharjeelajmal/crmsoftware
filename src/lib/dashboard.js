@@ -33,6 +33,7 @@ const LOT_FIELDS = {
   washedQty: 1,
   createdAt: 1,
   updatedAt: 1,
+  hold: 1, // a stopped invoice waits on purpose; the dashboard says so
 };
 
 const sumOf = (rows, field) => rows.reduce((sum, row) => sum + (Number(row[field]) || 0), 0);

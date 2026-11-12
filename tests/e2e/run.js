@@ -936,6 +936,35 @@ test("Stop, reverse and delete an invoice from any stage", async () => {
   });
   expect(work.status, "work").toBe(201);
 
+  // stopped at ready: no dispatch, but "Reverse (take stock back)" still works; then ready again
+  expect((await api(S.admin, "POST", `/api/lots/${id}/hold`, {})).status, "stop at ready").toBe(200);
+  expect(
+    (
+      await api(S.admin, "POST", `/api/lots/${id}/dispatch-out`, {
+        party: "E2E Shop",
+        sizes: [{ size: "30", qty: 1 }],
+      })
+    ).status,
+    "no dispatch while stopped"
+  ).toBe(409);
+  back = await reverse("stock counted twice");
+  expect(back.status, "reverse at ready while stopped").toBe(200);
+  expect(back.body.stage, "back to packing").toBe("packing");
+  expect(await stockOf(), "stock taken back").toBe(startStock);
+  expect((await api(S.admin, "DELETE", `/api/lots/${id}/hold`)).status, "resume").toBe(200);
+  expect((await stage("ready", { qty: 50 })).status, "ready again").toBe(200);
+  expect(await stockOf(), "50 in stock again").toBe(startStock + 50);
+
+  // a B-pair entry of the invoice stays in its register after the delete, without the link
+  const bpair = await api(S.admin, "POST", "/api/ledger", {
+    type: "bpair",
+    item: "E2E control B-pair",
+    qty: 1,
+    lotId: id,
+  });
+  expect(bpair.status, "B-pair entry").toBe(201);
+  S.ids.ledger.push(bpair.body._id);
+
   // delete at ready: stock back out, passes, history and work entries gone
   expect((await api(S.cutter, "DELETE", `/api/lots/${id}`)).status, "cutter can't delete").toBe(403);
   const removed = await api(S.admin, "DELETE", `/api/lots/${id}`);
@@ -946,6 +975,38 @@ test("Stop, reverse and delete an invoice from any stage", async () => {
   expect(await stockOf(), "stock back").toBe(startStock);
   expect((await api(S.admin, "GET", `/api/lots/${id}`)).status, "gone").toBe(404);
   expect((await api(S.admin, "GET", `/api/work-entries?lotId=${id}`)).body.length, "no wages left").toBe(0);
+  const entry = (await api(S.admin, "GET", "/api/ledger?filter=all")).body.entries.find(
+    (e) => e._id === bpair.body._id
+  );
+  expect(entry.lotId, "unlinked").toBe(null);
+  expect(entry.lotNumber, "the number stays on the entry").toBe(created.body.lotNumber);
+
+  // an invoice whose article was deleted (allowed once it was ready) can still be deleted: its stock went with it
+  const gone = await api(S.admin, "POST", "/api/products", {
+    name: "E2E Gone Pent",
+    category: "E2E Control Cat",
+    purchasePrice: 500,
+    salePrice: 900,
+  });
+  const orphan = await api(S.cutter, "POST", "/api/lots", {
+    productId: gone.body._id,
+    fabric: { name: "E2E Control Denim", qty: 2, unit: "m" },
+    sizes: [{ size: "30", qty: 5 }],
+  });
+  S.ids.lots.push(orphan.body._id);
+  for (const [action, extra] of [
+    ["send_stitching", {}],
+    ["stitched", { qty: 5 }],
+    ["washed", { qty: 5 }],
+    ["ready", { qty: 5 }],
+  ]) {
+    const moved = await api(S.admin, "POST", `/api/lots/${orphan.body._id}/stage`, { action, ...extra });
+    expect(moved.status, `orphan ${action}`).toBe(200);
+  }
+  expect((await api(S.admin, "DELETE", `/api/products/${gone.body._id}`)).status, "article deleted").toBe(200);
+  const orphanGone = await api(S.admin, "DELETE", `/api/lots/${orphan.body._id}`);
+  expect(orphanGone.status, "invoice of a deleted article deleted").toBe(200);
+  expect(orphanGone.body.stockReturned, "no stock to take back").toBe(0);
 });
 
 test("Category team: a remembered sheet fills the next invoice of the same category", async () => {
@@ -2062,6 +2123,7 @@ uiTest(
     // worker menus are rendered on <body> (so they can open upwards above the sticky total bar)
     await rows.nth(0).locator('[data-testid="sheet-worker"] button').first().click();
     await page.locator(".dropdown-portal li", { hasText: "E2E Akram" }).click();
+    await page.locator(".dropdown-portal").waitFor({ state: "detached" }); // the first menu has closed
     await rows.nth(1).locator('[data-testid="sheet-worker"] button').first().click();
     await page.locator(".dropdown-portal li", { hasText: "E2E Bilal" }).click();
     expect(await rows.nth(1).locator('[data-testid="sheet-pieces"]').inputValue(), "98 split in two").toBe("49");

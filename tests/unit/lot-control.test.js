@@ -60,6 +60,9 @@ describe("reverse one stage", () => {
     const plan = reversePlan({ stage: "washing", stitchedQty: 118 }, passes);
     expect(plan.set).toEqual({ stage: "stitching", stitchedQty: null });
     expect(plan.cancel.map((p) => p.number)).toEqual(["GP-5"]);
+    // a washing pass reissued by hand at washing goes too
+    const reissued = [...passes, pass("GP-6", "washing", { action: "manual" })];
+    expect(reversePlan({ stage: "washing" }, reissued).cancel.map((p) => p.number)).toEqual(["GP-5", "GP-6"]);
   });
 
   it("washing → stitching for passes issued before passes kept their action: by the time of the stitched entry", () => {

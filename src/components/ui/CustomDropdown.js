@@ -275,7 +275,8 @@ export function SelectDropdown({
       role="listbox"
       initial={{ opacity: 0, y: up ? 8 : -8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: up ? 8 : -8 }}
+      // a closing menu takes no more clicks while it fades out (the next one may already be open)
+      exit={{ opacity: 0, y: up ? 8 : -8, pointerEvents: "none" }}
       transition={{ duration: 0.15 }}
       style={portal ? box?.style : undefined}
       className={portal ? `dropdown-portal fixed ${MENU_CLASS}` : `absolute z-10 w-full mt-2 ${MENU_CLASS}`}

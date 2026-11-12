@@ -6,6 +6,7 @@ import { CircleCheck, Clock, Hourglass } from "lucide-react";
 import { IDLE_WARN_DAYS, compactNumber } from "@/constants/dashboard";
 import { STAGE_LABELS } from "@/constants/lots";
 import { STAGE_BADGE_CLASS } from "@/features/cutting/utils";
+import { StoppedChip } from "@/features/lots/components/StoppedChip";
 import { Panel, PanelEmpty } from "./Panel";
 
 const idleLabel = (days) => (days === 0 ? "moved today" : days === 1 ? "1 day" : `${days} days`);
@@ -55,6 +56,7 @@ export function WaitingLots({ lots, className = "" }) {
                       >
                         {STAGE_LABELS[lot.stage]}
                       </span>
+                      <StoppedChip lot={lot} className="text-[11px]" />
                       {compactNumber(lot.pieces)} pcs
                     </p>
                   </div>

@@ -103,6 +103,7 @@ export const waitingLongest = (lots = [], now = new Date(), limit = LIST_LIMIT) 
       stage: lot.stage,
       pieces: Object.values(piecesByLocation(lot)).reduce((sum, n) => sum + n, 0),
       idleDays: idleDays(lot, now),
+      hold: lot.hold ?? null,
     }))
     .sort((a, b) => b.idleDays - a.idleDays || String(a.lotNumber).localeCompare(String(b.lotNumber)))
     .slice(0, limit);

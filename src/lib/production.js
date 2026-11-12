@@ -101,11 +101,15 @@ export async function markLotReady(db, tx, { lot, qty, sizes, note, session }) {
 /**
  * Takes an invoice's ready pieces back out of stock (per size when the article tracks sizes) and records each
  * movement as "lot_reversed", so produced-pieces totals net out. Used by "Reverse" at ready and by delete.
- * Returns the pieces taken back.
+ * Returns the pieces taken back. `ifArticleExists`: an article that was deleted took its stock with it, so there is
+ * nothing to take back (0) instead of an error.
  */
-export async function returnReadyStock(db, tx, { lot, note, session }) {
+export async function returnReadyStock(db, tx, { lot, note, session, ifArticleExists = false }) {
   const product = await db.collection("products").findOne({ _id: new ObjectId(lot.productId) }, { session: tx });
-  if (!product) throw notFound("Product of this invoice");
+  if (!product) {
+    if (ifArticleExists) return 0;
+    throw notFound("Product of this invoice");
+  }
 
   const by = actor(session);
   const movement = (qty, size) =>
