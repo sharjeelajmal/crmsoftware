@@ -1,7 +1,8 @@
 import { endOfDay, startOfDay, startOfMonth, subDays, subMonths } from "date-fns";
 import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
 import { PRODUCTION_REASONS, producedPiecesInRange } from "@/lib/production";
-import { ADVANCE_TYPES, round2, summarizeWages } from "@/constants/wages";
+import { ADVANCE_TYPES, round2 } from "@/constants/wages";
+import { periodWages } from "@/lib/wages";
 import { stitchOutQtyOf } from "@/constants/lots";
 import { LOW_STOCK_THRESHOLD } from "@/features/inventory/utils";
 import {
@@ -101,8 +102,7 @@ export async function loadDashboard(db, now = new Date()) {
     products,
     purchaseRows,
     expenseRows,
-    weekEntries,
-    weekAdjustments,
+    weekWages,
     monthWageRows,
     activeWorkers,
     advanceRows,
@@ -214,14 +214,8 @@ export async function loadDashboard(db, now = new Date()) {
       .collection("expenses")
       .aggregate([{ $match: dateQuery("date", month) }, { $group: { _id: "$category", amount: { $sum: "$amount" } } }])
       .toArray(),
-    db
-      .collection("work_entries")
-      .find(dateQuery("date", week), { projection: { workerId: 1, workerName: 1, pieces: 1, amount: 1 } })
-      .toArray(),
-    db
-      .collection("wage_adjustments")
-      .find(dateQuery("date", week), { projection: { workerId: 1, workerName: 1, type: 1, amount: 1, days: 1 } })
-      .toArray(),
+    // the same week, entries, adjustments, attendance cuts and payments as the Wages page
+    periodWages(db, { range: week }),
     db
       .collection("work_entries")
       .aggregate([{ $match: dateQuery("date", month) }, { $group: { _id: null, amount: { $sum: "$amount" } } }])
@@ -248,7 +242,7 @@ export async function loadDashboard(db, now = new Date()) {
   const cutYesterday = cutOn(dayKey(subDays(now, 1)));
   const ready = readyRows[0] || { lots: 0, todayLots: 0, todayPieces: 0 };
   const stages = pipelineLoad(activeLots);
-  const wages = summarizeWages(weekEntries, weekAdjustments);
+  const wages = weekWages.summary;
   const purchases = purchaseRows[0] || { month: 0, today: 0 };
   const expensesByCategory = expenseRows
     .map((row) => ({ category: row._id || "Uncategorised", amount: Number(row.amount) || 0 }))
@@ -286,6 +280,8 @@ export async function loadDashboard(db, now = new Date()) {
     wages: {
       week: {
         net: wages.totals.net,
+        paid: wages.totals.paid,
+        due: wages.totals.due,
         amount: wages.totals.amount,
         pieces: wages.totals.pieces,
         workers: wages.totals.workers,

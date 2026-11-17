@@ -6,12 +6,13 @@ import { ChevronDown } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { BRAND } from "@/constants/brand";
 import { formatDate, formatMoney } from "@/lib/format";
-import { payLabel } from "@/constants/wages";
+import { isPaid, payLabel } from "@/constants/wages";
+import { Button } from "@/components/ui/Button";
 import { rangeLabel } from "../utils";
 
 const ROW_CLASS = "rounded-xl text-white shadow-md bg-primary overflow-hidden";
 
-function WorkerWages({ row, entries }) {
+function WorkerWages({ row, entries, onSettle, isPaying }) {
   const [open, setOpen] = useState(false);
   const mine = entries.filter((e) => String(e.workerId) === row.workerId);
   const hasAdjustments =
@@ -29,6 +30,8 @@ function WorkerWages({ row, entries }) {
       data-testid="wages-row"
       data-worker={row.workerName}
       data-net={row.net}
+      data-paid={row.paid ?? 0}
+      data-due={row.due ?? row.net}
     >
       <button
         type="button"
@@ -39,7 +42,7 @@ function WorkerWages({ row, entries }) {
         <span className="flex-grow min-w-0">
           <span className="font-semibold block">{row.workerName}</span>
           <span className="text-xs text-gray-200">
-            {row.entries} entries · {row.pieces} pcs
+            {row.entries} {row.entries === 1 ? "entry" : "entries"} · {row.pieces} pcs
             {hasAdjustments
               ? ` · wages ${formatMoney(row.amount)}${row.bonuses ? ` + bonus ${formatMoney(row.bonuses)}` : ""}` +
                 daysOff("leave", row.leaves, row.leaveDays) +
@@ -49,14 +52,33 @@ function WorkerWages({ row, entries }) {
               : ""}
             {row.advances ? ` · advance given ${formatMoney(row.advances)}` : ""}
             {row.advanceLeft > 0 ? ` · advance left ${formatMoney(row.advanceLeft)}` : ""}
+            {row.paid ? ` · paid ${formatMoney(row.paid)}` : ""}
           </span>
         </span>
-        <span className="md:w-32 md:text-center text-sm">{row.pieces} pcs</span>
-        <span className="md:w-36 md:text-center text-lg font-bold">{formatMoney(row.net)}</span>
+        <span className="md:w-24 md:text-center text-sm">{row.pieces} pcs</span>
+        <span className="md:w-32 md:text-center text-sm">
+          <span className="md:hidden">Net </span>
+          {formatMoney(row.net)}
+        </span>
+        <span className="md:w-32 md:text-center text-lg font-bold">
+          <span className="md:hidden text-sm font-normal">To pay </span>
+          {formatMoney(row.due ?? row.net)}
+        </span>
         <span className="md:w-10 flex md:justify-center print:hidden">
           <ChevronDown size={18} className={`transition-transform ${open ? "rotate-180" : ""}`} />
         </span>
       </button>
+      {open && (row.due ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-4 py-2.5 text-sm text-gray-700 border-b border-gray-100 print:hidden">
+          <span>
+            Net {formatMoney(row.net)} · paid {formatMoney(row.paid ?? 0)} ·{" "}
+            <span className="font-semibold">to pay {formatMoney(row.due)}</span>
+          </span>
+          <Button size="sm" onClick={() => onSettle?.(row)} disabled={isPaying} data-testid="wages-settle">
+            Pay the rest · {formatMoney(row.due)}
+          </Button>
+        </div>
+      )}
       {open && (
         <ul className="bg-white text-gray-800 divide-y divide-gray-100 text-sm" data-testid="wages-entries">
           {mine.length === 0 && <li className="px-4 py-2 text-gray-500">No work entries in this period.</li>}
@@ -70,6 +92,14 @@ function WorkerWages({ row, entries }) {
                 </span>
               </span>
               <span className="text-xs text-gray-500 whitespace-nowrap">{payLabel(entry)}</span>
+              <span
+                className={`whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
+                  isPaid(entry) ? "bg-success-soft text-success" : "bg-surface-muted text-gray-500"
+                }`}
+                data-testid="wages-entry-paid"
+              >
+                {isPaid(entry) ? "Paid" : "Unpaid"}
+              </span>
               <span className="font-semibold whitespace-nowrap">{formatMoney(entry.amount)}</span>
             </li>
           ))}
@@ -79,8 +109,11 @@ function WorkerWages({ row, entries }) {
   );
 }
 
-/** Per-worker wages for the period; each row expands into its work entries. `id="wages-print"` is the print area. */
-export function WagesTable({ report, label }) {
+/**
+ * Per-worker wages for the period: net payable, what is still to pay, and each row expands into its work entries
+ * (Paid / Unpaid) with "Pay the rest". `id="wages-print"` is the print area.
+ */
+export function WagesTable({ report, label, onSettle, isPaying = false }) {
   const workers = report?.workers ?? [];
   const totals = report?.totals ?? {};
   return (
@@ -93,8 +126,9 @@ export function WagesTable({ report, label }) {
       </div>
       <div className="hidden md:flex items-center px-4 py-2 text-sm text-gray-500 font-medium border-b border-gray-200">
         <span className="flex-grow">Worker</span>
-        <span className="w-32 text-center">Pieces</span>
-        <span className="w-36 text-center">Net payable</span>
+        <span className="w-24 text-center">Pieces</span>
+        <span className="w-32 text-center">Net payable</span>
+        <span className="w-32 text-center">To pay</span>
         <span className="w-10 print:hidden" />
       </div>
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3 mt-4">
@@ -103,16 +137,30 @@ export function WagesTable({ report, label }) {
             No work entries in this period. Assign work from an invoice page (Invoices → invoice → Work &amp; wages).
           </p>
         ) : (
-          workers.map((row) => <WorkerWages key={row.workerId} row={row} entries={report?.entries ?? []} />)
+          workers.map((row) => (
+            <WorkerWages
+              key={row.workerId}
+              row={row}
+              entries={report?.entries ?? []}
+              onSettle={onSettle}
+              isPaying={isPaying}
+            />
+          ))
         )}
       </motion.div>
       {workers.length > 0 && (
         <div className="flex flex-wrap justify-between gap-2 px-4 pt-4 mt-2 border-t-2 border-gray-200 text-sm">
           <span className="font-bold text-gray-800">
-            Total · {totals.workers} workers · {totals.pieces} pcs
+            Total · {totals.workers} workers · {totals.pieces} pcs · net {formatMoney(totals.net)} · paid{" "}
+            {formatMoney(totals.paid ?? 0)}
           </span>
-          <span className="font-bold text-primary" data-testid="wages-total" data-net={totals.net}>
-            {formatMoney(totals.net)}
+          <span
+            className="font-bold text-primary"
+            data-testid="wages-total"
+            data-net={totals.net}
+            data-due={totals.due ?? totals.net}
+          >
+            To pay {formatMoney(totals.due ?? totals.net)}
           </span>
         </div>
       )}

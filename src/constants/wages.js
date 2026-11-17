@@ -145,22 +145,25 @@ export const workSheetProblem = ({ operations = [] } = {}) => {
   return "";
 };
 
-/** Live totals of a work sheet: distinct workers, operations used, rows, amount. */
+/** Live totals of a work sheet: distinct workers, operations used, rows, amount, and what is paid on the spot. */
 export const workSheetTotals = ({ operations = [] } = {}) => {
   const workers = new Set();
   let used = 0;
   let rows = 0;
   let amount = 0;
+  let payingNow = 0;
   for (const operation of operations) {
     const filled = filledRows(operation);
     if (filled.length) used += 1;
     for (const row of filled) {
       workers.add(row.workerId);
       rows += 1;
-      amount = round2(amount + rowAmount({ ...row, rate: operation.rate }));
+      const wage = rowAmount({ ...row, rate: operation.rate });
+      amount = round2(amount + wage);
+      if (row.paid) payingNow = round2(payingNow + wage);
     }
   }
-  return { workers: workers.size, operations: used, rows, amount };
+  return { workers: workers.size, operations: used, rows, amount, payingNow };
 };
 
 // ---- Category team: last time's workers fill the next invoice of the same category -----------------------------
@@ -225,6 +228,72 @@ export const teamRowsFor = (item, left, activeIds) => {
   }));
 };
 
+// ---- Paying work: early, right where it is assigned, and the rest with the wages --------------------------------
+// Client (Rashid, 2026-11-17): some operations are paid as soon as they are done, from where the work is assigned;
+// the rest is paid later with the wages. A wage payment (`wage_payments`) pays one worker:
+// - "work": chosen work entries paid early; amount = their wages, dated on their (latest) work day, so it counts in
+//   the same wage period as the work;
+// - "settle": "Pay the rest" for a wage period: what is still to pay (net payable − already paid), covering the
+//   period's unpaid entries.
+// A work entry is paid while it carries the `paymentId` of its payment (and `paymentKind`); a paid entry can't be
+// edited or removed, and an invoice with paid work can't be deleted, until it is marked unpaid again.
+
+export const PAYMENT_KINDS = Object.freeze(["work", "settle"]);
+
+export const PAYMENT_KIND_LABELS = Object.freeze({ work: "Paid early", settle: "Rest of the period" });
+
+export const isPaid = (entry) => Boolean(entry?.paymentId);
+
+/** Why a paid work entry can't be changed, or "". */
+export const paidEntryProblem = (entry) => (isPaid(entry) ? "This work was already paid — mark it unpaid first" : "");
+
+/** Wages of a set of work entries (an invoice, an operation, a worker) split into paid and still unpaid. */
+export const paidSplit = (entries = []) =>
+  entries.reduce(
+    (sum, entry) => {
+      const amount = Number(entry.amount) || 0;
+      return isPaid(entry)
+        ? { ...sum, paid: round2(sum.paid + amount) }
+        : { ...sum, unpaid: round2(sum.unpaid + amount) };
+    },
+    { paid: 0, unpaid: 0 }
+  );
+
+/**
+ * "Work" payments for the chosen entries: one per worker, for the entries not paid yet, with the wages of those
+ * entries, dated on the latest work day among them, and the invoices they belong to.
+ */
+export const workPaymentsFor = (entries = []) => {
+  const byWorker = new Map();
+  for (const entry of entries) {
+    if (isPaid(entry)) continue;
+    const key = String(entry.workerId);
+    if (!byWorker.has(key)) {
+      byWorker.set(key, {
+        workerId: key,
+        workerName: entry.workerName || "",
+        amount: 0,
+        date: entry.date,
+        entries: [],
+        lotNumbers: [],
+      });
+    }
+    const row = byWorker.get(key);
+    row.amount = round2(row.amount + (Number(entry.amount) || 0));
+    if (new Date(entry.date) > new Date(row.date)) row.date = entry.date;
+    row.entries.push(entry);
+    pushUnique(row.lotNumbers, entry.lotNumber);
+  }
+  return [...byWorker.values()];
+};
+
+/** Why "Pay the rest" can't pay a worker's period summary row, or "". */
+export const settleProblem = (row) =>
+  !(round2(row?.due) > 0) ? `Nothing is left to pay ${row?.workerName || "this worker"} for this period` : "";
+
+/** Day a "Pay the rest" payment is dated: today, or the period's last day when the period is already over. */
+export const settleDate = (range, now = new Date()) => (range?.end && range.end < now ? range.end : now);
+
 // ---- Work history (who worked on which invoice, how they were paid) -------------------------------------------
 
 const pushUnique = (list, value) => {
@@ -244,6 +313,8 @@ export const workByWorker = (entries = []) => {
         payTypes: [],
         pieces: 0,
         amount: 0,
+        paid: 0,
+        unpaid: 0,
         entries: [],
       });
     }
@@ -252,6 +323,8 @@ export const workByWorker = (entries = []) => {
     pushUnique(row.payTypes, payTypeOf(entry));
     row.pieces += Math.trunc(Number(entry.pieces)) || 0;
     row.amount = round2(row.amount + (Number(entry.amount) || 0));
+    if (isPaid(entry)) row.paid = round2(row.paid + (Number(entry.amount) || 0));
+    else row.unpaid = round2(row.unpaid + (Number(entry.amount) || 0));
     row.entries.push(entry);
   }
   return [...byWorker.values()].sort((a, b) => b.amount - a.amount || a.workerName.localeCompare(b.workerName));
@@ -281,6 +354,7 @@ export const workByInvoice = (entries = []) => {
         workerCount: workers.length,
         operationCount: new Set(list.map((entry) => entry.operationName || String(entry.operationId))).size,
         amount: round2(list.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0)),
+        ...paidSplit(list),
         payTypes,
         lastDate: list.reduce(
           (latest, entry) => (new Date(entry.date) > new Date(latest) ? entry.date : latest),
@@ -318,10 +392,12 @@ export const workBatches = (entries = []) => {
  * Per-worker wage summary for a period: pieces, amount, leave and absent (days + cut), advances given, advance cuts,
  * deductions, bonuses and the net payable (= wages + bonuses − leave − absent − advance cuts − deductions). Advances
  * given are reported but not subtracted: they only change the advance account until an advance cut is recorded.
+ * `paid` is what the period's wage payments already paid out, `due` what is still to pay (net payable − paid; below 0
+ * when more was paid than earned).
  * `entries` are work entries, `adjustments` are wage adjustments of the same period plus the attendance marks as
- * adjustments ("leave" / "absent", see attendanceAdjustments).
+ * adjustments ("leave" / "absent", see attendanceAdjustments), `payments` the wage payments of the period.
  */
-export const summarizeWages = (entries = [], adjustments = []) => {
+export const summarizeWages = (entries = [], adjustments = [], payments = []) => {
   const byWorker = new Map();
   const bucket = (id, name) => {
     const key = String(id);
@@ -341,6 +417,8 @@ export const summarizeWages = (entries = [], adjustments = []) => {
         deductions: 0,
         bonuses: 0,
         net: 0,
+        paid: 0,
+        due: 0,
       });
     }
     const row = byWorker.get(key);
@@ -367,11 +445,15 @@ export const summarizeWages = (entries = [], adjustments = []) => {
     else if (adj.type === "deduction") row.deductions = round2(row.deductions + amount);
     else if (adj.type === "bonus") row.bonuses = round2(row.bonuses + amount);
   }
+  for (const payment of payments) {
+    const row = bucket(payment.workerId, payment.workerName);
+    row.paid = round2(row.paid + (Number(payment.amount) || 0));
+  }
   const workers = [...byWorker.values()]
-    .map((row) => ({
-      ...row,
-      net: round2(row.amount + row.bonuses - row.leaves - row.absents - row.recoveries - row.deductions),
-    }))
+    .map((row) => {
+      const net = round2(row.amount + row.bonuses - row.leaves - row.absents - row.recoveries - row.deductions);
+      return { ...row, net, due: round2(net - row.paid) };
+    })
     .sort((a, b) => a.workerName.localeCompare(b.workerName));
   const totals = workers.reduce(
     (sum, row) => ({
@@ -387,6 +469,8 @@ export const summarizeWages = (entries = [], adjustments = []) => {
       deductions: round2(sum.deductions + row.deductions),
       bonuses: round2(sum.bonuses + row.bonuses),
       net: round2(sum.net + row.net),
+      paid: round2(sum.paid + row.paid),
+      due: round2(sum.due + row.due),
     }),
     {
       workers: 0,
@@ -401,6 +485,8 @@ export const summarizeWages = (entries = [], adjustments = []) => {
       deductions: 0,
       bonuses: 0,
       net: 0,
+      paid: 0,
+      due: 0,
     }
   );
   return { workers, totals };

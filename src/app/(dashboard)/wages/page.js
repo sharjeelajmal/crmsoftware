@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Banknote, CalendarCheck, Download, HardHat, Layers, Printer, Wallet } from "lucide-react";
+import { Banknote, CalendarCheck, Download, HandCoins, HardHat, Printer, Wallet } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { formatMoney } from "@/lib/format";
 import { Loader } from "@/components/ui/Loader";
@@ -19,6 +19,9 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { AdjustmentModal } from "@/features/wages/components/AdjustmentModal";
 import { AdjustmentsCard } from "@/features/wages/components/AdjustmentsCard";
 import { AdvancesCard } from "@/features/wages/components/AdvancesCard";
+import { PaymentsCard } from "@/features/wages/components/PaymentsCard";
+import { useWagePayments } from "@/features/wages/hooks/useWagePayments";
+import { ConfirmDialog } from "@/components/ui/Dialogs";
 import { periodLabel, rangeLabel } from "@/features/wages/utils";
 
 const ACTION_CLASS = "flex-1 sm:flex-none whitespace-nowrap";
@@ -34,6 +37,8 @@ export default function WagesPage() {
   // null = closed; {} = blank form; { type, workerId } = preset (e.g. "Cut" from the advance account)
   const [adding, setAdding] = useState(null);
   const [view, setView] = useState("workers");
+  const payments = useWagePayments();
+  const [settling, setSettling] = useState(null); // the worker row whose rest is about to be paid
 
   if (wages.isLoading) return <Loader />;
 
@@ -47,6 +52,19 @@ export default function WagesPage() {
     }
   };
 
+  const handleSettle = async () => {
+    if (await payments.settle(settling, wages.filter, wages.appliedRange)) {
+      setSettling(null);
+      wages.reload();
+    }
+  };
+
+  const handleRemovePayment = async (payment) => {
+    const removed = await payments.removePayment(payment);
+    if (removed) wages.reload();
+    return removed;
+  };
+
   const handleDelete = async (id) => {
     const deleted = await wages.deleteAdjustment(id);
     if (deleted) advances.reload();
@@ -56,6 +74,17 @@ export default function WagesPage() {
   return (
     <>
       <AnimatePresence>
+        {settling && (
+          <ConfirmDialog
+            title={`Pay ${settling.workerName} the rest?`}
+            message={`${formatMoney(settling.due)} for ${label}: net ${formatMoney(settling.net)}, already paid ${formatMoney(settling.paid)}. The work of this period that is still unpaid is marked paid.`}
+            confirmLabel={payments.isPaying ? "Paying…" : `Pay ${formatMoney(settling.due)}`}
+            tone="primary"
+            onConfirm={payments.isPaying ? undefined : handleSettle}
+            onCancel={() => setSettling(null)}
+            confirmTestId="wages-settle-confirm"
+          />
+        )}
         {adding && (
           <AdjustmentModal
             workers={workers}
@@ -120,10 +149,10 @@ export default function WagesPage() {
         </motion.div>
 
         <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 print:hidden">
-          <StatCard icon={HardHat} title="Workers paid" value={totals.workers ?? 0} />
-          <StatCard icon={Layers} title="Pieces" value={totals.pieces ?? 0} />
-          <StatCard icon={Banknote} title="Wages" value={formatMoney(totals.amount)} />
+          <StatCard icon={HardHat} title="Workers" value={totals.workers ?? 0} />
           <StatCard icon={Banknote} title="Net payable" value={formatMoney(totals.net)} />
+          <StatCard icon={HandCoins} title="Paid" value={formatMoney(totals.paid)} />
+          <StatCard icon={Wallet} title="To pay" value={formatMoney(totals.due ?? totals.net)} />
         </motion.div>
 
         <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
@@ -153,7 +182,7 @@ export default function WagesPage() {
               <InvoiceWorkList entries={wages.report?.entries ?? []} />
             </div>
           ) : (
-            <WagesTable report={wages.report} label={label} />
+            <WagesTable report={wages.report} label={label} onSettle={setSettling} isPaying={payments.isPaying} />
           )}
         </motion.div>
 
@@ -163,6 +192,10 @@ export default function WagesPage() {
             totals={advances.totals}
             onCut={(account) => setAdding({ type: "recovery", workerId: account.workerId })}
           />
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <PaymentsCard payments={wages.report?.payments ?? []} onRemove={handleRemovePayment} />
         </motion.div>
 
         <motion.div variants={itemVariants}>

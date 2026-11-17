@@ -33,6 +33,7 @@ function InvoiceWork({ row }) {
       data-lot={row.lotNumber}
       data-workers={row.workerCount}
       data-amount={row.amount}
+      data-unpaid={row.unpaid}
     >
       <button
         type="button"
@@ -44,7 +45,8 @@ function InvoiceWork({ row }) {
           <span className="font-semibold text-gray-800">{row.lotNumber}</span>
           <span className="text-gray-500"> · {row.productName}</span>
           <span className="block text-xs text-gray-500">
-            last work {formatDate(row.lastDate)} · {row.operationCount} {plural(row.operationCount, "operation")}
+            last work {formatDate(row.lastDate)} · {row.operationCount} {plural(row.operationCount, "operation")} ·{" "}
+            {row.unpaid > 0 ? `to pay ${formatMoney(row.unpaid)}` : "all paid"}
           </span>
         </span>
         <span className="md:w-32 md:text-center text-sm text-gray-700">
@@ -77,7 +79,12 @@ function InvoiceWork({ row }) {
                 <span className="hidden sm:flex shrink-0 gap-1">
                   <PayChips types={worker.payTypes} />
                 </span>
-                <span className="font-semibold text-gray-800 whitespace-nowrap">{formatMoney(worker.amount)}</span>
+                <span className="text-right whitespace-nowrap">
+                  <span className="block font-semibold text-gray-800">{formatMoney(worker.amount)}</span>
+                  <span className="block text-[11px] text-gray-500">
+                    {worker.unpaid > 0 ? `to pay ${formatMoney(worker.unpaid)}` : "all paid"}
+                  </span>
+                </span>
               </li>
             ))}
           </ul>

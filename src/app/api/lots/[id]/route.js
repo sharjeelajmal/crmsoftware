@@ -13,6 +13,7 @@ import {
   requireRunning,
 } from "@/lib/lots";
 import { returnReadyStock } from "@/lib/production";
+import { round2 } from "@/constants/wages";
 import { CUTTING_EVENT_TYPES } from "@/constants/lots";
 import { issueGatePass } from "@/lib/gatepass";
 import { cuttingPassChanged } from "@/constants/gatepass";
@@ -89,7 +90,8 @@ export const PUT = route(
 /**
  * DELETE /api/lots/:id — admin only, at any stage (client, 2026-11-09), in one transaction: pieces still in stock go
  * back out, and its history, gate passes and work entries (wages) are removed. Loose items / B-pair entries stay in
- * the register without the link. Refused once pieces were dispatched (deleteProblem). Returns what was removed.
+ * the register without the link. Refused once pieces were dispatched (deleteProblem), and while any of its work is
+ * paid (wages already paid out must stay on record: mark them unpaid first). Returns what was removed.
  */
 export const DELETE = route(async (_request, { session, ...context }) => {
   const _id = await requireObjectId(context);
@@ -99,6 +101,21 @@ export const DELETE = route(async (_request, { session, ...context }) => {
     if (!lot) throw notFound("Invoice");
     const problem = deleteProblem(lot);
     if (problem) throw conflict(problem);
+    const [paid] = await db
+      .collection("work_entries")
+      .aggregate(
+        [
+          { $match: { lotId: _id, paymentId: { $exists: true } } },
+          { $group: { _id: null, amount: { $sum: "$amount" }, count: { $sum: 1 } } },
+        ],
+        { session: tx }
+      )
+      .toArray();
+    if (paid?.count) {
+      throw conflict(
+        `Rs ${round2(paid.amount).toLocaleString("en-US")} of the work on ${lot.lotNumber} was already paid — mark it unpaid first`
+      );
+    }
 
     const stockReturned = lot.stockApplied
       ? await returnReadyStock(db, tx, { lot, note: `${lot.lotNumber} deleted`, session, ifArticleExists: true })

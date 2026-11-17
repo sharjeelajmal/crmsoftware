@@ -737,7 +737,7 @@ const CH=[
     tip:"Jis operation par karigar na chuna ho woh save nahi hota. Save par yeh karigar us category ki <b>team</b> ban jate hain (“Remember this team” ON ho to): agli dafa usi category ki invoice par woh khud bhar jate hain — “Clear workers” se hata sakte hain."},
    {id:"w-wages",t:"Salary dekhna",s:"Wages",who:"admin",
     steps:["Menu mein “Wages” kholein.","This Week, Last Week, 15 Days, This Month ya Custom chunein.","Kisi karigar ki row par click karein."],
-    ok:"Har karigar ka <b>Net payable</b>; click par us ke kaam ki tafseel. “Print” aur “Download CSV” se kaghaz ya file."},
+    ok:"Har karigar ka <b>Net payable</b> aur <b>To pay</b> (pehle diya gaya paisa kaat kar); click par us ke kaam ki tafseel, har line par Paid / Unpaid, aur “Pay the rest”. Upar cards: Workers, Net payable, Paid, To pay. “Print” aur “Download CSV” (Paid aur To pay ke saath)."},
    {id:"w-invoice",t:"Kis invoice par kitne karigar",s:"Wages → By invoice",who:"admin",
     steps:["Menu mein “Wages” kholein aur period chunein.","Upar “<b>By invoice</b>” dabayein.","Kisi invoice par click karein."],
     ok:"Har invoice: kitne karigar, kitne operations, kul mazdoori aur pay ka tareeqa (<b>Per piece</b> / <b>Fixed amount</b>). Click par har karigar ka hisaab aur invoice kholne ka link."},
@@ -854,9 +854,27 @@ const DAILY=[
 ];
 
 
-const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–9 November 2026",who:["admin"],
-  intro:"9 November: invoice ko <b>kisi bhi stage par rokna</b> (Stop / Resume), <b>ek qadam peeche karna</b> (Reverse) aur <b>kisi bhi stage par delete</b>. 6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
+const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–17 November 2026",who:["admin"],
+  intro:"17 November: karigaron ko <b>wahin se paise dena</b> jahan kaam diya jata hai — har operation ke aage <b>Paid / Unpaid</b>; baqi Wages page par “<b>Pay the rest</b>”. 9 November: invoice ko <b>kisi bhi stage par rokna</b> (Stop / Resume), <b>ek qadam peeche karna</b> (Reverse) aur <b>kisi bhi stage par delete</b>. 6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
   groups:[
+  {title:"Paid / Unpaid — kaam ke saath hi paise (17 Nov)",icon:"wallet",
+   what:"Jahan karigaron ko kaam diya jata hai (Assign work) aur invoice ke “Work &amp; wages” mein, har karigar ke operation ke aage <b>Paid / Unpaid</b> ka button hai. Kisi ko pehle paise dene hon to wahin se <b>Paid</b> karein; baqi jo Unpaid rahein woh Wages page par “<b>Pay the rest</b>” se ada hote hain. Wages mein har karigar ka <b>Net payable</b>, kitna <b>Paid</b> ho chuka aur kitna <b>To pay</b> baqi hai — sab saath.",
+   tasks:[
+    {id:"u-pay-sheet",t:"Kaam dete hi paid",s:"Assign work → Paid",who:"admin",
+     steps:["Invoice → “Assign work” kholein.","Kisi operation par karigar chunein; us line par “<b>Unpaid</b>” dabayein — “<b>Paid ✓</b>” ho jata hai.","Neeche total ke saath “<b>paying now Rs …</b>” dekhein aur “Save work” dabayein."],
+     ok:"Invoice page par us karigar ki line par hara “<b>Paid</b>”; baqi lines “Unpaid”. Upar likha hota hai: <b>Paid Rs … · to pay Rs …</b>."},
+    {id:"u-pay-invoice",t:"Invoice page se paid / unpaid",s:"Invoice → Work &amp; wages → Operations",who:"admin",
+     steps:["Invoice page par “Work &amp; wages” → “Operations” dekhein.","Kisi Unpaid line par “<b>Unpaid</b>” dabayein (paid ho jayegi), ya Paid par dabayein (unpaid ho jayegi).","Poore operation ke liye “<b>Pay all · Rs …</b>” dabayein."],
+     ok:"Line foran Paid / Unpaid ho jati hai aur upar “Paid · to pay” badal jata hai. Paid line ka 🗑️ band hota hai (pehle Unpaid karein).",
+     tip:"Jis kaam ke paise ja chuke hon us invoice ka Delete bhi band hai — pehle us kaam ko Unpaid karein."},
+    {id:"u-pay-rest",t:"Baqi paise: Pay the rest",s:"Wages → karigar → Pay the rest",who:"admin",
+     steps:["“Wages” kholein (This Week ya jo period ho).","Karigar ki row mein “<b>To pay</b>” dekhein aur row par click karein.","“<b>Pay the rest · Rs …</b>” dabayein aur confirm karein."],
+     ok:"Us karigar ka <b>To pay 0</b> ho jata hai; us period ka bacha hua kaam “Paid” ho jata hai. Neeche “<b>Payments (this period)</b>” mein payment dikhti hai (Paid early / Rest of the period).",
+     tip:"Advance cut, bonus, leave aur absent pehle hi Net payable mein shamil hain — “Pay the rest” bilkul baqi raqam deta hai."},
+    {id:"u-pay-undo",t:"Ghalat payment wapas",s:"Wages → Payments → 🗑️",who:"admin",
+     steps:["Wages page par neeche “Payments (this period)” mein ghalat payment ka 🗑️ dabayein aur confirm karein."],
+     ok:"Payment hat jati hai aur us ka kaam dobara “Unpaid”; To pay wapas barh jata hai."},
+   ]},
   {title:"Invoice rokna, peeche karna, delete (9 Nov)",icon:"undo",
    what:"Invoice <b>kisi bhi stage</b> par ho (Cutting, Stitching, Washing, Packing, Ready), admin us ke page par upar se: <b>Stop</b> (wahin rok dein), <b>Resume</b> (wahin se aage), <b>Reverse</b> (ek qadam peeche) aur <b>Delete invoice</b> kar sakta hai. Har kaam se pehle popup saaf batata hai ke kya hoga.",
    tasks:[
@@ -970,6 +988,7 @@ const FAQ=[
  ["Cutting gate pass kab banta hai?","Jaise hi cutting master (ya admin) cutting entry <b>Save</b> karta hai, usi waqt cutting gate pass khud ban jata hai — is par invoice no., article, cut no., sizes, pieces, shrinkage aur fabric hote hain. Invoice ke page par “Gate passes” mein Print dabayein. Agar baad mein cutting ki detail (sizes, bundle, shrinkage, fabric) edit ki jaye to naya cutting pass ban jata hai aur purana “Old” likha aata hai. Stitching gate pass “Send to stitching” par aur washing gate pass washing ko maal jaate waqt alag se bante hain — teeno alag alag hain."],
  ["Kaam dete waqt “Fixed” kab chunein?","Jab karigar ko pieces ke hisaab se nahi balke tay shuda raqam par kaam diya ho (theka ya dihari). Sheet mein us karigar ki row par “Fixed” dabayein aur kul raqam likhein; salary mein wahi raqam judti hai aur invoice ki history mein “Fixed amount” likha aata hai."],
  ["Assign work kholte hi karigar pehle se kyun chune hue hain?","Yeh us category (misaal: Simple Pent) ki <b>pichli team</b> hai — pichli dafa jo karigar jis operation par lagaye the. Theek ho to bas “Save work” dabayein; aaj team alag ho to “Clear workers” dabayein ya line badal dein. Kuch bhi Save dabaye baghair darj nahi hota."],
+ ["Kisi karigar ko pehle paise de diye, hisaab kaise rahega?","Jahan kaam diya (Assign work) ya invoice ke “Work &amp; wages” mein us line ko “Paid” kar dein. Wages page par woh raqam “Paid” mein jati hai aur “To pay” se kam ho jati hai. Baqi hafte ke aakhir mein “Pay the rest” se."],
  ["Gate pass dobara print karna hai?","Invoice ka page kholein → neeche “Gate passes” → Print. Jitni dafa chahein."],
  ["Vendor delete nahi ho raha?","Jis vendor ki payments Ledger mein darj hon woh delete nahi hota, taake us ka khata na bigray. Pehle us ki payments hatayein (agar ghalat thin)."],
  ["Phone par kaise chalayein?","Wahi link phone ke browser mein kholein. Menu upar ☰ wale button mein hai. Sab kuch phone par bhi chalta hai."],

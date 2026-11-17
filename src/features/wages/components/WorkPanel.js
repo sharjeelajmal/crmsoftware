@@ -12,9 +12,19 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 import { operationProgress } from "@/constants/operations";
 import { plural } from "@/constants/dashboard";
-import { PAY_TYPE_LABELS, payLabel, workBatches, workByWorker, workPiecesOf } from "@/constants/wages";
+import {
+  PAY_TYPE_LABELS,
+  isPaid,
+  paidSplit,
+  payLabel,
+  workBatches,
+  workByWorker,
+  workPiecesOf,
+} from "@/constants/wages";
 import { useLotWork } from "../hooks/useLotWork";
 import { useLotOperations } from "../hooks/useLotOperations";
+import { useWagePayments } from "../hooks/useWagePayments";
+import { PaidToggle } from "./PaidToggle";
 import { groupByOperation, workerWorkLine } from "../utils";
 
 const CARD_CLASS = "bg-white p-4 sm:p-6 rounded-2xl shadow-sm";
@@ -35,19 +45,35 @@ const chipClass = (op) =>
 /**
  * Admin card on the invoice page: the labour on this invoice, the "Assign work" sheet, how far each operation of its
  * rate card has got, and the work three ways — per operation (with remove), per worker (operations, pieces, pay)
- * and the history of each save (when, by whom, how many workers).
+ * and the history of each save (when, by whom, how many workers). Each entry is Paid or Unpaid and can be paid right
+ * here (client, 2026-11-17: some operations are paid as soon as they are done); "Pay all" pays an operation's unpaid
+ * work at once. Paid work can't be removed until it is marked unpaid.
  */
 export function WorkPanel({ lot }) {
-  const { entries, totals, isLoading, removeEntry } = useLotWork(lot);
+  const { entries, totals, isLoading, removeEntry, reload } = useLotWork(lot);
+  const payments = useWagePayments();
+  const money = paidSplit(entries);
   const offer = useLotOperations(lot?._id);
   const lotPieces = workPiecesOf(lot);
   const progress = offer.fromCard ? operationProgress(offer.operations, entries, lotPieces) : [];
   const [view, setView] = useState("operations");
   const [removing, setRemoving] = useState(null);
+  const [undoing, setUndoing] = useState(null); // an entry paid with "Pay the rest": undoing it undoes that payment
   const workers = workByWorker(entries);
 
   const handleRemove = async () => {
     if (await removeEntry(removing._id)) setRemoving(null);
+  };
+  const pay = async (list) => {
+    if (await payments.pay(list)) reload();
+  };
+  const unpay = async (entry) => {
+    if (await payments.unpay([entry])) reload();
+  };
+  const togglePaid = (entry) => {
+    if (!isPaid(entry)) pay([entry]);
+    else if (entry.paymentKind === "settle") setUndoing(entry);
+    else unpay(entry);
   };
 
   return (
@@ -61,6 +87,19 @@ export function WorkPanel({ lot }) {
             onConfirm={handleRemove}
             onCancel={() => setRemoving(null)}
             confirmTestId="work-remove-confirm"
+          />
+        )}
+        {undoing && (
+          <ConfirmDialog
+            title="Mark unpaid?"
+            message={`${undoing.workerName} was paid for this with “Pay the rest” of the wages. Undoing it takes back that whole payment, so all of the work it paid is unpaid again.`}
+            confirmLabel="Mark unpaid"
+            onConfirm={async () => {
+              await unpay(undoing);
+              setUndoing(null);
+            }}
+            onCancel={() => setUndoing(null)}
+            confirmTestId="work-unpay-confirm"
           />
         )}
       </AnimatePresence>
@@ -83,6 +122,17 @@ export function WorkPanel({ lot }) {
               </span>
             )}
           </p>
+          {entries.length > 0 && (
+            <p
+              className="text-sm text-gray-500"
+              data-testid="lot-work-paid"
+              data-paid={money.paid}
+              data-unpaid={money.unpaid}
+            >
+              Paid <span className="font-semibold text-success">{formatMoney(money.paid)}</span> · to pay{" "}
+              <span className="font-semibold text-gray-800">{formatMoney(money.unpaid)}</span>
+            </p>
+          )}
         </div>
         {lot.hold ? (
           <Button
@@ -142,7 +192,15 @@ export function WorkPanel({ lot }) {
             className="w-full sm:w-fit"
             testId="lot-work-view"
           />
-          {view === "operations" && <ByOperation entries={entries} onRemove={setRemoving} />}
+          {view === "operations" && (
+            <ByOperation
+              entries={entries}
+              onRemove={setRemoving}
+              onTogglePaid={togglePaid}
+              onPayAll={pay}
+              isPaying={payments.isPaying}
+            />
+          )}
           {view === "workers" && <ByWorker workers={workers} />}
           {view === "history" && <History entries={entries} />}
         </div>
@@ -151,46 +209,70 @@ export function WorkPanel({ lot }) {
   );
 }
 
-function ByOperation({ entries, onRemove }) {
-  return groupByOperation(entries).map((group) => (
-    <div key={group.operationName} data-testid="lot-work-group" data-operation={group.operationName}>
-      <div className="flex items-center justify-between text-sm mb-1.5">
-        <span className="font-semibold text-gray-800">{group.operationName}</span>
-        <span className="text-gray-500">
-          {group.pieces} pcs · <span className="font-semibold text-gray-800">{formatMoney(group.amount)}</span>
-        </span>
-      </div>
-      <ul className={LIST_CLASS}>
-        {group.entries.map((entry) => (
-          <li
-            key={entry._id}
-            className="flex items-center gap-3 px-3 py-2 text-sm"
-            data-testid="lot-work-entry"
-            data-worker={entry.workerName}
-          >
-            <span className="flex-grow min-w-0">
-              <span className="font-medium text-gray-800">{entry.workerName}</span>
-              <span className="block text-xs text-gray-500">
-                {formatDate(entry.date)} · {payLabel(entry)}
-                {entry.note ? ` · ${entry.note}` : ""}
-              </span>
-            </span>
-            <span className="font-semibold text-gray-800 whitespace-nowrap">{formatMoney(entry.amount)}</span>
-            <button
-              type="button"
-              onClick={() => onRemove(entry)}
-              data-tip="Remove"
-              aria-label="Remove"
-              className="text-gray-400 hover:text-danger cursor-pointer"
-              data-testid="lot-work-remove"
+function ByOperation({ entries, onRemove, onTogglePaid, onPayAll, isPaying }) {
+  return groupByOperation(entries).map((group) => {
+    const unpaid = group.entries.filter((entry) => !isPaid(entry));
+    return (
+      <div key={group.operationName} data-testid="lot-work-group" data-operation={group.operationName}>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm mb-1.5">
+          <span className="font-semibold text-gray-800">{group.operationName}</span>
+          <span className="flex items-center gap-3 text-gray-500">
+            {group.pieces} pcs · <span className="font-semibold text-gray-800">{formatMoney(group.amount)}</span>
+            {unpaid.length > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onPayAll(unpaid)}
+                disabled={isPaying}
+                className="whitespace-nowrap"
+                data-testid="lot-work-pay-op"
+              >
+                Pay all · {formatMoney(paidSplit(unpaid).unpaid)}
+              </Button>
+            )}
+          </span>
+        </div>
+        <ul className={LIST_CLASS}>
+          {group.entries.map((entry) => (
+            <li
+              key={entry._id}
+              className="flex items-center gap-3 px-3 py-2 text-sm"
+              data-testid="lot-work-entry"
+              data-worker={entry.workerName}
+              data-paid={isPaid(entry) ? "true" : "false"}
             >
-              <Trash2 size={16} />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  ));
+              <span className="flex-grow min-w-0">
+                <span className="font-medium text-gray-800">{entry.workerName}</span>
+                <span className="block text-xs text-gray-500">
+                  {formatDate(entry.date)} · {payLabel(entry)}
+                  {entry.note ? ` · ${entry.note}` : ""}
+                </span>
+              </span>
+              <span className="font-semibold text-gray-800 whitespace-nowrap">{formatMoney(entry.amount)}</span>
+              <PaidToggle
+                paid={isPaid(entry)}
+                onToggle={() => onTogglePaid(entry)}
+                disabled={isPaying}
+                tip={isPaid(entry) ? `Paid ${formatDate(entry.paidAt)} — press to mark unpaid` : "Press to pay now"}
+                testId="lot-work-paid-toggle"
+              />
+              <button
+                type="button"
+                onClick={() => onRemove(entry)}
+                disabled={isPaid(entry)}
+                data-tip={isPaid(entry) ? "Paid — mark it unpaid first" : "Remove"}
+                aria-label="Remove"
+                className="text-gray-400 hover:text-danger cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-400"
+                data-testid="lot-work-remove"
+              >
+                <Trash2 size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  });
 }
 
 function ByWorker({ workers }) {
@@ -218,7 +300,12 @@ function ByWorker({ workers }) {
               </span>
             ))}
           </span>
-          <span className="font-semibold text-gray-800 whitespace-nowrap">{formatMoney(row.amount)}</span>
+          <span className="text-right whitespace-nowrap">
+            <span className="block font-semibold text-gray-800">{formatMoney(row.amount)}</span>
+            <span className="block text-[11px] text-gray-500" data-testid="lot-work-worker-paid">
+              {row.unpaid > 0 ? `to pay ${formatMoney(row.unpaid)}` : "all paid"}
+            </span>
+          </span>
         </li>
       ))}
     </ul>

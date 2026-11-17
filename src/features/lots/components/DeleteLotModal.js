@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { STAGE_LABELS, deleteProblem } from "@/constants/lots";
 import { plural } from "@/constants/dashboard";
 import { formatMoney } from "@/lib/format";
+import { paidSplit } from "@/constants/wages";
 import { useGatePasses } from "@/features/cutting/hooks/useGatePasses";
 import { useLotWork } from "@/features/wages/hooks/useLotWork";
 import { useDeleteLot } from "../hooks/useDeleteLot";
@@ -23,7 +24,13 @@ export function DeleteLotModal({ lot, onDeleted, onCancel }) {
   const { passes, isLoading: passesLoading } = useGatePasses(lot._id, lot.updatedAt);
   const work = useLotWork(lot);
   const [typed, setTyped] = useState("");
-  const problem = deleteProblem(lot);
+  // Wages already paid out must stay on record: paid work is marked unpaid first (as the server checks too).
+  const paid = paidSplit(work.entries).paid;
+  const problem =
+    deleteProblem(lot) ||
+    (paid > 0
+      ? `${formatMoney(paid)} of the work on ${lot.lotNumber} was already paid — mark it unpaid first (Work & wages).`
+      : "");
   const needsTyping = lot.stage !== "cutting";
   const typedOk = !needsTyping || typed.trim().toUpperCase() === String(lot.lotNumber).toUpperCase();
   const isLoading = passesLoading || work.isLoading;

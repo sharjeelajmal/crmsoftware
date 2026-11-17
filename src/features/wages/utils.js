@@ -10,16 +10,15 @@ export { EMPTY_RANGE, isCompleteRange, WAGE_PERIODS, DEFAULT_WAGE_PERIOD };
 
 const toIsoDate = (date) => format(date, "yyyy-MM-dd");
 
+/** The wage period as `{ filter, from?, to? }` (a custom range only once both days are picked). */
+export const periodParams = (filter, range) =>
+  filter === "custom" && isCompleteRange(range)
+    ? { filter: "custom", from: toIsoDate(range.from), to: toIsoDate(range.to) }
+    : { filter: filter === "custom" ? DEFAULT_WAGE_PERIOD : filter };
+
 /** Query string for GET /api/wages/report (also used in the cache key). */
 export const wagesUrl = (filter, range, { workerId = "", csv = false } = {}) => {
-  const params = new URLSearchParams();
-  if (filter === "custom" && isCompleteRange(range)) {
-    params.set("filter", "custom");
-    params.set("from", toIsoDate(range.from));
-    params.set("to", toIsoDate(range.to));
-  } else {
-    params.set("filter", filter === "custom" ? DEFAULT_WAGE_PERIOD : filter);
-  }
+  const params = new URLSearchParams(periodParams(filter, range));
   if (workerId) params.set("workerId", workerId);
   if (csv) params.set("format", "csv");
   return `/api/wages/report?${params.toString()}`;
@@ -92,6 +91,7 @@ export const sheetRow = (pieces = 0) => ({
   pieces: pieces > 0 ? String(pieces) : "",
   payType: "piece",
   amount: "",
+  paid: false, // paid on the spot when the work is saved
 });
 
 /**
@@ -168,6 +168,7 @@ export const toWorkSheetPayload = (lotId, sheet) => ({
         pieces: Math.trunc(Number(row.pieces)) || 0,
         payType: row.payType === "fixed" ? "fixed" : "piece",
         ...(row.payType === "fixed" ? { amount: Number(row.amount) || 0 } : {}),
+        ...(row.paid ? { paid: true } : {}),
       })),
     })),
 });

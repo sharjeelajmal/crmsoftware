@@ -3,7 +3,7 @@ import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, created, parseBody, parseQuery } from "@/lib/api";
 import { workAssignmentSchema, workEntriesQuerySchema } from "@/lib/validation";
 import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
-import { actorOf, buildWorkEntry, requireLot, requireOperations, requireWorkers } from "@/lib/wages";
+import { actorOf, buildWorkEntry, payEntries, requireLot, requireOperations, requireWorkers } from "@/lib/wages";
 import { requireRunning } from "@/lib/lots";
 import { lotCategory, rateCardOf, rememberTeam } from "@/lib/operations";
 import { cardRateOf } from "@/constants/operations";
@@ -32,7 +32,8 @@ export const GET = route(async (request) => {
  * The work sheet: every operation of an invoice with its workers, saved in one go (one transaction, one `batchId`).
  * One work entry per row: pieces × rate, or the fixed amount. Without a rate: the rate on the invoice's category
  * rate card, else the operation's own rate. With `rememberTeam`, the rows become the team of the invoice's category,
- * so the next invoice of that category opens with them (see rememberTeam). The older
+ * so the next invoice of that category opens with them (see rememberTeam). Rows with `paid: true` are paid in the
+ * same save (one early payment per worker). The older
  * `{ lotId, operationId, rate?, rows }` body still works (and remembers nothing).
  */
 export const POST = route(async (request, { session }) => {
@@ -77,6 +78,11 @@ export const POST = route(async (request, { session }) => {
       );
     });
     const { insertedIds } = await db.collection("work_entries").insertMany(entries, { session: txn });
+    const saved = entries.map((doc, i) => ({ _id: insertedIds[i], ...doc }));
+    const paidNow = input.operations.flatMap((item) => item.rows.map((row) => row.paid));
+    const toPay = saved.filter((_, i) => paidNow[i]);
+    const payments = toPay.length ? await payEntries(db, txn, { entries: toPay, session }) : [];
+    const paymentOf = new Map(payments.flatMap((p) => p.entryIds.map((id) => [String(id), p])));
     if (input.rememberTeam) {
       await rememberTeam(db, {
         category,
@@ -86,7 +92,10 @@ export const POST = route(async (request, { session }) => {
         session: txn,
       });
     }
-    return entries.map((doc, i) => ({ _id: insertedIds[i], ...doc }));
+    return saved.map((doc) => {
+      const payment = paymentOf.get(String(doc._id));
+      return payment ? { ...doc, paymentId: payment._id, paymentKind: payment.kind, paidAt: payment.createdAt } : doc;
+    });
   });
   return created(docs);
 });

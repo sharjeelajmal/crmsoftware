@@ -1081,6 +1081,99 @@ test("Category team: a remembered sheet fills the next invoice of the same categ
   }
 });
 
+test("Paying work: early from where it is assigned, the rest with the wages", async () => {
+  const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;
+  const belt = ops.find((o) => o.name === "E2E Belt"); // Rs 10
+  const pocket = ops.find((o) => o.name === "E2E Pocket");
+  const payerA = await api(S.admin, "POST", "/api/workers", { name: "E2E Payer A" });
+  const payerB = await api(S.admin, "POST", "/api/workers", { name: "E2E Payer B" });
+  S.ids.workers.push(payerA.body._id, payerB.body._id);
+  const a = payerA.body._id;
+  const b = payerB.body._id;
+  const lot = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "E2E Pay Denim", qty: 5, unit: "m" },
+    sizes: [{ size: "30", qty: 100 }],
+  });
+  S.ids.lots.push(lot.body._id);
+  const lotId = lot.body._id;
+  const wagesOf = async (workerId) =>
+    (await api(S.admin, "GET", `/api/wages/report?filter=thisweek&workerId=${workerId}`)).body.workers[0];
+
+  // the sheet pays a row on the spot when it is marked paid
+  const sheet = await api(S.admin, "POST", "/api/work-entries", {
+    lotId,
+    operations: [
+      {
+        operationId: belt._id,
+        rows: [
+          { workerId: a, pieces: 60, paid: true },
+          { workerId: b, pieces: 40 },
+        ],
+      },
+      { operationId: pocket._id, rows: [{ workerId: a, pieces: 100, payType: "fixed", amount: 500 }] },
+    ],
+  });
+  expect(sheet.status, "sheet saved").toBe(201);
+  const [beltA, beltB, pocketA] = sheet.body;
+  expect(Boolean(beltA.paymentId), "paid on the spot").toBe(true);
+  expect(Boolean(beltB.paymentId), "the rest unpaid").toBe(false);
+  let rowA = await wagesOf(a);
+  expect([rowA.net, rowA.paid, rowA.due].join(), "A: 600 + 500, 600 paid").toBe("1100,600,500");
+
+  // paid work is kept as it was paid
+  expect((await api(S.admin, "PUT", `/api/work-entries/${beltA._id}`, { pieces: 50 })).status, "no edit").toBe(409);
+  expect((await api(S.admin, "DELETE", `/api/work-entries/${beltA._id}`)).status, "no remove").toBe(409);
+  expect((await api(S.admin, "DELETE", `/api/lots/${lotId}`)).status, "no invoice delete with paid work").toBe(409);
+
+  // pay one entry from the invoice, then mark it unpaid again
+  const paid = await api(S.admin, "POST", "/api/wage-payments", { entryIds: [pocketA._id] });
+  expect(paid.status, "pay").toBe(201);
+  expect(paid.body[0].amount, "the fixed 500").toBe(500);
+  expect((await api(S.admin, "POST", "/api/wage-payments", { entryIds: [pocketA._id] })).status, "twice").toBe(409);
+  rowA = await wagesOf(a);
+  expect(rowA.due, "nothing left for A").toBe(0);
+  expect((await api(S.admin, "POST", "/api/wage-payments/undo", { entryIds: [pocketA._id] })).status, "undo").toBe(200);
+  expect((await wagesOf(a)).due, "500 to pay again").toBe(500);
+
+  // "Pay the rest" pays what is left of the period and covers the unpaid work
+  const settled = await api(S.admin, "POST", "/api/wage-payments/settle", { workerId: a, filter: "thisweek" });
+  expect(settled.status, "settle").toBe(201);
+  expect(settled.body.amount, "the rest").toBe(500);
+  expect((await wagesOf(a)).due, "settled").toBe(0);
+  expect(
+    (await api(S.admin, "POST", "/api/wage-payments/settle", { workerId: a, filter: "thisweek" })).status,
+    "nothing left"
+  ).toBe(409);
+  let entries = (await api(S.admin, "GET", `/api/work-entries?lotId=${lotId}`)).body;
+  expect(entries.find((e) => e._id === pocketA._id).paymentKind, "paid by the settle").toBe("settle");
+
+  // unpaying work of a "Pay the rest" undoes that whole payment; the early payment stays
+  expect((await api(S.admin, "POST", "/api/wage-payments/undo", { entryIds: [pocketA._id] })).status, "undo").toBe(200);
+  rowA = await wagesOf(a);
+  expect([rowA.paid, rowA.due].join(), "back to 600 paid, 500 due").toBe("600,500");
+
+  // the Wages report lists the payments; removing one unpays its work
+  const report = (await api(S.admin, "GET", `/api/wages/report?filter=thisweek&workerId=${a}`)).body;
+  expect(report.payments.length, "one payment left").toBe(1);
+  expect((await api(S.admin, "DELETE", `/api/wage-payments/${report.payments[0]._id}`)).status, "remove payment").toBe(
+    200
+  );
+  rowA = await wagesOf(a);
+  expect([rowA.paid, rowA.due].join(), "nothing paid").toBe("0,1100");
+  expect((await wagesOf(b)).due, "B was never paid").toBe(400);
+  const csv = await S.admin.fetch(`${BASE}/api/wages/report?filter=thisweek&workerId=${a}&format=csv`);
+  expect(await csv.text(), "csv has paid and to pay").toContain('"To pay"');
+
+  // nothing is paid any more: the invoice can go, with its work
+  entries = (await api(S.admin, "GET", `/api/work-entries?lotId=${lotId}`)).body;
+  expect(
+    entries.every((e) => !e.paymentId),
+    "all unpaid"
+  ).toBe(true);
+  expect((await api(S.admin, "DELETE", `/api/lots/${lotId}`)).status, "invoice deleted").toBe(200);
+});
+
 test("Attendance: present / absent / leave per day; absent and leave cut a day of the per-day salary", async () => {
   const today = localDay();
   const yesterday = localDay(-1);
@@ -2354,6 +2447,85 @@ uiTest(
     await api(S.admin, "PUT", `/api/operation-sets/${encodeURIComponent(product.category)}`, { items: [] });
   }
 );
+
+uiTest("UI: pay work on the spot from the sheet and the invoice, and the rest on the Wages page", async (page) => {
+  const payer = (await api(S.admin, "GET", "/api/workers")).body.find((w) => w.name === "E2E Payer A");
+  const lot = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "E2E UI Pay", qty: 5, unit: "m" },
+    sizes: [{ size: "30", qty: 30 }],
+  });
+  const id = lot.body._id;
+  S.ids.lots.push(id);
+  await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+
+  // the sheet: E2E Belt to the payer, marked paid on the spot
+  await page.goto(`${BASE}/lots/${id}/work`);
+  await page.waitForSelector('[data-testid="work-sheet"]', { timeout: 60_000 });
+  if (await page.locator('[data-testid="sheet-clear"]').count()) await page.click('[data-testid="sheet-clear"]');
+  const beltRow = page.locator('[data-testid="sheet-op"][data-operation="E2E Belt"] [data-testid="sheet-row"]').first();
+  await beltRow.locator('[data-testid="sheet-worker"] button').first().click();
+  await page.locator(".dropdown-portal li", { hasText: "E2E Payer A" }).click();
+  await page.locator(".dropdown-portal").waitFor({ state: "detached" });
+  await beltRow.locator('[data-testid="sheet-paid"]').click();
+  expect(await beltRow.locator('[data-testid="sheet-paid"]').getAttribute("data-paid"), "marked paid").toBe("true");
+  expect(await page.getAttribute('[data-testid="sheet-total"]', "data-paying-now"), "30 x 10 now").toBe("300");
+  await page.click('[data-testid="sheet-submit"]');
+  await page.waitForURL((url) => url.pathname === `/lots/${id}`, { timeout: 60_000 });
+  const entry = page.locator('[data-testid="lot-work-entry"][data-worker="E2E Payer A"]');
+  await entry.waitFor({ timeout: 60_000 });
+  expect(await entry.getAttribute("data-paid"), "paid on save").toBe("true");
+  expect(await entry.locator('[data-testid="lot-work-remove"]').isDisabled(), "paid work can't be removed").toBe(true);
+
+  // the invoice: unpaid again, then "Pay all" for the operation
+  await entry.locator('[data-testid="lot-work-paid-toggle"]').click();
+  await page.waitForSelector('[data-testid="lot-work-entry"][data-worker="E2E Payer A"][data-paid="false"]', {
+    timeout: 60_000,
+  });
+  expect(await page.getAttribute('[data-testid="lot-work-paid"]', "data-unpaid"), "300 to pay").toBe("300");
+  await page.click('[data-testid="lot-work-group"][data-operation="E2E Belt"] [data-testid="lot-work-pay-op"]');
+  await page.waitForSelector('[data-testid="lot-work-entry"][data-worker="E2E Payer A"][data-paid="true"]', {
+    timeout: 60_000,
+  });
+
+  // more unpaid work, then "Pay the rest" on the Wages page
+  const more = await api(S.admin, "POST", "/api/work-entries", {
+    lotId: id,
+    operationId: (await api(S.admin, "GET", "/api/operations")).body.operations.find((o) => o.name === "E2E Pocket")
+      ._id,
+    rows: [{ workerId: payer._id, pieces: 30 }],
+  });
+  expect(more.status, "more work").toBe(201);
+  await page.goto(`${BASE}/wages`);
+  const row = page.locator('[data-testid="wages-row"][data-worker="E2E Payer A"]');
+  await row.waitFor({ timeout: 60_000 });
+  expect(Number(await row.getAttribute("data-due")) > 0, "something to pay").toBe(true);
+  await row.locator("button").first().click();
+  await row.locator('[data-testid="wages-settle"]').click();
+  await page.click('[data-testid="wages-settle-confirm"]');
+  await page.waitForSelector('[data-testid="wages-row"][data-worker="E2E Payer A"][data-due="0"]', { timeout: 60_000 });
+  expect(
+    await page.locator('[data-testid="payment-row"][data-worker="E2E Payer A"][data-kind="settle"]').count(),
+    "the payment is listed"
+  ).toBe(1);
+
+  // taking the payment back makes that work unpaid again
+  await page
+    .locator(
+      '[data-testid="payment-row"][data-worker="E2E Payer A"][data-kind="settle"] [data-testid="payment-remove"]'
+    )
+    .click();
+  await page.click('[data-testid="payment-remove-confirm"]');
+  await page.waitForSelector('[data-testid="payment-row"][data-worker="E2E Payer A"][data-kind="settle"]', {
+    state: "detached",
+    timeout: 60_000,
+  });
+  const leftover = (await api(S.admin, "GET", `/api/work-entries?lotId=${id}`)).body;
+  await api(S.admin, "POST", "/api/wage-payments/undo", {
+    entryIds: leftover.filter((e) => e.paymentId).map((e) => e._id),
+  });
+  expect((await api(S.admin, "DELETE", `/api/lots/${id}`)).status, "cleaned up").toBe(200);
+});
 
 uiTest("UI: admin stops, resumes, reverses and deletes an invoice from its page", async (page) => {
   const created = await api(S.cutter, "POST", "/api/lots", {

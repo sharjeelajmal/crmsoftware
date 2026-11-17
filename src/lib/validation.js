@@ -443,6 +443,7 @@ const workRowSchema = z
     pieces: z.coerce.number().int().positive(),
     payType: z.enum(PAY_TYPES).default("piece"),
     amount: nonNegative.optional(), // the fixed amount (payType "fixed" only)
+    paid: z.boolean().default(false), // paid on the spot (client, 2026-11-17)
   })
   .refine((row) => row.payType !== "fixed" || row.amount !== undefined, {
     message: "Type the fixed amount",
@@ -529,3 +530,19 @@ export const wageAdjustmentSchema = z
 export const wagesQuerySchema = periodQuerySchema.extend({
   workerId: objectId.optional(),
 });
+
+// ---- Wage payments (work paid early, the rest with the wages) ---------------------------------------------------
+const entryIdsSchema = z
+  .array(objectId)
+  .min(1, "Choose the work to pay")
+  .max(500)
+  .refine((ids) => new Set(ids).size === ids.length, "A work entry can only appear once");
+
+/** Pay chosen work entries now ("Paid"). */
+export const wagePaySchema = z.object({ entryIds: entryIdsSchema, note: optionalText(300) });
+
+/** Mark chosen work entries unpaid again. */
+export const wageUnpaySchema = z.object({ entryIds: entryIdsSchema });
+
+/** "Pay the rest": what is still to pay one worker for a wage period. */
+export const wageSettleSchema = periodQuerySchema.extend({ workerId: objectId, note: optionalText(300) });

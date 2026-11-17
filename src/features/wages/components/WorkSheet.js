@@ -16,6 +16,7 @@ import { MAIN_OPERATION_LABELS } from "@/constants/operations";
 import { rowAmount, workPiecesOf, workSheetProblem, workSheetTotals } from "@/constants/wages";
 import { formatMoney } from "@/lib/format";
 import { useWorkers } from "../hooks/useWorkers";
+import { PaidToggle } from "./PaidToggle";
 import { useLotOperations } from "../hooks/useLotOperations";
 import { useLotWork } from "../hooks/useLotWork";
 import { clearWorkers, emptyWorkSheet, fillWorker, sheetRow, splitOperation, workerOptions } from "../utils";
@@ -31,7 +32,8 @@ const PAY_OPTIONS = [
 /**
  * The work sheet of an invoice: every operation it needs (its category's rate card, else every active operation)
  * with the worker(s), pieces and pay of each, saved in one go. Pieces start at what is still left of each
- * operation; "one worker for every open operation" fills the sheet for a single karigar. The category's team (the
+ * operation; "one worker for every open operation" fills the sheet for a single karigar. A row marked "Paid" is paid
+ * on the spot when the sheet is saved (client, 2026-11-17); the rest waits for the wages. The category's team (the
  * workers saved last time for each operation) fills it in by itself, and saving with "remember" updates that team.
  */
 export function WorkSheet({ lot, backHref, onSaved }) {
@@ -256,6 +258,7 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
             data-amount={totals.amount}
             data-workers={totals.workers}
             data-operations={totals.operations}
+            data-paying-now={totals.payingNow}
           >
             <p className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
               <Users size={16} className="shrink-0 text-primary" />
@@ -264,7 +267,14 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
                 <b className="text-gray-800">{totals.operations}</b> {totals.operations === 1 ? "op" : "ops"}
               </span>
             </p>
-            <p className="text-xl sm:text-2xl font-bold text-primary tabular-nums">{formatMoney(totals.amount)}</p>
+            <p className="text-xl sm:text-2xl font-bold text-primary tabular-nums">
+              {formatMoney(totals.amount)}
+              {totals.payingNow > 0 && (
+                <span className="ml-2 text-xs sm:text-sm font-semibold text-success">
+                  paying now {formatMoney(totals.payingNow)}
+                </span>
+              )}
+            </p>
             {problem && totals.rows > 0 && (
               <p className="text-xs font-medium text-danger" data-testid="sheet-problem">
                 {problem}
@@ -338,7 +348,7 @@ function SheetOperation({ op, lotPieces, options, menuInset, onRate, onRow, onAd
         {op.rows.map((row, index) => (
           <div
             key={index}
-            className="grid grid-cols-[minmax(0,1fr)_2.25rem] @2xl:grid-cols-[minmax(0,1fr)_5.5rem_auto_7.5rem_2.25rem] gap-2 items-center"
+            className="grid grid-cols-[minmax(0,1fr)_auto_2.25rem] @2xl:grid-cols-[minmax(0,1fr)_5.5rem_auto_7rem_auto_2.25rem] gap-2 items-center"
             data-testid="sheet-row"
           >
             <div className="col-start-1 row-start-1 @2xl:col-auto @2xl:row-auto min-w-0">
@@ -353,7 +363,7 @@ function SheetOperation({ op, lotPieces, options, menuInset, onRate, onRow, onAd
                 bottomInset={menuInset}
               />
             </div>
-            <div className="col-span-2 row-start-2 grid grid-cols-[5rem_auto_minmax(0,1fr)] gap-2 items-center @2xl:contents">
+            <div className="col-span-3 row-start-2 grid grid-cols-[5rem_auto_minmax(0,1fr)] gap-2 items-center @2xl:contents">
               <input
                 autoComplete="off"
                 type="number"
@@ -395,12 +405,20 @@ function SheetOperation({ op, lotPieces, options, menuInset, onRate, onRow, onAd
                 </span>
               )}
             </div>
+            <div className="col-start-2 row-start-1 @2xl:col-auto @2xl:row-auto">
+              <PaidToggle
+                paid={Boolean(row.paid)}
+                onToggle={() => onRow(index, { paid: !row.paid })}
+                tip={row.paid ? "Paid when the work is saved" : "Pay now? Press to mark it paid on save"}
+                testId="sheet-paid"
+              />
+            </div>
             <button
               type="button"
               onClick={() => onRemoveRow(index)}
               aria-label={op.rows.length > 1 ? "Remove worker" : "Clear row"}
               data-tip={op.rows.length > 1 ? "Remove worker" : "Clear row"}
-              className="col-start-2 row-start-1 @2xl:col-auto @2xl:row-auto w-9 h-9 grid place-items-center rounded-lg text-gray-400 hover:text-danger hover:bg-danger-soft cursor-pointer"
+              className="col-start-3 row-start-1 @2xl:col-auto @2xl:row-auto w-9 h-9 grid place-items-center rounded-lg text-gray-400 hover:text-danger hover:bg-danger-soft cursor-pointer"
               data-testid="sheet-remove"
             >
               <Trash2 size={16} />

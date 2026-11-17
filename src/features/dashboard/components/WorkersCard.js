@@ -37,14 +37,17 @@ export function WorkersCard({ wages, className = "" }) {
       className={className}
       testId="dash-workers"
     >
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Figure label="Net payable" testId="dash-workers-net">
           <AnimatedNumber value={week.net} format={(n) => formatMoney(Math.round(n))} />
+        </Figure>
+        <Figure label="To pay" testId="dash-workers-due">
+          <AnimatedNumber value={week.due ?? week.net} format={(n) => formatMoney(Math.round(n))} />
         </Figure>
         <Figure label="Pieces done">
           <AnimatedNumber value={week.pieces} format={compactNumber} />
         </Figure>
-        <Figure label="Advance left (all)" testId="dash-workers-advance" className="col-span-2 sm:col-span-1">
+        <Figure label="Advance left (all)" testId="dash-workers-advance">
           <AnimatedNumber value={wages.advanceLeft ?? 0} format={(n) => formatMoney(Math.round(n))} />
         </Figure>
       </div>

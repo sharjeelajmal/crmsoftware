@@ -22,6 +22,12 @@ import {
   workPiecesOf,
   workSheetProblem,
   workSheetTotals,
+  isPaid,
+  paidEntryProblem,
+  paidSplit,
+  settleDate,
+  settleProblem,
+  workPaymentsFor,
 } from "@/constants/wages";
 import {
   clearWorkers,
@@ -31,8 +37,15 @@ import {
   toWorkSheetPayload,
   workerWorkLine,
 } from "@/features/wages/utils";
-import { buildWageAdjustment, buildWorkEntry, workEntryEditOps } from "@/lib/wages";
-import { operationSchema, workAssignmentSchema, workerSchema, wageAdjustmentSchema } from "@/lib/validation";
+import { buildWageAdjustment, buildWagePayment, buildWorkEntry, workEntryEditOps } from "@/lib/wages";
+import {
+  operationSchema,
+  wagePaySchema,
+  wageSettleSchema,
+  workAssignmentSchema,
+  workerSchema,
+  wageAdjustmentSchema,
+} from "@/lib/validation";
 import { dateRangeFromFilter } from "@/lib/dates";
 
 const session = { sub: "u1", name: "Admin" };
@@ -154,7 +167,14 @@ describe("work sheet", () => {
       ],
     };
     // 34 × 4 + 33 × 4 + 1000 fixed
-    expect(workSheetTotals(ready)).toEqual({ workers: 2, operations: 2, rows: 3, amount: 1268 });
+    expect(workSheetTotals(ready)).toEqual({ workers: 2, operations: 2, rows: 3, amount: 1268, payingNow: 0 });
+    // a row marked paid is paid on save: 1000 fixed now, the rest later
+    const paidNow = {
+      ...ready,
+      operations: ready.operations.map((op, i) => (i === 2 ? { ...op, rows: [{ ...op.rows[0], paid: true }] } : op)),
+    };
+    expect(workSheetTotals(paidNow).payingNow).toBe(1000);
+    expect(toWorkSheetPayload("lot1", paidNow).operations[1].rows[0].paid).toBe(true);
     expect(toWorkSheetPayload("lot1", { ...ready, note: "  shift 2 " })).toEqual({
       lotId: "lot1",
       date: ready.date,
@@ -252,11 +272,122 @@ describe("category team (last time's workers fill the next invoice)", () => {
       ["w2", "25"],
       ["w3", "25"],
     ]);
-    expect(sheet.operations[1].rows).toEqual([{ workerId: "", pieces: "", payType: "piece", amount: "" }]);
-    expect(workSheetTotals(sheet)).toEqual({ workers: 3, operations: 1, rows: 3, amount: 762.5 }); // 50×3.5 + 25×3.5 + 500
+    expect(sheet.operations[1].rows).toEqual([{ workerId: "", pieces: "", payType: "piece", amount: "", paid: false }]);
+    expect(workSheetTotals(sheet)).toEqual({ workers: 3, operations: 1, rows: 3, amount: 762.5, payingNow: 0 }); // 50×3.5 + 25×3.5 + 500
     const cleared = clearWorkers(sheet);
     expect(cleared.teamFilled).toBe(0);
-    expect(cleared.operations[0].rows).toEqual([{ workerId: "", pieces: "100", payType: "piece", amount: "" }]);
+    expect(cleared.operations[0].rows).toEqual([
+      { workerId: "", pieces: "100", payType: "piece", amount: "", paid: false },
+    ]);
+  });
+});
+
+describe("paying work: early, and the rest with the wages", () => {
+  const day = (d) => new Date(2026, 10, d, 12);
+  const id = (n) => `64b00000000000000000000${n}`;
+  const entries = [
+    {
+      _id: id(1),
+      workerId: "w1",
+      workerName: "Akram",
+      lotId: id(7),
+      lotNumber: "INV-1001",
+      amount: 210,
+      date: day(16),
+    },
+    {
+      _id: id(2),
+      workerId: "w1",
+      workerName: "Akram",
+      lotId: id(7),
+      lotNumber: "INV-1001",
+      amount: 100,
+      date: day(17),
+    },
+    { _id: id(3), workerId: "w2", workerName: "Bilal", lotId: id(8), lotNumber: "INV-1002", amount: 50, date: day(16) },
+    {
+      _id: id(4),
+      workerId: "w2",
+      workerName: "Bilal",
+      amount: 40,
+      date: day(16),
+      paymentId: "p0",
+      paymentKind: "work",
+    },
+  ];
+
+  it("knows paid work and keeps it from being changed", () => {
+    expect(isPaid(entries[3])).toBe(true);
+    expect(isPaid(entries[0])).toBe(false);
+    expect(paidEntryProblem(entries[3])).toMatch(/already paid — mark it unpaid first/);
+    expect(paidEntryProblem(entries[0])).toBe("");
+    expect(paidSplit(entries)).toEqual({ paid: 40, unpaid: 360 });
+  });
+
+  it("pays early one payment per worker, only the unpaid work, dated on its latest work day", () => {
+    const payments = workPaymentsFor(entries);
+    expect(payments.map((p) => [p.workerName, p.amount, p.entries.length, p.lotNumbers])).toEqual([
+      ["Akram", 310, 2, ["INV-1001"]],
+      ["Bilal", 50, 1, ["INV-1002"]],
+    ]);
+    expect(payments[0].date).toEqual(day(17));
+    expect(workPaymentsFor([entries[3]])).toEqual([]);
+  });
+
+  it("subtracts what was paid from the net payable", () => {
+    const adjustments = [{ workerId: "w1", workerName: "Akram", type: "recovery", amount: 60 }];
+    const payments = [
+      { workerId: "w1", workerName: "Akram", amount: 210 },
+      { workerId: "w2", workerName: "Bilal", amount: 40 },
+    ];
+    const { workers, totals } = summarizeWages(entries, adjustments, payments);
+    const akram = workers.find((w) => w.workerName === "Akram");
+    expect([akram.net, akram.paid, akram.due]).toEqual([250, 210, 40]); // 310 − 60 advance cut, 210 paid early
+    const bilal = workers.find((w) => w.workerName === "Bilal");
+    expect([bilal.net, bilal.paid, bilal.due]).toEqual([90, 40, 50]);
+    expect([totals.net, totals.paid, totals.due]).toEqual([340, 250, 90]);
+    // paid more than earned: shown as below zero
+    expect(summarizeWages([entries[2]], [], [{ workerId: "w2", amount: 80 }]).workers[0].due).toBe(-30);
+  });
+
+  it("pays the rest only when something is left, dated in the period it settles", () => {
+    expect(settleProblem({ workerName: "Akram", due: 40 })).toBe("");
+    expect(settleProblem({ workerName: "Akram", due: 0 })).toMatch(/Nothing is left to pay Akram/);
+    expect(settleProblem({ workerName: "Akram", due: -5 })).toMatch(/Nothing is left/);
+    const now = day(20);
+    expect(settleDate({ start: day(9), end: day(15) }, now)).toEqual(day(15)); // last week: its last day
+    expect(settleDate({ start: day(16), end: day(22) }, now)).toEqual(now); // this week: today
+  });
+
+  it("builds a payment with the work it pays and their invoices", () => {
+    const now = day(17);
+    const doc = buildWagePayment({
+      worker: { workerId: id(5), workerName: "Akram" },
+      amount: 310.004,
+      date: day(17),
+      kind: "work",
+      entries: entries.slice(0, 2),
+      session: { sub: "u1", name: "Admin" },
+      now,
+    });
+    expect(doc).toMatchObject({
+      workerName: "Akram",
+      amount: 310,
+      kind: "work",
+      lotNumbers: ["INV-1001"],
+      createdAt: now,
+    });
+    expect(doc.entryIds).toEqual([id(1), id(2)]);
+    expect(doc.lotIds.map(String)).toEqual([id(7)]);
+    expect(doc.by).toEqual({ id: "u1", name: "Admin" });
+  });
+
+  it("validates pay and pay-the-rest requests", () => {
+    expect(wagePaySchema.parse({ entryIds: [id(1)] })).toEqual({ entryIds: [id(1)], note: "" });
+    expect(() => wagePaySchema.parse({ entryIds: [] })).toThrow(/Choose the work to pay/);
+    expect(() => wagePaySchema.parse({ entryIds: [id(1), id(1)] })).toThrow(/only appear once/);
+    expect(wageSettleSchema.parse({ workerId: id(5), filter: "lastweek" })).toMatchObject({ filter: "lastweek" });
+    expect(() => wageSettleSchema.parse({ filter: "lastweek" })).toThrow();
   });
 });
 
@@ -404,6 +535,8 @@ describe("summarizeWages", () => {
       deductions: 40,
       bonuses: 100,
       net: 1300,
+      paid: 0,
+      due: 1300,
     });
     expect(summarizeWages([], []).totals.workers).toBe(0);
   });
@@ -519,7 +652,7 @@ describe("wage schemas and periods", () => {
     ];
     expect(() => workAssignmentSchema.parse({ lotId: id, operationId: id, rows: twice })).toThrow(/only appear once/);
     const parsed = workAssignmentSchema.parse({ lotId: id, operationId: id, rows: [{ workerId: id, pieces: "12" }] });
-    expect(parsed.operations[0].rows[0]).toEqual({ workerId: id, pieces: 12, payType: "piece" });
+    expect(parsed.operations[0].rows[0]).toEqual({ workerId: id, pieces: 12, payType: "piece", paid: false });
     const other = "64b000000000000000000002";
     const sheet = workAssignmentSchema.parse({
       lotId: id,
