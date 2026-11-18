@@ -324,14 +324,32 @@ describe("paying work: early, and the rest with the wages", () => {
     expect(paidSplit(entries)).toEqual({ paid: 40, unpaid: 360 });
   });
 
-  it("pays early one payment per worker, only the unpaid work, dated on its latest work day", () => {
+  it("pays early one payment per worker per work day, only the unpaid work, dated on that day", () => {
     const payments = workPaymentsFor(entries);
-    expect(payments.map((p) => [p.workerName, p.amount, p.entries.length, p.lotNumbers])).toEqual([
-      ["Akram", 310, 2, ["INV-1001"]],
-      ["Bilal", 50, 1, ["INV-1002"]],
+    expect(payments.map((p) => [p.workerName, p.amount, p.entries.length, p.lotNumbers, p.date])).toEqual([
+      ["Akram", 210, 1, ["INV-1001"], day(16)],
+      ["Akram", 100, 1, ["INV-1001"], day(17)],
+      ["Bilal", 50, 1, ["INV-1002"], day(16)],
     ]);
-    expect(payments[0].date).toEqual(day(17));
+    expect(payments[0].workerId).toBe("w1");
     expect(workPaymentsFor([entries[3]])).toEqual([]);
+    // the same day's work of one worker stays one payment
+    const sameDay = workPaymentsFor([entries[0], { ...entries[1], date: day(16) }]);
+    expect(sameDay.map((p) => [p.amount, p.entries.length])).toEqual([[310, 2]]);
+  });
+
+  it("keeps work paid over two weeks in each week's own wages (no double pay with Pay the rest)", () => {
+    const lastWeek = { start: day(9), end: new Date(2026, 10, 15, 23, 59) };
+    const work = [
+      { _id: "a", workerId: "w1", workerName: "Akram", amount: 200, date: day(14) },
+      { _id: "b", workerId: "w1", workerName: "Akram", amount: 300, date: day(17) },
+    ];
+    // "Pay all" pays both: each payment carries its own work day
+    const payments = workPaymentsFor(work);
+    const inLastWeek = payments.filter((p) => p.date >= lastWeek.start && p.date <= lastWeek.end);
+    const last = summarizeWages([work[0]], [], inLastWeek).workers[0];
+    expect([last.net, last.paid, last.due].join(), "last week is settled, nothing to pay twice").toBe("200,200,0");
+    expect(settleProblem(last)).toMatch(/Nothing is left/);
   });
 
   it("subtracts what was paid from the net payable", () => {

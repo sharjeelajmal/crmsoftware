@@ -232,7 +232,7 @@ export const teamRowsFor = (item, left, activeIds) => {
 // Client (Rashid, 2026-11-17): some operations are paid as soon as they are done, from where the work is assigned;
 // the rest is paid later with the wages. A wage payment (`wage_payments`) pays one worker:
 // - "work": chosen work entries paid early; amount = their wages, dated on their (latest) work day, so it counts in
-//   the same wage period as the work;
+//   the same wage period as the work (one per worker per work day);
 // - "settle": "Pay the rest" for a wage period: what is still to pay (net payable − already paid), covering the
 //   period's unpaid entries.
 // A work entry is paid while it carries the `paymentId` of its payment (and `paymentKind`); a paid entry can't be
@@ -259,18 +259,24 @@ export const paidSplit = (entries = []) =>
     { paid: 0, unpaid: 0 }
   );
 
+const localDay = (value) => {
+  const d = new Date(value);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
 /**
- * "Work" payments for the chosen entries: one per worker, for the entries not paid yet, with the wages of those
- * entries, dated on the latest work day among them, and the invoices they belong to.
+ * "Work" payments for the chosen entries: one per worker per work day, for the entries not paid yet, with their
+ * wages and invoices. One per day keeps every payment in the wage period of the work it pays (a payment counts in a
+ * period by its date): "Pay all" over two weeks must not make last week look unpaid and pay it twice.
  */
 export const workPaymentsFor = (entries = []) => {
-  const byWorker = new Map();
+  const groups = new Map();
   for (const entry of entries) {
     if (isPaid(entry)) continue;
-    const key = String(entry.workerId);
-    if (!byWorker.has(key)) {
-      byWorker.set(key, {
-        workerId: key,
+    const key = `${entry.workerId}|${localDay(entry.date)}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        workerId: String(entry.workerId),
         workerName: entry.workerName || "",
         amount: 0,
         date: entry.date,
@@ -278,13 +284,12 @@ export const workPaymentsFor = (entries = []) => {
         lotNumbers: [],
       });
     }
-    const row = byWorker.get(key);
-    row.amount = round2(row.amount + (Number(entry.amount) || 0));
-    if (new Date(entry.date) > new Date(row.date)) row.date = entry.date;
-    row.entries.push(entry);
-    pushUnique(row.lotNumbers, entry.lotNumber);
+    const group = groups.get(key);
+    group.amount = round2(group.amount + (Number(entry.amount) || 0));
+    group.entries.push(entry);
+    pushUnique(group.lotNumbers, entry.lotNumber);
   }
-  return [...byWorker.values()];
+  return [...groups.values()];
 };
 
 /** Why "Pay the rest" can't pay a worker's period summary row, or "". */

@@ -5,7 +5,7 @@ import { round2 } from "@/constants/wages";
  *
  * A Ready lot sends its pieces out of the factory in one go or in parts (any number, e.g. 10), each time with a
  * dispatch gate pass naming the party / shop it goes to. What leaves is taken out of the Ready stock. The pass carries
- * the labour cost of those pieces: the wages paid on the lot ÷ the pieces that came out ready, × the pieces going out.
+ * the labour cost of those pieces: the wages earned on the lot (paid or not) ÷ the pieces that came out ready, × the pieces going out.
  * (What else belongs in the cost is still to be decided with the client.)
  */
 

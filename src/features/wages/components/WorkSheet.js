@@ -13,7 +13,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { Switch } from "@/components/ui/Switch";
 import { useToast } from "@/components/ui/ToastProvider";
 import { MAIN_OPERATION_LABELS } from "@/constants/operations";
-import { rowAmount, workPiecesOf, workSheetProblem, workSheetTotals } from "@/constants/wages";
+import { paidSplit, round2, rowAmount, workPiecesOf, workSheetProblem, workSheetTotals } from "@/constants/wages";
 import { formatMoney } from "@/lib/format";
 import { useWorkers } from "../hooks/useWorkers";
 import { PaidToggle } from "./PaidToggle";
@@ -59,6 +59,7 @@ export function WorkSheet({ lot, backHref, onSaved }) {
 function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backHref, onSaved }) {
   const toast = useToast();
   const lotPieces = workPiecesOf(lot);
+  const soFar = paidSplit(entries); // the invoice's work saved before this sheet
   const options = workerOptions(workers);
   const [sheet, setSheet] = useState(() =>
     emptyWorkSheet(offer.operations, entries, lotPieces, {
@@ -148,6 +149,19 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
             </span>
           )}
         </p>
+        {entries.length > 0 && (
+          <p
+            className="rounded-xl bg-surface-muted px-3 py-2 text-xs text-gray-600"
+            data-testid="sheet-so-far"
+            data-paid={soFar.paid}
+            data-unpaid={soFar.unpaid}
+          >
+            So far on this invoice: labour{" "}
+            <b className="text-gray-800">{formatMoney(round2(soFar.paid + soFar.unpaid))}</b> · paid{" "}
+            <b className="text-success">{formatMoney(soFar.paid)}</b> · remaining{" "}
+            <b className="text-primary">{formatMoney(soFar.unpaid)}</b>
+          </p>
+        )}
         {sheet.teamFilled > 0 && (
           <div
             className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-success-border bg-success-soft px-3 py-2.5 text-sm text-gray-700"
@@ -270,8 +284,12 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
             <p className="text-xl sm:text-2xl font-bold text-primary tabular-nums">
               {formatMoney(totals.amount)}
               {totals.payingNow > 0 && (
-                <span className="ml-2 text-xs sm:text-sm font-semibold text-success">
-                  paying now {formatMoney(totals.payingNow)}
+                <span className="ml-2 text-xs sm:text-sm font-semibold">
+                  <span className="text-success">paying now {formatMoney(totals.payingNow)}</span>
+                  <span className="text-gray-500">
+                    {" "}
+                    · later {formatMoney(round2(totals.amount - totals.payingNow))}
+                  </span>
                 </span>
               )}
             </p>

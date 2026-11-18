@@ -2496,6 +2496,13 @@ uiTest("UI: pay work on the spot from the sheet and the invoice, and the rest on
     rows: [{ workerId: payer._id, pieces: 30 }],
   });
   expect(more.status, "more work").toBe(201);
+  // the client's case: part paid, part not — the card shows what is left, total labour minus what was paid
+  await page.reload();
+  await page.waitForSelector('[data-testid="lot-work-remaining"]', { timeout: 60_000 });
+  const total = Number(await page.getAttribute('[data-testid="lot-work-amount"]', "data-amount"));
+  const remaining = Number(await page.getAttribute('[data-testid="lot-work-remaining"]', "data-amount"));
+  expect(remaining, "remaining = total labour − 300 paid").toBe(total - 300);
+  expect(remaining > 0, "something still to pay").toBe(true);
   await page.goto(`${BASE}/wages`);
   const row = page.locator('[data-testid="wages-row"][data-worker="E2E Payer A"]');
   await row.waitFor({ timeout: 60_000 });

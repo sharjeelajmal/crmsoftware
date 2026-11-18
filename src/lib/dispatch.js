@@ -21,7 +21,7 @@ import {
 
 const tracksSizes = (product) => Array.isArray(product.sizes) && product.sizes.length > 0;
 
-/** Wages paid on the lot so far (all its work entries). */
+/** Wages earned on the lot so far (all its work entries, paid or not): the labour cost of its pieces. */
 export async function lotLabour(db, lotId, session) {
   const [row] = await db
     .collection("work_entries")

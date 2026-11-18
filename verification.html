@@ -862,10 +862,10 @@ const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–17 November 2026
    tasks:[
     {id:"u-pay-sheet",t:"Kaam dete hi paid",s:"Assign work → Paid",who:"admin",
      steps:["Invoice → “Assign work” kholein.","Kisi operation par karigar chunein; us line par “<b>Unpaid</b>” dabayein — “<b>Paid ✓</b>” ho jata hai.","Neeche total ke saath “<b>paying now Rs …</b>” dekhein aur “Save work” dabayein."],
-     ok:"Invoice page par us karigar ki line par hara “<b>Paid</b>”; baqi lines “Unpaid”. Upar likha hota hai: <b>Paid Rs … · to pay Rs …</b>."},
+     ok:"Invoice page par us karigar ki line par hara “<b>Paid</b>”; baqi lines “Unpaid”. Upar teen dabbe: <b>Total labour</b> (kul kaam), <b>Paid</b> aur <b>Remaining</b> — misaal: kul 14,000 mein se 700 diye to Remaining <b>13,300</b>."},
     {id:"u-pay-invoice",t:"Invoice page se paid / unpaid",s:"Invoice → Work &amp; wages → Operations",who:"admin",
      steps:["Invoice page par “Work &amp; wages” → “Operations” dekhein.","Kisi Unpaid line par “<b>Unpaid</b>” dabayein (paid ho jayegi), ya Paid par dabayein (unpaid ho jayegi).","Poore operation ke liye “<b>Pay all · Rs …</b>” dabayein."],
-     ok:"Line foran Paid / Unpaid ho jati hai aur upar “Paid · to pay” badal jata hai. Paid line ka 🗑️ band hota hai (pehle Unpaid karein).",
+     ok:"Line foran Paid / Unpaid ho jati hai aur upar “Paid” aur “<b>Remaining</b>” usi waqt badalte hain. Har operation ke aage “left Rs …” ya “all paid ✓”. Paid line ka 🗑️ band hota hai (pehle Unpaid karein).",
      tip:"Jis kaam ke paise ja chuke hon us invoice ka Delete bhi band hai — pehle us kaam ko Unpaid karein."},
     {id:"u-pay-rest",t:"Baqi paise: Pay the rest",s:"Wages → karigar → Pay the rest",who:"admin",
      steps:["“Wages” kholein (This Week ya jo period ho).","Karigar ki row mein “<b>To pay</b>” dekhein aur row par click karein.","“<b>Pay the rest · Rs …</b>” dabayein aur confirm karein."],
@@ -963,7 +963,7 @@ const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–17 November 2026
    tasks:[
     {id:"u-wages-inv",t:"Invoice wise mazdoori",s:"Wages → By invoice",who:"admin",
      steps:["Menu mein “Wages” kholein.","“<b>By invoice</b>” dabayein.","Invoice ki row par click karein."],
-     ok:"Kitne karigar, kitne operations, kul mazdoori aur pay ka tareeqa; click par <b>har karigar ka hisaab</b> aur invoice kholne ka link."},
+     ok:"Kitne karigar, kitne operations, pay ka tareeqa, aur bara likha “<b>to pay Rs …</b>” (kul mein se jo baqi hai, neeche “of kul · paid”); click par <b>har karigar ka hisaab</b> aur invoice kholne ka link. Neeche sab invoices ka total."},
    ]},
   {title:"Check ke baad safai",icon:"undo",
    what:"Agar yeh sab sirf check karne ke liye kiya tha to test ki entries hata dein, taake <b>asal hisaab</b> mein na milein.",

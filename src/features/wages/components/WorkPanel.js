@@ -110,29 +110,18 @@ export function WorkPanel({ lot }) {
             <HardHat size={18} className="text-primary" /> Work &amp; wages
           </h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            Labour on this invoice:{" "}
-            <span className="font-semibold text-gray-800" data-testid="lot-work-amount" data-amount={totals.amount}>
-              {formatMoney(totals.amount)}
-            </span>
-            {totals.perPiece > 0 ? ` · Rs ${totals.perPiece} per piece` : ""}
-            {workers.length > 0 && (
-              <span data-testid="lot-work-workers" data-count={workers.length}>
-                {" "}
-                · {workers.length} {plural(workers.length, "worker")}
-              </span>
+            {entries.length === 0 ? (
+              "Labour on this invoice: nothing yet"
+            ) : (
+              <>
+                Labour cost Rs {totals.perPiece} per piece
+                <span data-testid="lot-work-workers" data-count={workers.length}>
+                  {" "}
+                  · {workers.length} {plural(workers.length, "worker")}
+                </span>
+              </>
             )}
           </p>
-          {entries.length > 0 && (
-            <p
-              className="text-sm text-gray-500"
-              data-testid="lot-work-paid"
-              data-paid={money.paid}
-              data-unpaid={money.unpaid}
-            >
-              Paid <span className="font-semibold text-success">{formatMoney(money.paid)}</span> · to pay{" "}
-              <span className="font-semibold text-gray-800">{formatMoney(money.unpaid)}</span>
-            </p>
-          )}
         </div>
         {lot.hold ? (
           <Button
@@ -152,6 +141,21 @@ export function WorkPanel({ lot }) {
           </Link>
         )}
       </div>
+
+      {entries.length > 0 && (
+        // Total labour stays what the work cost; what was paid comes off "Remaining" (client, 2026-11-18: after paying
+        // 700 of 14,000 he expects to see 13,300 left).
+        <div
+          className="grid grid-cols-3 gap-2 mb-4"
+          data-testid="lot-work-paid"
+          data-paid={money.paid}
+          data-unpaid={money.unpaid}
+        >
+          <MoneyFigure label="Total labour" shortLabel="Total" value={totals.amount} testId="lot-work-amount" />
+          <MoneyFigure label="Paid" value={money.paid} tone="success" />
+          <MoneyFigure label="Remaining" value={money.unpaid} tone="primary" testId="lot-work-remaining" />
+        </div>
+      )}
 
       {progress.length > 0 && (
         <div className="mb-4" data-testid="lot-work-progress">
@@ -209,6 +213,33 @@ export function WorkPanel({ lot }) {
   );
 }
 
+const FIGURE_TONE = {
+  default: "text-gray-800",
+  success: "text-success",
+  primary: "text-primary",
+};
+
+/** One money figure of the strip under the card header; `shortLabel` is used on a phone. */
+function MoneyFigure({ label, shortLabel, value, tone = "default", testId }) {
+  return (
+    <div className="rounded-xl bg-surface-muted px-3 py-2 min-w-0" data-testid={testId} data-amount={value}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 truncate">
+        {shortLabel ? (
+          <>
+            <span className="sm:hidden">{shortLabel}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </>
+        ) : (
+          label
+        )}
+      </p>
+      <p className={`text-base sm:text-lg font-bold tabular-nums truncate ${FIGURE_TONE[tone]}`}>
+        {formatMoney(value)}
+      </p>
+    </div>
+  );
+}
+
 function ByOperation({ entries, onRemove, onTogglePaid, onPayAll, isPaying }) {
   return groupByOperation(entries).map((group) => {
     const unpaid = group.entries.filter((entry) => !isPaid(entry));
@@ -218,6 +249,18 @@ function ByOperation({ entries, onRemove, onTogglePaid, onPayAll, isPaying }) {
           <span className="font-semibold text-gray-800">{group.operationName}</span>
           <span className="flex items-center gap-3 text-gray-500">
             {group.pieces} pcs · <span className="font-semibold text-gray-800">{formatMoney(group.amount)}</span>
+            {unpaid.length === 0 ? (
+              <span
+                className="inline-flex items-center gap-1 font-semibold text-success"
+                data-testid="lot-work-op-left"
+              >
+                <Check size={12} strokeWidth={3} /> all paid
+              </span>
+            ) : unpaid.length < group.entries.length ? (
+              <span className="font-semibold text-primary" data-testid="lot-work-op-left">
+                left {formatMoney(paidSplit(unpaid).unpaid)}
+              </span>
+            ) : null}
             {unpaid.length > 0 && (
               <Button
                 variant="secondary"
@@ -300,10 +343,17 @@ function ByWorker({ workers }) {
               </span>
             ))}
           </span>
-          <span className="text-right whitespace-nowrap">
-            <span className="block font-semibold text-gray-800">{formatMoney(row.amount)}</span>
-            <span className="block text-[11px] text-gray-500" data-testid="lot-work-worker-paid">
-              {row.unpaid > 0 ? `to pay ${formatMoney(row.unpaid)}` : "all paid"}
+          <span className="text-right whitespace-nowrap" data-testid="lot-work-worker-paid" data-unpaid={row.unpaid}>
+            {row.unpaid > 0 ? (
+              <span className="block font-semibold text-primary">to pay {formatMoney(row.unpaid)}</span>
+            ) : (
+              <span className="flex items-center justify-end gap-1 font-semibold text-success">
+                <Check size={12} strokeWidth={3} /> all paid
+              </span>
+            )}
+            <span className="block text-[11px] text-gray-500">
+              of {formatMoney(row.amount)}
+              {row.paid > 0 && row.unpaid > 0 ? ` · paid ${formatMoney(row.paid)}` : ""}
             </span>
           </span>
         </li>
