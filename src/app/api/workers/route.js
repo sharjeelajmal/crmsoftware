@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { route, ok, created, parseBody, conflict } from "@/lib/api";
 import { workerSchema } from "@/lib/validation";
@@ -9,14 +10,19 @@ export const GET = route(async () => {
   return ok(workers);
 });
 
-/** POST /api/workers  { name, phone?, type?, note?, active? } */
+/** POST /api/workers  { name, phone?, type?, dailyRate?, operationIds?, note?, active? } */
 export const POST = route(async (request) => {
   const input = await parseBody(request, workerSchema);
   const db = await getDb();
   const clash = await db.collection("workers").findOne({ name: input.name });
   if (clash) throw conflict(`Worker "${input.name}" already exists`);
   const now = new Date();
-  const doc = { ...input, createdAt: now, updatedAt: now };
+  const doc = {
+    ...input,
+    operationIds: input.operationIds.map((id) => new ObjectId(id)),
+    createdAt: now,
+    updatedAt: now,
+  };
   const { insertedId } = await db.collection("workers").insertOne(doc);
   return created({ _id: insertedId, ...doc });
 });

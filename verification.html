@@ -854,9 +854,37 @@ const DAILY=[
 ];
 
 
-const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–17 November 2026",who:["admin"],
-  intro:"17 November: karigaron ko <b>wahin se paise dena</b> jahan kaam diya jata hai — har operation ke aage <b>Paid / Unpaid</b>; baqi Wages page par “<b>Pay the rest</b>”. 9 November: invoice ko <b>kisi bhi stage par rokna</b> (Stop / Resume), <b>ek qadam peeche karna</b> (Reverse) aur <b>kisi bhi stage par delete</b>. 6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
+const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–19 November 2026",who:["admin"],
+  intro:"19 November: <b>Stitching Khata</b> — har karigar ka kaam aap khud likhein (cut, operation, pieces), paise khud jurte jayen, aur “<b>Lock</b>” se “yahan tak paise de diye”; cut bhi aap khud banayein. Article banate waqt <b>purchase / sale price</b> ab nahi poocha jata. 17 November: karigaron ko <b>wahin se paise dena</b> jahan kaam diya jata hai — har operation ke aage <b>Paid / Unpaid</b>; baqi Wages page par “<b>Pay the rest</b>”. 9 November: invoice ko <b>kisi bhi stage par rokna</b> (Stop / Resume), <b>ek qadam peeche karna</b> (Reverse) aur <b>kisi bhi stage par delete</b>. 6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
   groups:[
+  {title:"Stitching Khata — karigar ka hisaab haath se (19 Nov)",icon:"scroll",
+   what:"Menu mein naya “<b>Stitching Khata</b>”. Ek cut par kuch karigar aaj kaam karte hain aur kuch 10–12 din baad — is liye ab har karigar ka <b>apna khata</b> hai: aap khud likhein kis ne <b>kis cut</b> par <b>kaunsa operation</b> kitne <b>pieces</b> kiya; rate khud aata hai aur paise saath saath jurte hain. Jab paise de dein to “<b>Lock</b>” — us din tak ka sab Paid, aage ka kaam naye sire se. Cut bhi aap khud banate hain (cutting master nahi). Cutting aur washing pehle jaisi hain. Yeh wahi hisaab hai jo Wages page par hai — dono jagah ek hi figure.",
+   tasks:[
+    {id:"u-khata-ops",t:"Karigar ke operations aur rate",s:"Workers → karigar → Edit",who:"admin",
+     steps:["“Workers” kholein aur karigar ki row par ✏️ (Edit) dabayein.","“<b>Operations he does</b>” mein woh operations dabayein jo yeh karigar karta hai (misaal: Overlock, Pocket) — chune hue neele ho jate hain.","“Save Changes” dabayein."],
+     ok:"Workers list mein karigar ke naam ke neeche us ke operations rate ke saath: “<b>Overlock · Rs 3.5</b>”. Stitching Khata mein us ke box par bhi yahi dikhte hain.",
+     tip:"Rate “Operations &amp; rates” tab se badalta hai; yahan sirf yeh chunte hain ke karigar kaun se operations karta hai."},
+    {id:"u-khata-cut",t:"Cut khud banana",s:"Stitching Khata → Cuts → Add cut",who:"admin",
+     steps:["“Stitching Khata” kholein aur upar “<b>Cuts</b>” dabayein.","“<b>Add cut</b>” dabayein: Cut number (misaal 20), Article (Baggy Pent), kitne pieces, aur date likhein.","“Add cut” dabayein."],
+     ok:"List mein “<b>Cut 20</b> · Baggy Pent · 150 pcs” aa jata hai, “no work yet” ke saath. Wahi number dobara likhein to message aata hai: “Cut 20 already exists”.",
+     tip:"Purani invoice (INV-…) par kaam likhna ho to woh bhi karigar ke khata mein cut ki list mein milti hai."},
+    {id:"u-khata-entry",t:"Karigar ka kaam likhna",s:"Stitching Khata → karigar ka box → Add work",who:"admin",
+     steps:["“Stitching Khata” → “Workers” mein karigar ke box par click karein.","“<b>Add work</b>” mein <b>Cut</b> chunein, phir <b>Operation</b> (us ke apne operations sab se upar, rate khud bhar jata hai).","<b>Pieces</b> likhein (aur din, agar aaj ka nahi) aur “Add work” dabayein."],
+     ok:"Neeche “<b>Not paid yet</b>” mein nayi line: din · Cut 20 · Overlock · 40 × Rs 3.5 = <b>Rs 140</b>. Upar “<b>To pay</b>” utna barh jata hai. Agli line ke liye cut aur operation wahi rehte hain — bas pieces badlein.",
+     tip:"Tay shuda raqam par kaam ho to “Fixed” chunein aur kul raqam likhein. Ghalat line ho to us ka 🗑️ dabayein (Paid line pehle Unpaid karein)."},
+    {id:"u-khata-lock",t:"Lock — yahan tak paise de diye",s:"Karigar ka khata → Lock · paid up to…",who:"admin",
+     steps:["Karigar ke khata mein upar “<b>Lock · paid up to…</b>” dabayein.","Din chunein (aaj ya jis din tak paise diye). Neeche dikhta hai: kitni entries aur kitne Rs.","Karigar par advance baqi ho to “<b>Advance cut</b>” mein likhein kitna katna hai (misaal 1000) — neeche likha aata hai: work Rs 5,000 − advance cut Rs 1,000 = <b>Rs 4,000 in hand</b>.","“<b>Pay Rs … &amp; lock</b>” dabayein."],
+     ok:"Us din tak ka sara kaam ek section “<b>Paid up to [din]</b>” mein chala jata hai; “To pay” mein sirf us din ke <b>baad</b> ka kaam bachta hai. Karigar ke box par “🔒 paid up to [din]”. Wages page ke “Payments” mein bhi “<b>Paid up to a day</b>” dikhta hai.",
+     tip:"Ghalat lock ho gaya? Khata mein us section ka ↩️ (Take this payment back) dabayein — woh sara kaam dobara Unpaid aur us ke saath kata hua advance bhi wapas. Lock ke saath kata advance Wages page par “Advance cut” mein dikhta hai aur Wages par us karigar ka To pay <b>0</b> rehta hai."},
+    {id:"u-khata-cutpage",t:"Cut par kis ne kya kiya",s:"Stitching Khata → Cuts → cut par click",who:"admin",
+     steps:["“Cuts” mein kisi cut par click karein."],
+     ok:"Upar <b>Total labour</b>, <b>Paid</b> aur <b>Remaining</b>. “Operations on this cut” mein har operation ke pieces (misaal 120 / 150 pcs) aur kin karigaron ne kiya; poora ho jaye to hara ✓. Neeche har line: karigar, din, operation, Paid / Unpaid. Yahan se bhi kisi bhi karigar ka kaam add ho sakta hai.",
+     tip:"Jis cut par kaam likha ho woh delete nahi hota (pehle us ka kaam hatayein). “Edit” se number ya article badlein — us ke kaam par bhi naya naam aa jata hai."},
+    {id:"u-article-price",t:"Article bina price ke",s:"Inventory → Add product",who:"admin",
+     steps:["“Inventory” kholein aur naya product add karein: sirf Category, Name aur Quantity (ya sizes)."],
+     ok:"Purchase price aur Sale price ke khane <b>nahi</b> hain aur product save ho jata hai. Product list mein bhi price ke column nahi. Dashboard ke “Stock health” mein ab “<b>Articles</b>” ki ginti hai (stock value nahi, kyun ke price nahi likhi jati).",
+     tip:"Purane products ki price DB mein mehfooz hai, bas nazar nahi aati."},
+   ]},
   {title:"Paid / Unpaid — kaam ke saath hi paise (17 Nov)",icon:"wallet",
    what:"Jahan karigaron ko kaam diya jata hai (Assign work) aur invoice ke “Work &amp; wages” mein, har karigar ke operation ke aage <b>Paid / Unpaid</b> ka button hai. Kisi ko pehle paise dene hon to wahin se <b>Paid</b> karein; baqi jo Unpaid rahein woh Wages page par “<b>Pay the rest</b>” se ada hote hain. Wages mein har karigar ka <b>Net payable</b>, kitna <b>Paid</b> ho chuka aur kitna <b>To pay</b> baqi hai — sab saath.",
    tasks:[
@@ -976,6 +1004,9 @@ const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–17 November 2026
 const UPDCH={key:UPD.key,title:UPD.title,icon:UPD.icon,tasks:UPD.groups.flatMap(g=>g.tasks)};
 
 const FAQ=[
+ ["Stitching Khata aur Wages page ka hisaab alag hai?","Nahi, dono ek hi hain. Khata mein likha kaam Wages page par bhi aata hai, aur invoice par diya kaam karigar ke khata mein bhi. “Lock” ki payment Wages ke “Payments” mein “Paid up to a day” ke naam se dikhti hai, aur jitne din ka kaam us ne ada kiya, Wages mein unhi dinon mein Paid ginta hai."],
+ ["Lock ke baad pichla kaam badalna hai?","Lock hua kaam badla ya hataya nahi ja sakta (us ke paise ja chuke). Karigar ke khata mein us “Paid up to …” section ka ↩️ dabayein — kaam dobara Unpaid ho jata hai; theek karein aur phir Lock karein."],
+ ["Cut khata mein banana hai ya cutting master banayega?","Stitching Khata ke cut aap (admin) khud “Cuts → Add cut” se banate hain. Cutting master ki cutting entry pehle jaisi hai; us ki invoices bhi khata mein cut ki list mein chuni ja sakti hain. Jo cut number pehle se kisi invoice ka hai (misaal INV-1003 · Cut 20), woh khata mein dobara nahi banta — us cut ka kaam usi invoice ko chun kar likhein, taake us ki labour ek hi jagah rahe."],
  ["Cutting master ko invoice ka aage ka haal kyun nahi dikhta?","Client ki hidayat par: cutting master ko sirf cutting ki detail aur Cutting gate pass nazar aata hai. Invoice Stitching, Washing ya Ready tak kahan pahuncha, yeh sirf admin dekhta hai."],
  ["Dispatch ke baad “Reverse” kyun nahi hota?","Dispatch hua maal factory se ja chuka hai aur Ready stock se kam ho chuka hai. Is liye us invoice ka Ready wapas nahi liya ja sakta."],
  ["Kapre ka balance minus (laal) kyun hai?","Cutting mein jitna kapra likha gaya, us se kam “Received” darj hua hai. Fabric Khata mein “Receive Fabric” se store se aaya hua kapra darj karein — purani cuttings ka kapra bhi isi tarah poora ho jata hai."],

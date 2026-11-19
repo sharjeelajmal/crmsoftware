@@ -14,7 +14,7 @@ const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none";
 /**
  * Edits a product's details and its size list. A product without sizes can be switched to per-size
  * stock here: the current total is split across the rows (their sum becomes the new total).
- * `onSave` receives `{ name, category, purchasePrice, salePrice, sizes? }`.
+ * `onSave` receives `{ name, category, sizes? }` (prices are no longer asked; a stored one is left as it is).
  */
 export function EditProductPopup({ product, categories, onSave, onCancel }) {
   const alreadyTracked = hasSizes(product);
@@ -22,8 +22,6 @@ export function EditProductPopup({ product, categories, onSave, onCancel }) {
   const [form, setForm] = useState({
     name: product.name ?? "",
     category: product.category ?? "",
-    purchasePrice: String(product.purchasePrice ?? ""),
-    salePrice: String(product.salePrice ?? ""),
   });
   const [sizes, setSizes] = useState(() => (alreadyTracked ? sizeRowsOf(product) : blankSizeRows()));
 
@@ -52,26 +50,6 @@ export function EditProductPopup({ product, categories, onSave, onCancel }) {
           placeholder="Enter Name"
           className={INPUT_CLASS}
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input
-            autoComplete="off"
-            type="number"
-            name="purchasePrice"
-            value={form.purchasePrice}
-            onChange={handleChange}
-            placeholder="Enter Purchase Price"
-            className={INPUT_CLASS}
-          />
-          <input
-            autoComplete="off"
-            type="number"
-            name="salePrice"
-            value={form.salePrice}
-            onChange={handleChange}
-            placeholder="Enter Sale Price"
-            className={INPUT_CLASS}
-          />
-        </div>
 
         <div>
           {!alreadyTracked && (

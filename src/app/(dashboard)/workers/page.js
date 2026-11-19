@@ -67,6 +67,7 @@ export default function WorkersPage() {
         {popup.type === "worker" && (
           <WorkerFormPopup
             initialData={popup.data}
+            operations={operationsApi.operations}
             onSave={(form) => withClose(workersApi.saveWorker(form))}
             onCancel={closePopup}
           />
@@ -211,6 +212,7 @@ export default function WorkersPage() {
                   <WorkerRow
                     key={worker._id}
                     worker={worker}
+                    operations={operationsApi.operations}
                     onEdit={(w) => setPopup({ type: "worker", data: w })}
                     onToggleActive={workersApi.setActive}
                     onDelete={(w) => setPopup({ type: "deleteWorker", data: w })}

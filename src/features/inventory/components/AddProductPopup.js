@@ -13,15 +13,13 @@ const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none";
 
 /**
  * Add-product form used by the inventory page and the dashboard "Add New Item" card.
- * `onSave` receives `{ name, category, purchasePrice, salePrice, remaining, sizes? }`;
- * `sizes` is present only when "Track sizes" is on (the total is then their sum).
+ * `onSave` receives `{ name, category, remaining, sizes? }`; `sizes` is present only when "Track sizes" is on (the
+ * total is then their sum). No purchase or sale price (client, 2026-11-19: that is the shop's khata, not the factory's).
  */
 export function AddProductPopup({ categories, initialCategory, onSave, onCancel }) {
   const [product, setProduct] = useState({
     name: "",
     category: initialCategory,
-    purchasePrice: "",
-    salePrice: "",
     remaining: "",
   });
   const [trackSizes, setTrackSizes] = useState(false);
@@ -52,26 +50,6 @@ export function AddProductPopup({ categories, initialCategory, onSave, onCancel 
           placeholder="Enter Name"
           className={INPUT_CLASS}
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <input
-            autoComplete="off"
-            type="number"
-            name="purchasePrice"
-            value={product.purchasePrice}
-            onChange={handleChange}
-            placeholder="Enter Purchase Price"
-            className={INPUT_CLASS}
-          />
-          <input
-            autoComplete="off"
-            type="number"
-            name="salePrice"
-            value={product.salePrice}
-            onChange={handleChange}
-            placeholder="Enter Sale Price"
-            className={INPUT_CLASS}
-          />
-        </div>
         <div>
           <Switch
             label="Track stock per size"

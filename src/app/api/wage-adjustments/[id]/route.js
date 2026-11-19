@@ -5,13 +5,17 @@ import { advanceEntries } from "@/lib/wages";
 
 /**
  * DELETE /api/wage-adjustments/:id
- * An advance can't be deleted once part of it was cut (the account would go below zero): delete the cuts first.
+ * An advance can't be deleted once part of it was cut (the account would go below zero): delete the cuts first. An
+ * advance cut made with a khata lock goes with that lock (take the lock back instead).
  */
 export const DELETE = route(async (_request, context) => {
   const _id = await requireObjectId(context);
   const db = await getDb();
   const adjustment = await db.collection("wage_adjustments").findOne({ _id });
   if (!adjustment) throw notFound("Adjustment");
+  if (adjustment.paymentId) {
+    throw conflict("This advance cut was made with a lock — take that lock back in the worker's khata");
+  }
   if (adjustment.type === "advance") {
     const { balance } = advanceAccount(await advanceEntries(db, { workerId: adjustment.workerId }));
     const problem = advanceDeleteProblem(balance, adjustment.amount);

@@ -39,8 +39,6 @@ function LastProductionChip({ lastProduction }) {
 }
 
 export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory }) {
-  const purchase = `${product.purchasePrice}/-`;
-  const sale = `${product.salePrice}/-`;
   const remaining = `${product.remaining} pcs`;
   const showChips = hasSizes(product) || Boolean(product.lastProduction?.lotId);
   const addedAt = productAddedAt(product);
@@ -78,14 +76,8 @@ export function ProductRow({ product, onStockChange, onEdit, onDelete, onHistory
         )}
       </div>
 
-      {/* Phone: labelled stats grid. Tablet/desktop: fixed-width columns under the table header. */}
-      <div className="grid grid-cols-3 gap-2 md:hidden">
-        <Stat label="Purchase" value={purchase} />
-        <Stat label="Sale" value={sale} />
-        <Stat label="Remaining" value={remaining} />
-      </div>
-      <span className="hidden md:inline-block w-32 text-center shrink-0">{purchase}</span>
-      <span className="hidden md:inline-block w-32 text-center shrink-0">{sale}</span>
+      {/* Phone: labelled stat. Tablet/desktop: a fixed-width column under the table header. */}
+      <Stat label="Remaining" value={remaining} />
       <span className="hidden md:inline-block w-32 text-center shrink-0">{remaining}</span>
 
       <div

@@ -238,9 +238,20 @@ export const teamRowsFor = (item, left, activeIds) => {
 // A work entry is paid while it carries the `paymentId` of its payment (and `paymentKind`); a paid entry can't be
 // edited or removed, and an invoice with paid work can't be deleted, until it is marked unpaid again.
 
-export const PAYMENT_KINDS = Object.freeze(["work", "settle"]);
+export const PAYMENT_KINDS = Object.freeze(["work", "settle", "lock"]);
 
-export const PAYMENT_KIND_LABELS = Object.freeze({ work: "Paid early", settle: "Rest of the period" });
+export const PAYMENT_KIND_LABELS = Object.freeze({
+  work: "Paid early",
+  settle: "Rest of the period",
+  lock: "Paid up to a day",
+});
+
+/**
+ * Payment kinds whose amount is exactly the wages of the work they pay ("work", "lock"): what they paid counts in a
+ * wage period by the date of that work, not of the payment — a lock pays weeks of work at once. A "settle" payment is
+ * the rest of one period (adjustments included) and counts by its own date, inside that period.
+ */
+export const ENTRY_PAID_KINDS = Object.freeze(["work", "lock"]);
 
 export const isPaid = (entry) => Boolean(entry?.paymentId);
 
@@ -299,6 +310,70 @@ export const settleProblem = (row) =>
 /** Day a "Pay the rest" payment is dated: today, or the period's last day when the period is already over. */
 export const settleDate = (range, now = new Date()) => (range?.end && range.end < now ? range.end : now);
 
+// ---- Stitching khata (client, 2026-11-19) ------------------------------------------------------------------------
+// The owner keeps the stitching khata by hand: each evening a worker tells what he did, and the owner adds it —
+// worker, operation (its rate already there), cut, pieces; the wage is worked out at once and each worker's balance
+// grows with it. A cut is added in the khata itself (`stitch_cuts`: cut number, article, pieces), or is an invoice.
+// "Lock" pays everything a worker has not been paid for up to a day; the khata starts again after it.
+
+/** Where a piece of work was done: the invoice number, or "Cut 20" for a cut added in the khata. */
+export const workRefLabel = (entry) => entry?.lotNumber || (entry?.cutNumber ? `Cut ${entry.cutNumber}` : "");
+
+const endOfLocalDay = (value) => {
+  const d = new Date(value);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+};
+
+/** What a lock up to `upTo` pays: the worker's unpaid work done on or before that day, and its wages. */
+export const lockPreview = (entries = [], upTo = new Date()) => {
+  const last = endOfLocalDay(upTo);
+  const covered = entries.filter((entry) => !isPaid(entry) && new Date(entry.date) <= last);
+  return { entries: covered, amount: round2(covered.reduce((sum, e) => sum + (Number(e.amount) || 0), 0)) };
+};
+
+/** Why a lock can't be made, or "". */
+export const lockProblem = (preview) =>
+  preview.entries.length === 0 ? "Nothing unpaid up to that day — there is nothing to lock" : "";
+
+/**
+ * Advance cut at a lock (client, 2026-11-19: the advance is cut as he is paid): why `cut` can't be taken out of a
+ * lock of `work` with `advanceLeft` outstanding, or "". The cash given is work − cut (`lockCash`).
+ */
+export const lockCutProblem = (cut, { work = 0, advanceLeft = 0 } = {}) => {
+  const amount = round2(cut);
+  if (!(amount > 0)) return "";
+  const advance = recoveryProblem(amount, advanceLeft);
+  if (advance) return advance;
+  return amount > round2(work) ? `The advance cut can't be more than the work (${rupeesOf(work)}).` : "";
+};
+
+/** What the worker gets in hand at a lock: the work's wages less the advance cut there. */
+export const lockCash = (work, cut = 0) => round2((Number(work) || 0) - (Number(cut) || 0));
+
+/**
+ * A cut's work per operation: pieces done (out of the cut's pieces), who did them and their wages, in first-seen
+ * order; plus the cut's labour paid and still to pay.
+ */
+export const cutProgress = (cut, entries = []) => {
+  const byOperation = new Map();
+  for (const entry of entries) {
+    const key = String(entry.operationId);
+    if (!byOperation.has(key)) {
+      byOperation.set(key, { operationId: key, name: entry.operationName || "", pieces: 0, amount: 0, workers: [] });
+    }
+    const row = byOperation.get(key);
+    row.pieces += Math.trunc(Number(entry.pieces)) || 0;
+    row.amount = round2(row.amount + (Number(entry.amount) || 0));
+    pushUnique(row.workers, entry.workerName);
+  }
+  const pieces = Math.trunc(Number(cut?.pieces)) || 0;
+  const operations = [...byOperation.values()].map((row) => ({
+    ...row,
+    complete: pieces > 0 && row.pieces >= pieces,
+  }));
+  return { pieces, operations, ...paidSplit(entries) };
+};
+
 // ---- Work history (who worked on which invoice, how they were paid) -------------------------------------------
 
 const pushUnique = (list, value) => {
@@ -336,15 +411,23 @@ export const workByWorker = (entries = []) => {
 };
 
 /**
- * Work entries per invoice: how many workers and operations, labour, pay types, last work date, and the workers
- * (see workByWorker). Latest work first.
+ * Work entries per invoice — or per khata cut for work entered against a cut (`key` tells them apart, `lotNumber`
+ * is the label: "INV-1003" or "Cut 20"): how many workers and operations, labour, pay types, last work date, and the
+ * workers (see workByWorker). Latest work first.
  */
 export const workByInvoice = (entries = []) => {
   const byLot = new Map();
   for (const entry of entries) {
-    const key = String(entry.lotId);
+    const key = entry.lotId ? String(entry.lotId) : `cut:${entry.cutId}`;
     if (!byLot.has(key)) {
-      byLot.set(key, { lotId: key, lotNumber: entry.lotNumber || "", productName: entry.productName || "", list: [] });
+      byLot.set(key, {
+        key,
+        lotId: entry.lotId ? String(entry.lotId) : null,
+        cutId: entry.cutId ? String(entry.cutId) : null,
+        lotNumber: workRefLabel(entry),
+        productName: entry.productName || "",
+        list: [],
+      });
     }
     byLot.get(key).list.push(entry);
   }
@@ -397,8 +480,8 @@ export const workBatches = (entries = []) => {
  * Per-worker wage summary for a period: pieces, amount, leave and absent (days + cut), advances given, advance cuts,
  * deductions, bonuses and the net payable (= wages + bonuses − leave − absent − advance cuts − deductions). Advances
  * given are reported but not subtracted: they only change the advance account until an advance cut is recorded.
- * `paid` is what the period's wage payments already paid out, `due` what is still to pay (net payable − paid; below 0
- * when more was paid than earned).
+ * `paid` is what is already paid of the period: its work paid early or locked (by the work's own date) plus its "Pay
+ * the rest" payments; `due` what is still to pay (net payable − paid; below 0 when more was paid than earned).
  * `entries` are work entries, `adjustments` are wage adjustments of the same period plus the attendance marks as
  * adjustments ("leave" / "absent", see attendanceAdjustments), `payments` the wage payments of the period.
  */
@@ -435,6 +518,9 @@ export const summarizeWages = (entries = [], adjustments = [], payments = []) =>
     row.entries += 1;
     row.pieces += Math.trunc(Number(entry.pieces)) || 0;
     row.amount = round2(row.amount + (Number(entry.amount) || 0));
+    if (isPaid(entry) && ENTRY_PAID_KINDS.includes(entry.paymentKind)) {
+      row.paid = round2(row.paid + (Number(entry.amount) || 0));
+    }
   }
   for (const adj of adjustments) {
     const row = bucket(adj.workerId, adj.workerName);
@@ -452,7 +538,10 @@ export const summarizeWages = (entries = [], adjustments = [], payments = []) =>
   }
   for (const payment of payments) {
     const row = bucket(payment.workerId, payment.workerName);
-    row.paid = round2(row.paid + (Number(payment.amount) || 0));
+    if (payment.kind === "settle") row.paid = round2(row.paid + (Number(payment.amount) || 0));
+    // A lock's work counts above as paid, but the advance cut at the lock was not cash: it is in the net as an
+    // advance cut (dated like the lock), so it comes off what was paid in the lock's period.
+    else if (payment.kind === "lock") row.paid = round2(row.paid - (Number(payment.advanceCut) || 0));
   }
   const workers = [...byWorker.values()]
     .map((row) => {

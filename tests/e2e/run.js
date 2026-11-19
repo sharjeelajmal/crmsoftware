@@ -1174,6 +1174,197 @@ test("Paying work: early from where it is assigned, the rest with the wages", as
   expect((await api(S.admin, "DELETE", `/api/lots/${lotId}`)).status, "invoice deleted").toBe(200);
 });
 
+test("Stitching khata: the owner's cuts, work entered by hand and the lock (paid up to a day)", async () => {
+  const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;
+  const belt = ops.find((o) => o.name === "E2E Belt");
+  const pocket = ops.find((o) => o.name === "E2E Pocket");
+  const made = await api(S.admin, "POST", "/api/workers", { name: "E2E Khata Rashid", operationIds: [belt._id] });
+  expect(made.status, "worker with the operations he does").toBe(201);
+  const workerId = made.body._id;
+  S.ids.workers.push(workerId);
+  const changed = await api(S.admin, "PUT", `/api/workers/${workerId}`, { operationIds: [belt._id, pocket._id] });
+  expect(changed.status, "operations changed").toBe(200);
+  let box = (await api(S.admin, "GET", "/api/khata/workers")).body.find((w) => w._id === workerId);
+  expect(box.operationIds.join(), "his operations, in order").toBe([belt._id, pocket._id].join());
+  expect([box.entries, box.unpaid].join(), "nothing yet").toBe("0,0");
+
+  // the owner adds the cut himself (not the cutting master); cut numbers are unique, in any case
+  expect((await api(S.cutter, "GET", "/api/khata/cuts")).status, "admin only").toBe(403);
+  const cut = await api(S.admin, "POST", "/api/khata/cuts", {
+    cutNumber: "E2E-20",
+    article: "Baggy Pent",
+    pieces: 150,
+  });
+  expect(cut.status, "cut added").toBe(201);
+  const cutId = cut.body._id;
+  expect((await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "e2e-20" })).status, "same number").toBe(409);
+
+  // work entered by hand on different days; the wage is worked out
+  const [d3, d1, d0] = [localDay(-3), localDay(-1), localDay(0)];
+  const post = (body) => api(S.admin, "POST", "/api/khata/entries", { workerId, ...body });
+  const first = await post({ operationId: belt._id, cutId, pieces: 40, rate: 2.5, date: d3 });
+  expect([first.status, first.body.amount, first.body.cutNumber].join(), "40 x 2.5 on cut E2E-20").toBe(
+    "201,100,E2E-20"
+  );
+  const second = await post({ operationId: pocket._id, cutId, pieces: 10, payType: "fixed", amount: 300, date: d1 });
+  expect(second.body.amount, "a fixed 300").toBe(300);
+  const third = await post({ operationId: belt._id, cutId, pieces: 20, date: d0 });
+  const todays = Math.round(20 * belt.rate * 100) / 100;
+  expect(third.body.amount, "the operation's own rate when none is typed").toBe(todays);
+  expect((await post({ operationId: belt._id, pieces: 5 })).status, "no cut").toBe(400);
+  expect((await post({ operationId: belt._id, cutId, lotId: S.lotId, pieces: 5 })).status, "cut and invoice").toBe(400);
+  expect((await post({ operationId: belt._id, cutId, pieces: 5, payType: "fixed" })).status, "fixed, no amount").toBe(
+    400
+  );
+
+  // an old invoice can be chosen too, but a stopped one takes no work
+  const lot = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "E2E Khata Denim", qty: 5, unit: "m" },
+    sizes: [{ size: "30", qty: 20 }],
+  });
+  S.ids.lots.push(lot.body._id);
+  const onInvoice = await post({ operationId: pocket._id, lotId: lot.body._id, pieces: 20, date: d0 });
+  expect([onInvoice.status, onInvoice.body.lotNumber].join(), "on an invoice").toBe(`201,${lot.body.lotNumber}`);
+  const hold = `/api/lots/${lot.body._id}/hold`;
+  expect((await api(S.admin, "POST", hold, { reason: "e2e" })).status < 300, "stopped").toBe(true);
+  expect((await post({ operationId: pocket._id, lotId: lot.body._id, pieces: 5 })).status, "stopped: no work").toBe(
+    409
+  );
+  expect((await api(S.admin, "DELETE", hold)).status, "resumed").toBe(200);
+  expect((await api(S.admin, "DELETE", `/api/work-entries/${onInvoice.body._id}`)).status, "removed").toBe(200);
+
+  const total = 400 + todays;
+  let khata = (await api(S.admin, "GET", `/api/khata/workers/${workerId}`)).body;
+  expect([khata.entries.length, khata.totals.paid, khata.totals.unpaid].join(), "all to pay").toBe(`3,0,${total}`);
+  const listedCut = (await api(S.admin, "GET", "/api/khata/cuts")).body.find((c) => c._id === cutId);
+  expect([listedCut.entries, listedCut.workers, listedCut.unpaid].join(), "the cut's work").toBe(`3,1,${total}`);
+
+  // lock: everything not paid up to yesterday is paid; today's work starts the khata again
+  const lockUrl = `/api/khata/workers/${workerId}/lock`;
+  const lock = await api(S.admin, "POST", lockUrl, { upTo: d1, note: "e2e" });
+  expect([lock.status, lock.body.kind, lock.body.amount, lock.body.entryIds.length].join(), "paid up to d-1").toBe(
+    "201,lock,400,2"
+  );
+  expect((await api(S.admin, "POST", lockUrl, { upTo: d1 })).status, "nothing left up to then").toBe(409);
+  khata = (await api(S.admin, "GET", `/api/khata/workers/${workerId}`)).body;
+  expect([khata.totals.paid, khata.totals.unpaid].join(), "today's work is still to pay").toBe(`400,${todays}`);
+  expect(khata.payments.map((p) => p.kind).join(), "the lock is in his khata").toBe("lock");
+  box = (await api(S.admin, "GET", "/api/khata/workers")).body.find((w) => w._id === workerId);
+  expect([box.unpaid, String(box.lastLock?.upTo).slice(0, 10)].join(), "box: to pay, paid up to").toBe(
+    `${todays},${d1}`
+  );
+  expect((await api(S.admin, "DELETE", `/api/work-entries/${first.body._id}`)).status, "locked work stays").toBe(409);
+
+  // the Wages page counts the lock in the days of the work it paid (a lock can span weeks)
+  const wagesOf = async (from, to) =>
+    (await api(S.admin, "GET", `/api/wages/report?filter=custom&from=${from}&to=${to}&workerId=${workerId}`)).body
+      .workers[0];
+  let row = await wagesOf(d3, d0);
+  expect([row.paid, row.due].join(), "the Wages page agrees").toBe(`400,${todays}`);
+  row = await wagesOf(d0, d0);
+  expect([row.paid, row.due].join(), "today only: nothing of the lock").toBe(`0,${todays}`);
+
+  // renaming the cut renames it on its work; a cut with work can't go
+  expect((await api(S.admin, "PUT", `/api/khata/cuts/${cutId}`, { cutNumber: "E2E-21" })).status, "rename").toBe(200);
+  const onCut = (await api(S.admin, "GET", `/api/work-entries?cutId=${cutId}`)).body;
+  expect(onCut.length === 3 && onCut.every((e) => e.cutNumber === "E2E-21"), "entries follow").toBe(true);
+  expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cutId}`)).status, "cut with work").toBe(409);
+
+  // undoing the lock makes that work unpaid again; then the work and the cut can go
+  expect((await api(S.admin, "DELETE", `/api/wage-payments/${lock.body._id}`)).status, "lock undone").toBe(200);
+  khata = (await api(S.admin, "GET", `/api/khata/workers/${workerId}`)).body;
+  expect([khata.totals.paid, khata.payments.length].join(), "unpaid again").toBe("0,0");
+  for (const entry of [first, second, third]) {
+    expect((await api(S.admin, "DELETE", `/api/work-entries/${entry.body._id}`)).status, "work removed").toBe(200);
+  }
+  expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cutId}`)).status, "empty cut deleted").toBe(200);
+});
+
+test("Stitching khata: an advance cut at the lock, and an invoice's cut number can't be a khata cut", async () => {
+  const belt = (await api(S.admin, "GET", "/api/operations")).body.operations.find((o) => o.name === "E2E Belt");
+  const made = await api(S.admin, "POST", "/api/workers", { name: "E2E Khata Akbar" });
+  const workerId = made.body._id;
+  S.ids.workers.push(workerId);
+  const d0 = localDay(0);
+  const advance = await api(S.admin, "POST", "/api/wage-adjustments", {
+    workerId,
+    type: "advance",
+    amount: 1000,
+    date: d0,
+  });
+  expect(advance.status, "advance given").toBe(201);
+  const cut = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "E2E-30", pieces: 100 });
+  const work = await api(S.admin, "POST", "/api/khata/entries", {
+    workerId,
+    operationId: belt._id,
+    cutId: cut.body._id,
+    pieces: 100,
+    rate: 30,
+    date: d0,
+  });
+  expect(work.body.amount, "100 x 30").toBe(3000);
+
+  // the cut can't be more than the advance left; within it, he gets the work less the cut
+  const lockUrl = `/api/khata/workers/${workerId}/lock`;
+  expect((await api(S.admin, "POST", lockUrl, { upTo: d0, advanceCut: 1500 })).status, "more than the advance").toBe(
+    409
+  );
+  const lock = await api(S.admin, "POST", lockUrl, { upTo: d0, advanceCut: 400 });
+  expect([lock.status, lock.body.amount, lock.body.advanceCut, lock.body.workAmount].join(), "2600 in hand").toBe(
+    "201,2600,400,3000"
+  );
+  let khata = (await api(S.admin, "GET", `/api/khata/workers/${workerId}`)).body;
+  expect([khata.totals.unpaid, khata.advanceLeft].join(), "all paid, 600 advance left").toBe("0,600");
+  const wagesRow = async () =>
+    (await api(S.admin, "GET", `/api/wages/report?filter=custom&from=${d0}&to=${d0}&workerId=${workerId}`)).body
+      .workers[0];
+  const row = await wagesRow();
+  expect([row.amount, row.recoveries, row.net, row.paid, row.due].join(), "Wages: nothing left").toBe(
+    "3000,400,2600,2600,0"
+  );
+
+  // the cut goes with its lock, not on its own
+  const cutDelete = await api(S.admin, "DELETE", `/api/wage-adjustments/${lock.body.adjustmentId}`);
+  expect(cutDelete.status, "the lock's advance cut stays").toBe(409);
+  expect((await api(S.admin, "DELETE", `/api/wage-payments/${lock.body._id}`)).status, "lock taken back").toBe(200);
+  khata = (await api(S.admin, "GET", `/api/khata/workers/${workerId}`)).body;
+  expect([khata.totals.unpaid, khata.advanceLeft].join(), "unpaid again, the advance back").toBe("3000,1000");
+  expect((await wagesRow()).due, "3000 to pay").toBe(3000);
+
+  // a cut that is already an invoice's cut number belongs on that invoice
+  const lot = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    bundleNumber: "E2E-B77",
+    fabric: { name: "E2E Khata Bundle", qty: 5, unit: "m" },
+    sizes: [{ size: "30", qty: 10 }],
+  });
+  S.ids.lots.push(lot.body._id);
+  const clash = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "e2e-b77" });
+  expect(clash.status, "invoice's cut number").toBe(409);
+  expect(String(clash.body.error), "points to the invoice").toContain(lot.body.lotNumber);
+
+  expect((await api(S.admin, "DELETE", `/api/work-entries/${work.body._id}`)).status, "work removed").toBe(200);
+  expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cut.body._id}`)).status, "cut removed").toBe(200);
+  expect((await api(S.admin, "DELETE", `/api/wage-adjustments/${advance.body._id}`)).status, "advance removed").toBe(
+    200
+  );
+});
+
+test("Articles are added without a purchase or sale price", async () => {
+  const product = await api(S.admin, "POST", "/api/products", {
+    name: "E2E No Price",
+    category: "Shirts",
+    remaining: 5,
+  });
+  expect([product.status, product.body.purchasePrice, product.body.salePrice].join(), "saved, prices 0").toBe(
+    "201,0,0"
+  );
+  S.ids.products.push(product.body._id);
+  const edited = await api(S.admin, "PUT", `/api/products/${product.body._id}`, { name: "E2E No Price 2" });
+  expect(edited.status, "edited without prices").toBe(200);
+});
+
 test("Attendance: present / absent / leave per day; absent and leave cut a day of the per-day salary", async () => {
   const today = localDay();
   const yesterday = localDay(-1);
@@ -2532,6 +2723,73 @@ uiTest("UI: pay work on the spot from the sheet and the invoice, and the rest on
     entryIds: leftover.filter((e) => e.paymentId).map((e) => e._id),
   });
   expect((await api(S.admin, "DELETE", `/api/lots/${id}`)).status, "cleaned up").toBe(200);
+});
+
+uiTest("UI: stitching khata — add a cut, enter a worker's work, lock it and see it on the cut", async (page) => {
+  const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;
+  const belt = ops.find((o) => o.name === "E2E Belt");
+  const worker = await api(S.admin, "POST", "/api/workers", { name: "E2E Khata Saleem", operationIds: [belt._id] });
+  S.ids.workers.push(worker.body._id);
+  await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+
+  // the khata is in the sidebar; the worker's box shows his operation with its rate
+  await page.goto(`${BASE}/khata`);
+  await page.waitForSelector('[data-testid="nav-khata"]', { timeout: 60_000 });
+  const box = page.locator('[data-testid="khata-worker-box"][data-worker="E2E Khata Saleem"]');
+  await box.waitFor({ timeout: 60_000 });
+  expect(await box.innerText(), "his operation and rate").toContain(`E2E Belt · Rs ${belt.rate}`);
+
+  // the owner adds the cut
+  await page.click('[data-testid="khata-view-cuts"]');
+  await page.click('[data-testid="khata-add-cut"]');
+  await page.fill('[data-testid="cut-form-number"]', "E2E-UI-7");
+  await page.fill('[data-testid="cut-form-article"]', "Baggy Pent");
+  await page.fill('[data-testid="cut-form-pieces"]', "50");
+  await page.click('[data-testid="cut-form-submit"]');
+  await page.waitForSelector('[data-testid="khata-cut-row"][data-cut="E2E-UI-7"]', { timeout: 60_000 });
+
+  // his khata: the cut and his usual operation are offered, the wage adds up
+  await page.click('[data-testid="khata-view-workers"]');
+  await box.click();
+  await page.waitForSelector('[data-testid="worker-khata-page"][data-worker="E2E Khata Saleem"]', { timeout: 60_000 });
+  await page.locator('[data-testid="khata-entry-cut"] button').first().click();
+  await page.locator(".dropdown-portal li", { hasText: "Cut E2E-UI-7" }).click();
+  await page.locator(".dropdown-portal").waitFor({ state: "detached" });
+  await page.locator('[data-testid="khata-entry-operation"] button').first().click();
+  const firstOption = page.locator(".dropdown-portal li").first();
+  expect(await firstOption.innerText(), "his operation comes first").toContain("E2E Belt");
+  await firstOption.click();
+  await page.locator(".dropdown-portal").waitFor({ state: "detached" });
+  await page.fill('[data-testid="khata-entry-pieces"]', "30");
+  await page.fill('[data-testid="khata-entry-rate"]', "2");
+  expect(await page.getAttribute('[data-testid="khata-entry-total"]', "data-amount"), "30 x 2").toBe("60");
+  await page.click('[data-testid="khata-entry-submit"]');
+  await page.waitForSelector('[data-testid="khata-entry"][data-paid="false"]', { timeout: 60_000 });
+  expect(await page.getAttribute('[data-testid="khata-to-pay"]', "data-amount"), "to pay").toBe("60");
+
+  // lock: paid up to today
+  await page.click('[data-testid="khata-lock"]');
+  await page.waitForSelector('[data-testid="khata-lock-preview"][data-amount="60"]', { timeout: 60_000 });
+  await page.click('[data-testid="khata-lock-confirm"]');
+  await page.waitForSelector('[data-testid="khata-payment"][data-kind="lock"][data-amount="60"]', { timeout: 60_000 });
+  await page.waitForSelector('[data-testid="khata-to-pay"][data-amount="0"]', { timeout: 60_000 });
+  expect(await page.locator('[data-testid="khata-lock"]').isDisabled(), "nothing left to lock").toBe(true);
+
+  // the cut shows the work, all paid
+  const cut = (await api(S.admin, "GET", "/api/khata/cuts")).body.find((c) => c.cutNumber === "E2E-UI-7");
+  await page.goto(`${BASE}/khata/cuts/${cut._id}`);
+  await page.waitForSelector('[data-testid="cut-operation"][data-operation="E2E Belt"][data-pieces="30"]', {
+    timeout: 60_000,
+  });
+  expect(await page.getAttribute('[data-testid="cut-paid"]', "data-amount"), "paid").toBe("60");
+  expect(await page.getAttribute('[data-testid="cut-remaining"]', "data-amount"), "nothing left").toBe("0");
+  expect(await page.locator('[data-testid="cut-delete"]').isDisabled(), "a cut with work stays").toBe(true);
+
+  // clean up: undo the lock, remove the work and the cut
+  const khata = (await api(S.admin, "GET", `/api/khata/workers/${worker.body._id}`)).body;
+  await api(S.admin, "DELETE", `/api/wage-payments/${khata.payments[0]._id}`);
+  for (const entry of khata.entries) await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
+  expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cut._id}`)).status, "cleaned up").toBe(200);
 });
 
 uiTest("UI: admin stops, resumes, reverses and deletes an invoice from its page", async (page) => {

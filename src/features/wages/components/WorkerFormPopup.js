@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
+import { groupOperations } from "@/constants/operations";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { CustomDropdown } from "@/components/ui/CustomDropdown";
@@ -9,12 +11,69 @@ import { WORKER_TYPES, workerFormFrom } from "../utils";
 
 const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-primary";
 
-/** Add or edit a worker (`initialData` with `_id` edits). */
-export function WorkerFormPopup({ initialData = null, onSave, onCancel }) {
+/**
+ * The operations he usually does, as toggle chips grouped by main operation (with the rate per piece). The stitching
+ * khata shows them on his box and offers them first when his work is entered.
+ */
+function UsualOperations({ operations, selected, onToggle }) {
+  const groups = groupOperations(operations.filter((op) => op.active !== false || selected.includes(String(op._id))));
+  if (groups.length === 0) return null;
+  return (
+    <div>
+      <p className="block text-sm font-medium text-gray-700 mb-1">
+        Operations he does <span className="text-gray-400">(optional)</span>
+      </p>
+      <div
+        className="max-h-56 overflow-y-auto rounded-xl bg-gray-50 p-3 space-y-3"
+        data-testid="worker-form-operations"
+      >
+        {groups.map((group) => (
+          <div key={group.stage}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-1.5">{group.label}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {group.operations.map((op) => {
+                const id = String(op._id);
+                const on = selected.includes(id);
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => onToggle(id)}
+                    className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
+                      on
+                        ? "border-primary bg-primary text-white"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-primary"
+                    }`}
+                    data-testid="worker-form-operation"
+                    data-operation={op.name}
+                  >
+                    {on && <Check size={12} strokeWidth={3} />}
+                    {op.name} · Rs {Number(op.rate) || 0}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Add or edit a worker (`initialData` with `_id` edits). `operations` lets him be given the operations he does. */
+export function WorkerFormPopup({ initialData = null, operations = [], onSave, onCancel }) {
   const toast = useToast();
   const [form, setForm] = useState(() => workerFormFrom(initialData));
   const isEditing = Boolean(initialData?._id);
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const toggleOperation = (id) =>
+    setForm((prev) => ({
+      ...prev,
+      operationIds: prev.operationIds.includes(id)
+        ? prev.operationIds.filter((x) => x !== id)
+        : [...prev.operationIds, id],
+    }));
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -77,6 +136,7 @@ export function WorkerFormPopup({ initialData = null, onSave, onCancel }) {
           containerClassName="w-full"
           buttonClassName="bg-gray-100"
         />
+        <UsualOperations operations={operations} selected={form.operationIds} onToggle={toggleOperation} />
         <input
           autoComplete="off"
           type="text"

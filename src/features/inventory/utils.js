@@ -109,16 +109,16 @@ export const sizesWithChange = (sizes, size, delta) => {
 
 // ---- Product forms --------------------------------------------------------
 
-/** Name, category and both prices are always required. */
+/** The name is required (no prices any more: client, 2026-11-19). */
 export const validateProductDetails = (product) =>
-  !product.name || !product.purchasePrice || !product.salePrice ? "Please fill all fields." : null;
+  !String(product.name ?? "").trim() ? "Please enter the article name." : null;
 
 /** Returns a validation hint for the add-product form, or null when it is complete. */
 export const validateProductInput = (product) => {
   const problem = validateProductDetails(product);
   if (problem) return problem;
   if (product.sizes) return validateSizeRows(product.sizes);
-  return product.remaining === "" || product.remaining === undefined ? "Please fill all fields." : null;
+  return product.remaining === "" || product.remaining === undefined ? "Please enter the quantity." : null;
 };
 
 const toSizesPayload = (sizes) =>
@@ -129,8 +129,6 @@ export const toProductPayload = (product) => {
   const payload = {
     name: product.name,
     category: product.category,
-    purchasePrice: parseFloat(product.purchasePrice),
-    salePrice: parseFloat(product.salePrice),
     remaining: parseInt(product.remaining, 10) || 0,
   };
   if (!product.sizes) return payload;
@@ -143,8 +141,6 @@ export const toProductUpdatePayload = (product) => {
   const payload = {
     name: product.name,
     category: product.category,
-    purchasePrice: parseFloat(product.purchasePrice),
-    salePrice: parseFloat(product.salePrice),
   };
   return product.sizes ? { ...payload, sizes: toSizesPayload(product.sizes) } : payload;
 };

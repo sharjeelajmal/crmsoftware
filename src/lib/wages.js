@@ -5,15 +5,21 @@ import { ATTENDANCE } from "@/lib/attendance";
 import { attendanceAdjustments } from "@/constants/attendance";
 import {
   ADVANCE_TYPES,
+  advanceAccount,
   effectiveRate,
   entryAmount,
   leaveAmount,
+  lockCash,
+  lockCutProblem,
+  lockPreview,
+  lockProblem,
   payTypeOf,
   round2,
   settleDate,
   settleProblem,
   summarizeWages,
   workPaymentsFor,
+  workRefLabel,
 } from "@/constants/wages";
 
 /**
@@ -52,10 +58,12 @@ export async function requireLot(db, lotId, session) {
 
 /**
  * Work entry document: names and the rate are snapshotted so later edits never change old wages. A `fixed` entry
- * keeps the agreed amount and the rate it works out to per piece. Entries saved together share `batchId`.
+ * keeps the agreed amount and the rate it works out to per piece. Entries saved together share `batchId`. The work
+ * was done on an invoice (`lot`) or on a cut added in the stitching khata (`cut`).
  */
 export function buildWorkEntry({
-  lot,
+  lot = null,
+  cut = null,
   operation,
   worker,
   pieces,
@@ -76,9 +84,10 @@ export function buildWorkEntry({
       ? Number(operation.rate) || 0
       : Number(rate) || 0;
   return {
-    lotId: lot._id,
-    lotNumber: lot.lotNumber,
-    productName: lot.productName ?? "",
+    lotId: lot?._id ?? null,
+    lotNumber: lot?.lotNumber ?? "",
+    ...(cut ? { cutId: cut._id, cutNumber: cut.cutNumber } : {}),
+    productName: (lot ? lot.productName : cut?.article) ?? "",
     operationId: operation._id,
     operationName: operation.name,
     workerId: worker._id,
@@ -211,7 +220,12 @@ export async function periodWages(db, { range, workerId, tx } = {}) {
 /** Payment document; `entries` are the work entries it pays (none for a "Pay the rest" of adjustments only). */
 export function buildWagePayment({ worker, amount, date, kind, entries = [], note = "", session, now = new Date() }) {
   const lots = new Map();
-  for (const entry of entries) if (entry.lotId) lots.set(String(entry.lotId), entry.lotNumber || "");
+  const labels = [];
+  for (const entry of entries) {
+    if (entry.lotId) lots.set(String(entry.lotId), entry.lotNumber || "");
+    const label = workRefLabel(entry); // "INV-1003", or "Cut 20" for a khata cut
+    if (label && !labels.includes(label)) labels.push(label);
+  }
   return {
     workerId: new ObjectId(worker.workerId),
     workerName: worker.workerName || "",
@@ -220,7 +234,7 @@ export function buildWagePayment({ worker, amount, date, kind, entries = [], not
     kind,
     entryIds: entries.map((entry) => entry._id),
     lotIds: [...lots.keys()].map((id) => new ObjectId(id)),
-    lotNumbers: [...lots.values()].filter(Boolean),
+    lotNumbers: labels,
     note: note || "",
     by: actorOf(session),
     createdAt: now,
@@ -265,8 +279,11 @@ export async function payEntries(db, tx, { entries, note = "", session }) {
   return payments;
 }
 
-/** Removes a payment: its work entries are unpaid again. */
+/** Removes a payment: its work entries are unpaid again, and an advance cut made with it (a lock's) goes too. */
 export async function removePayment(db, tx, payment) {
+  if (payment.adjustmentId) {
+    await db.collection("wage_adjustments").deleteOne({ _id: payment.adjustmentId }, { session: tx });
+  }
   if (payment.entryIds?.length) {
     await db
       .collection("work_entries")
@@ -308,7 +325,8 @@ export async function unpayEntries(db, tx, { entries }) {
       continue;
     }
     const left = payment.entryIds.filter((entryId) => !paidEntries.some((e) => String(e._id) === String(entryId)));
-    if (payment.kind === "settle" || left.length === 0) {
+    // a lock with an advance cut is one hand-over (cash + cut): it goes back as a whole too
+    if (payment.kind === "settle" || Number(payment.advanceCut) > 0 || left.length === 0) {
       await removePayment(db, tx, payment);
       removed += 1;
       continue;
@@ -353,4 +371,59 @@ export async function settleWorker(db, tx, { workerId, range, note = "", session
   const { insertedId } = await db.collection(WAGE_PAYMENTS).insertOne(doc, { session: tx });
   await markEntriesPaid(db, tx, doc, insertedId);
   return { _id: insertedId, ...doc };
+}
+
+/**
+ * "Lock": pays a worker everything not paid yet up to a day (the stitching khata, client 2026-11-19) in one "lock"
+ * payment of those entries' wages, dated on that day; the khata starts again after it. Refused when nothing is unpaid
+ * up to that day.
+ */
+export async function lockWorker(db, tx, { workerId, upTo, advanceCut = 0, note = "", session, now = new Date() }) {
+  const worker = await db.collection("workers").findOne({ _id: new ObjectId(workerId) }, { session: tx });
+  if (!worker) throw notFound("Worker");
+  const unpaid = await db
+    .collection("work_entries")
+    .find({ workerId: worker._id, paymentId: { $exists: false } }, { session: tx })
+    .toArray();
+  const preview = lockPreview(unpaid, upTo);
+  const problem = lockProblem(preview);
+  if (problem) throw conflict(problem);
+  const cut = round2(advanceCut);
+  if (cut > 0) {
+    const { balance } = advanceAccount(await advanceEntries(db, { workerId: worker._id, session: tx }));
+    const cutProblem = lockCutProblem(cut, { work: preview.amount, advanceLeft: balance });
+    if (cutProblem) throw conflict(`${worker.name}: ${cutProblem}`);
+  }
+  const paymentId = new ObjectId();
+  const adjustmentId = cut > 0 ? new ObjectId() : null;
+  const doc = {
+    ...buildWagePayment({
+      worker: { workerId: String(worker._id), workerName: worker.name },
+      amount: lockCash(preview.amount, cut),
+      date: upTo,
+      kind: "lock",
+      entries: preview.entries,
+      note,
+      session,
+      now,
+    }),
+    ...(adjustmentId ? { workAmount: preview.amount, advanceCut: cut, adjustmentId } : {}),
+  };
+  await db.collection(WAGE_PAYMENTS).insertOne({ _id: paymentId, ...doc }, { session: tx });
+  if (adjustmentId) {
+    const adjustment = buildWageAdjustment({
+      worker,
+      input: {
+        type: "recovery",
+        amount: cut,
+        date: upTo,
+        note: note ? `Cut at the lock · ${note}` : "Cut at the lock",
+      },
+      session,
+      now,
+    });
+    await db.collection("wage_adjustments").insertOne({ _id: adjustmentId, ...adjustment, paymentId }, { session: tx });
+  }
+  await markEntriesPaid(db, tx, doc, paymentId);
+  return { _id: paymentId, ...doc };
 }

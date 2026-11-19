@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { getDb } from "@/lib/mongodb";
 import { route, ok, parseBody, requireObjectId, notFound, conflict } from "@/lib/api";
 import { workerUpdateSchema } from "@/lib/validation";
@@ -13,6 +14,7 @@ export const PUT = route(async (request, context) => {
     const clash = await workers.findOne({ _id: { $ne: _id }, name: changes.name });
     if (clash) throw conflict(`Worker "${changes.name}" already exists`);
   }
+  if (changes.operationIds) changes.operationIds = changes.operationIds.map((id) => new ObjectId(id));
   const { matchedCount } = await workers.updateOne({ _id }, { $set: { ...changes, updatedAt: new Date() } });
   if (matchedCount === 0) throw notFound("Worker");
   return ok({ updated: true });

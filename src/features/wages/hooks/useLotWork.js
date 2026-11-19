@@ -32,6 +32,7 @@ export function useLotWork(lot) {
       try {
         const saved = await api.post("/api/work-entries", toWorkSheetPayload(lotId, sheet));
         clearAsyncDataCache("wages:");
+        clearAsyncDataCache("khata-"); // the stitching khata shows the same work and payments
         clearAsyncDataCache(`work-entries:${lotId}`);
         const workers = new Set(saved.map((entry) => String(entry.workerId))).size;
         toast.success(
@@ -54,6 +55,7 @@ export function useLotWork(lot) {
       try {
         await api.delete(`/api/work-entries/${entryId}`);
         clearAsyncDataCache("wages:");
+        clearAsyncDataCache("khata-"); // the stitching khata shows the same work and payments
         toast.success("Work entry removed");
         await reload();
         return true;

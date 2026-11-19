@@ -41,15 +41,11 @@ const sumOf = (rows, field) => rows.reduce((sum, row) => sum + (Number(row[field
 
 function stockHealth(products) {
   let pieces = 0;
-  let value = 0;
   let low = 0;
   let out = 0;
   for (const product of products) {
     const remaining = Number(product.remaining) || 0;
-    if (remaining > 0) {
-      pieces += remaining;
-      value += remaining * (Number(product.purchasePrice) || 0);
-    }
+    if (remaining > 0) pieces += remaining;
     if (remaining <= 0) out += 1;
     else if (remaining < LOW_STOCK_THRESHOLD) low += 1;
   }
@@ -66,7 +62,6 @@ function stockHealth(products) {
   return {
     products: products.length,
     pieces,
-    value: Math.round(value),
     low,
     out,
     threshold: LOW_STOCK_THRESHOLD,
@@ -195,7 +190,7 @@ export async function loadDashboard(db, now = new Date()) {
       .toArray(),
     db
       .collection("products")
-      .find({}, { projection: { name: 1, category: 1, remaining: 1, purchasePrice: 1 } })
+      .find({}, { projection: { name: 1, category: 1, remaining: 1 } })
       .toArray(),
     db
       .collection("purchases")

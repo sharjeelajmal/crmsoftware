@@ -3,15 +3,17 @@
 import { motion } from "framer-motion";
 import { Edit2, Phone, Trash2, UserCheck, UserX } from "lucide-react";
 import { itemVariants } from "@/constants/animations";
+import { usualOperations } from "../utils";
 
 const ROW_CLASS =
   "flex flex-col md:flex-row items-start md:items-center p-4 rounded-xl text-white " +
   "transition-transform transform hover:scale-[1.01] shadow-md";
 const ICON_CLASS = "cursor-pointer transition-transform hover:scale-125";
 
-/** One worker: name, phone, type, active state and the actions. */
-export function WorkerRow({ worker, onEdit, onToggleActive, onDelete }) {
+/** One worker: name, phone, type, the operations he does with their rate, active state and the actions. */
+export function WorkerRow({ worker, operations = [], onEdit, onToggleActive, onDelete }) {
   const active = worker.active !== false;
+  const usual = usualOperations(worker, operations);
   return (
     <motion.div
       variants={itemVariants}
@@ -34,6 +36,15 @@ export function WorkerRow({ worker, onEdit, onToggleActive, onDelete }) {
           ) : null}
           {worker.note ? <span className="italic">{worker.note}</span> : null}
         </p>
+        {usual.length > 0 && (
+          <p className="mt-2 flex flex-wrap gap-1.5" data-testid="worker-row-operations">
+            {usual.map((op) => (
+              <span key={op._id} className="rounded-md bg-white/15 px-2 py-0.5 text-xs font-medium">
+                {op.name} · Rs {Number(op.rate) || 0}
+              </span>
+            ))}
+          </p>
+        )}
       </div>
       <span
         className={`md:w-32 text-xs font-semibold px-2.5 py-1 rounded-full ${active ? "bg-white/20" : "bg-white/30"} md:text-center`}

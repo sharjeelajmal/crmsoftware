@@ -10,14 +10,15 @@ import { cardRateOf } from "@/constants/operations";
 import { teamFromSheet } from "@/constants/wages";
 
 /**
- * GET /api/work-entries?lotId=&workerId=&operationId=&filter=&from=&to=
+ * GET /api/work-entries?lotId=&cutId=&workerId=&operationId=&filter=&from=&to=
  * Admin only. Work entries newest first (default: all time).
  */
 export const GET = route(async (request) => {
-  const { lotId, workerId, operationId, filter = "all", from, to } = parseQuery(request, workEntriesQuerySchema);
+  const { lotId, cutId, workerId, operationId, filter = "all", from, to } = parseQuery(request, workEntriesQuerySchema);
   const range = dateRangeFromFilter({ filter, from, to });
   const query = { ...dateQuery("date", range) };
   if (lotId) query.lotId = new ObjectId(lotId);
+  if (cutId) query.cutId = new ObjectId(cutId);
   if (workerId) query.workerId = new ObjectId(workerId);
   if (operationId) query.operationId = new ObjectId(operationId);
 

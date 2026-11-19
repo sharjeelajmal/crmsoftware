@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { Boxes, CircleCheck, TriangleAlert } from "lucide-react";
 import { compactNumber } from "@/constants/dashboard";
-import { formatMoney } from "@/lib/format";
 import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Panel, PanelEmpty } from "./Panel";
 
@@ -37,7 +36,7 @@ export function StockHealth({ stock, className = "" }) {
     <Panel
       icon={Boxes}
       title="Stock health"
-      subtitle={`${stock.products} products`}
+      subtitle="Ready stock"
       href="/inventory"
       linkLabel="Inventory"
       className={className}
@@ -47,8 +46,8 @@ export function StockHealth({ stock, className = "" }) {
         <Figure label="Pieces in stock">
           <AnimatedNumber value={stock.pieces} format={compactNumber} />
         </Figure>
-        <Figure label="Stock value (cost)">
-          <AnimatedNumber value={stock.value} format={(n) => formatMoney(Math.round(n))} />
+        <Figure label="Articles">
+          <AnimatedNumber value={stock.products} format={compactNumber} />
         </Figure>
       </div>
 

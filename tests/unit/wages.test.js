@@ -28,6 +28,10 @@ import {
   settleDate,
   settleProblem,
   workPaymentsFor,
+  cutProgress,
+  lockPreview,
+  lockProblem,
+  workRefLabel,
 } from "@/constants/wages";
 import {
   clearWorkers,
@@ -42,6 +46,9 @@ import {
   operationSchema,
   wagePaySchema,
   wageSettleSchema,
+  khataEntrySchema,
+  khataLockSchema,
+  stitchCutSchema,
   workAssignmentSchema,
   workerSchema,
   wageAdjustmentSchema,
@@ -338,34 +345,38 @@ describe("paying work: early, and the rest with the wages", () => {
     expect(sameDay.map((p) => [p.amount, p.entries.length])).toEqual([[310, 2]]);
   });
 
-  it("keeps work paid over two weeks in each week's own wages (no double pay with Pay the rest)", () => {
-    const lastWeek = { start: day(9), end: new Date(2026, 10, 15, 23, 59) };
-    const work = [
-      { _id: "a", workerId: "w1", workerName: "Akram", amount: 200, date: day(14) },
-      { _id: "b", workerId: "w1", workerName: "Akram", amount: 300, date: day(17) },
-    ];
-    // "Pay all" pays both: each payment carries its own work day
-    const payments = workPaymentsFor(work);
-    const inLastWeek = payments.filter((p) => p.date >= lastWeek.start && p.date <= lastWeek.end);
-    const last = summarizeWages([work[0]], [], inLastWeek).workers[0];
-    expect([last.net, last.paid, last.due].join(), "last week is settled, nothing to pay twice").toBe("200,200,0");
-    expect(settleProblem(last)).toMatch(/Nothing is left/);
+  it("counts paid work in the week of the work, however it was paid (no double pay with Pay the rest)", () => {
+    // "Pay all" or a lock over two weeks: the payment is one, the work stays in its own week
+    const paid = (entry, kind) => ({ ...entry, paymentId: "p1", paymentKind: kind });
+    for (const kind of ["work", "lock"]) {
+      const lastWeekWork = paid({ _id: "a", workerId: "w1", workerName: "Akram", amount: 200, date: day(14) }, kind);
+      const thisWeekWork = paid({ _id: "b", workerId: "w1", workerName: "Akram", amount: 300, date: day(17) }, kind);
+      const lockPayment = { workerId: "w1", amount: 500, kind, date: day(17) };
+      const last = summarizeWages([lastWeekWork], [], []).workers[0];
+      expect([last.net, last.paid, last.due].join(), `${kind}: last week is paid`).toBe("200,200,0");
+      expect(settleProblem(last)).toMatch(/Nothing is left/);
+      const now = summarizeWages([thisWeekWork], [], [lockPayment]).workers[0];
+      expect([now.net, now.paid, now.due].join(), `${kind}: this week counts only its own work`).toBe("300,300,0");
+    }
   });
 
   it("subtracts what was paid from the net payable", () => {
     const adjustments = [{ workerId: "w1", workerName: "Akram", type: "recovery", amount: 60 }];
-    const payments = [
-      { workerId: "w1", workerName: "Akram", amount: 210 },
-      { workerId: "w2", workerName: "Bilal", amount: 40 },
-    ];
-    const { workers, totals } = summarizeWages(entries, adjustments, payments);
+    // Akram's 210 was paid early; Bilal's 40 is paid (entries[3]); a "work" payment is counted through its work
+    const withPaid = entries.map((e, i) => (i === 0 ? { ...e, paymentId: "p1", paymentKind: "work" } : e));
+    const payments = [{ workerId: "w1", workerName: "Akram", amount: 210, kind: "work" }];
+    const { workers, totals } = summarizeWages(withPaid, adjustments, payments);
     const akram = workers.find((w) => w.workerName === "Akram");
     expect([akram.net, akram.paid, akram.due]).toEqual([250, 210, 40]); // 310 − 60 advance cut, 210 paid early
     const bilal = workers.find((w) => w.workerName === "Bilal");
     expect([bilal.net, bilal.paid, bilal.due]).toEqual([90, 40, 50]);
     expect([totals.net, totals.paid, totals.due]).toEqual([340, 250, 90]);
+    // "Pay the rest" counts by its own amount (it held the adjustments), not through its entries
+    const settled = entries.slice(0, 2).map((e) => ({ ...e, paymentId: "p2", paymentKind: "settle" }));
+    const rest = summarizeWages(settled, adjustments, [{ workerId: "w1", amount: 250, kind: "settle" }]).workers[0];
+    expect([rest.net, rest.paid, rest.due].join()).toBe("250,250,0");
     // paid more than earned: shown as below zero
-    expect(summarizeWages([entries[2]], [], [{ workerId: "w2", amount: 80 }]).workers[0].due).toBe(-30);
+    expect(summarizeWages([entries[2]], [], [{ workerId: "w2", amount: 80, kind: "settle" }]).workers[0].due).toBe(-30);
   });
 
   it("pays the rest only when something is left, dated in the period it settles", () => {
@@ -406,6 +417,99 @@ describe("paying work: early, and the rest with the wages", () => {
     expect(() => wagePaySchema.parse({ entryIds: [id(1), id(1)] })).toThrow(/only appear once/);
     expect(wageSettleSchema.parse({ workerId: id(5), filter: "lastweek" })).toMatchObject({ filter: "lastweek" });
     expect(() => wageSettleSchema.parse({ filter: "lastweek" })).toThrow();
+  });
+});
+
+describe("stitching khata", () => {
+  const day = (d, h = 12) => new Date(2026, 10, d, h);
+  const work = [
+    {
+      _id: "e1",
+      workerId: "w1",
+      workerName: "Akram",
+      operationId: "o1",
+      operationName: "overlock",
+      amount: 350,
+      pieces: 100,
+      date: day(10),
+    },
+    {
+      _id: "e2",
+      workerId: "w1",
+      workerName: "Akram",
+      operationId: "o2",
+      operationName: "pocket",
+      amount: 650,
+      pieces: 50,
+      date: day(18, 22),
+    },
+    {
+      _id: "e3",
+      workerId: "w1",
+      workerName: "Akram",
+      operationId: "o1",
+      operationName: "overlock",
+      amount: 175,
+      pieces: 50,
+      date: day(19),
+    },
+    {
+      _id: "e4",
+      workerId: "w1",
+      workerName: "Akram",
+      operationId: "o1",
+      operationName: "overlock",
+      amount: 70,
+      pieces: 20,
+      date: day(8),
+      paymentId: "p0",
+    },
+  ];
+
+  it("labels where the work was done", () => {
+    expect(workRefLabel({ lotNumber: "INV-1003" })).toBe("INV-1003");
+    expect(workRefLabel({ cutNumber: "20" })).toBe("Cut 20");
+    expect(workRefLabel({})).toBe("");
+  });
+
+  it("locks the unpaid work done on or before the day (all of that day)", () => {
+    const preview = lockPreview(work, day(18, 9));
+    expect(preview.entries.map((e) => e._id)).toEqual(["e1", "e2"]); // e2 late on the 18th, e3 after, e4 paid
+    expect(preview.amount).toBe(1000);
+    expect(lockProblem(preview)).toBe("");
+    expect(lockProblem(lockPreview(work, day(5)))).toMatch(/nothing to lock/);
+  });
+
+  it("shows a cut's work per operation against its pieces", () => {
+    const progress = cutProgress({ pieces: 150 }, work.slice(0, 3));
+    expect(progress.operations.map((o) => [o.name, o.pieces, o.complete, o.workers])).toEqual([
+      ["overlock", 150, true, ["Akram"]],
+      ["pocket", 50, false, ["Akram"]],
+    ]);
+    expect([progress.pieces, progress.paid, progress.unpaid]).toEqual([150, 0, 1175]);
+  });
+
+  it("groups khata cuts next to invoices", () => {
+    const rows = workByInvoice([
+      { ...work[0], cutId: "c1", cutNumber: "20", productName: "Baggy" },
+      { ...work[1], lotId: "l1", lotNumber: "INV-1001" },
+    ]);
+    expect(rows.map((r) => [r.lotNumber, r.lotId, r.cutId]).sort()).toEqual([
+      ["Cut 20", null, "c1"],
+      ["INV-1001", "l1", null],
+    ]);
+  });
+
+  it("validates cuts, entries and locks", () => {
+    const id = "64b000000000000000000001";
+    expect(stitchCutSchema.parse({ cutNumber: " 20 " })).toMatchObject({ cutNumber: "20", pieces: 0, article: "" });
+    expect(() => stitchCutSchema.parse({ cutNumber: "" })).toThrow();
+    const entry = { workerId: id, operationId: id, pieces: "5" };
+    expect(() => khataEntrySchema.parse(entry)).toThrow(/Choose the cut/);
+    expect(() => khataEntrySchema.parse({ ...entry, cutId: id, lotId: id })).toThrow(/Choose the cut/);
+    expect(khataEntrySchema.parse({ ...entry, cutId: id })).toMatchObject({ pieces: 5, payType: "piece" });
+    expect(() => khataEntrySchema.parse({ ...entry, cutId: id, payType: "fixed" })).toThrow(/fixed amount/);
+    expect(() => khataLockSchema.parse({})).toThrow();
   });
 });
 

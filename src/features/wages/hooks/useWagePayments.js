@@ -25,6 +25,7 @@ export function useWagePayments() {
         const result = await request();
         // wages, the invoice's work lists and the dashboard all show paid / to pay
         clearAsyncDataCache("wages:");
+        clearAsyncDataCache("khata-"); // the stitching khata shows the same work and payments
         clearAsyncDataCache("work-entries:");
         clearAsyncDataCache("factory-dashboard");
         toast.success(message(result));

@@ -90,8 +90,9 @@ const uniqueSizes = (sizes) => new Set(sizes.map((s) => s.size.toLowerCase())).s
 export const productSchema = z.object({
   name: trimmed(120),
   category: trimmed(80),
-  purchasePrice: nonNegative,
-  salePrice: nonNegative,
+  // Not asked on the article form any more (client, 2026-11-19); a purchase still records its cost here.
+  purchasePrice: nonNegative.default(0),
+  salePrice: nonNegative.default(0),
   remaining: z.coerce.number().int().min(0).default(0),
   sizes: z.array(sizeStockSchema).max(50).refine(uniqueSizes, "Sizes must be unique").optional(),
 });
@@ -385,6 +386,7 @@ export const workerSchema = z.object({
   phone: optionalText(40),
   type: z.string().trim().max(40).default("stitching"), // stitching / washing / packing / helper …
   dailyRate: nonNegative.default(0), // per-day salary: one day of leave is cut at this rate (0 = piece rate only)
+  operationIds: z.array(objectId).max(50).default([]), // the operations he usually does (khata shows them first)
   note: optionalText(500),
   active: z.boolean().default(true),
 });
@@ -394,6 +396,7 @@ export const workerUpdateSchema = z.object({
   phone: z.string().trim().max(40).optional(),
   type: z.string().trim().min(1).max(40).optional(),
   dailyRate: nonNegative.optional(),
+  operationIds: z.array(objectId).max(50).optional(),
   note: z.string().trim().max(500).optional(),
   active: z.boolean().optional(),
 });
@@ -503,6 +506,7 @@ export const workEntryUpdateSchema = z.object({
 
 export const workEntriesQuerySchema = periodQuerySchema.extend({
   lotId: objectId.optional(),
+  cutId: objectId.optional(),
   workerId: objectId.optional(),
   operationId: objectId.optional(),
 });
@@ -546,3 +550,48 @@ export const wageUnpaySchema = z.object({ entryIds: entryIdsSchema });
 
 /** "Pay the rest": what is still to pay one worker for a wage period. */
 export const wageSettleSchema = periodQuerySchema.extend({ workerId: objectId, note: optionalText(300) });
+
+// ---- Stitching khata (client, 2026-11-19) -------------------------------------------------------------------------
+/** A cut added in the khata by the owner: its number ("20"), the article and how many pieces were cut. */
+export const stitchCutSchema = z.object({
+  cutNumber: trimmed(40),
+  article: optionalText(120),
+  pieces: z.coerce.number().int().min(0).max(1_000_000).default(0),
+  date: dateLike.optional(),
+  note: optionalText(500),
+});
+
+export const stitchCutUpdateSchema = z.object({
+  cutNumber: trimmed(40).optional(),
+  article: z.string().trim().max(120).optional(),
+  pieces: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  date: dateLike.optional(),
+  note: z.string().trim().max(500).optional(),
+});
+
+/** One line of the khata: a worker did pieces of an operation on a cut (a khata cut or an invoice). */
+export const khataEntrySchema = z
+  .object({
+    workerId: objectId,
+    operationId: objectId,
+    cutId: objectId.optional(),
+    lotId: objectId.optional(),
+    pieces: z.coerce.number().int().positive("Pieces must be more than 0"),
+    rate: nonNegative.optional(), // omitted = the operation's rate
+    payType: z.enum(PAY_TYPES).default("piece"),
+    amount: nonNegative.optional(), // the fixed amount (payType "fixed" only)
+    date: dateLike.optional(),
+    note: optionalText(500),
+  })
+  .refine((e) => Boolean(e.cutId) !== Boolean(e.lotId), { message: "Choose the cut", path: ["cutId"] })
+  .refine((e) => e.payType !== "fixed" || e.amount !== undefined, {
+    message: "Type the fixed amount",
+    path: ["amount"],
+  });
+
+/** "Lock": pay a worker everything not paid yet up to a day. */
+export const khataLockSchema = z.object({
+  upTo: dateLike,
+  advanceCut: nonNegative.default(0), // advance taken back at this lock (comes off the cash given)
+  note: optionalText(300),
+});

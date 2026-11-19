@@ -21,6 +21,7 @@ import {
   Scroll,
   ClipboardList,
   CalendarCheck,
+  NotebookPen,
 } from "lucide-react";
 import { ROLES, normalizeRole } from "@/constants/roles";
 import { isModuleVisible } from "@/constants/modules";
@@ -45,6 +46,7 @@ export const NAV_ITEMS = [
   { name: "Backup", icon: Database, path: "/backup", roles: ADMIN, section: "main" },
   { name: "Invoices", icon: Layers, path: "/lots", roles: ADMIN, section: "production" },
   { name: "Stitching", icon: Shirt, path: "/stitching", roles: ADMIN, section: "production" },
+  { name: "Stitching Khata", icon: NotebookPen, path: "/khata", roles: ADMIN, section: "production" },
   { name: "Invoice Report", icon: FileBarChart, path: "/lots/report", roles: ADMIN, section: "production" },
   { name: "Fabric Khata", icon: Scroll, path: "/fabric", roles: ADMIN, section: "production" },
   { name: "Cutting Report", icon: ClipboardList, path: "/fabric/report", roles: ADMIN, section: "production" },

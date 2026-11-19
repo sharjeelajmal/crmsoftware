@@ -18,8 +18,6 @@ export function ProductTable({
     <>
       <div className="hidden md:flex items-center px-4 py-2 text-sm text-gray-500 font-medium">
         <span className="flex-grow">Product Name</span>
-        <span className="w-32 text-center">Purchase Price</span>
-        <span className="w-32 text-center">Sale Price</span>
         <span className="w-32 text-center">Remaining</span>
         <span className="w-36 text-center">Actions</span>
       </div>

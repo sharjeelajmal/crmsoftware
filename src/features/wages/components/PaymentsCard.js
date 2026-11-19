@@ -10,6 +10,7 @@ import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 const BADGE_CLASS = {
   work: "bg-success-soft text-success",
   settle: "bg-primary-soft text-primary",
+  lock: "bg-warning-soft text-amber-700",
 };
 
 const detailOf = (payment) => {
@@ -17,6 +18,7 @@ const detailOf = (payment) => {
   const parts = [
     work ? `${work} work ${work === 1 ? "entry" : "entries"}` : "",
     payment.lotNumbers?.length ? payment.lotNumbers.join(", ") : "",
+    payment.advanceCut > 0 ? `advance cut ${formatMoney(payment.advanceCut)}` : "",
     payment.note || "",
   ];
   return parts.filter(Boolean).join(" · ");

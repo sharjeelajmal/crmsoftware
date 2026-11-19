@@ -104,7 +104,7 @@ function InvoiceWork({ row }) {
             ))}
           </ul>
           <Link
-            href={`/lots/${row.lotId}`}
+            href={row.lotId ? `/lots/${row.lotId}` : `/khata/cuts/${row.cutId}`}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-primary print:hidden"
           >
             <ExternalLink size={14} /> Open {row.lotNumber}
@@ -126,14 +126,14 @@ export function InvoiceWorkList({ entries = [] }) {
   if (rows.length === 0) {
     return (
       <p className="text-center text-gray-500 py-10" data-testid="invoice-work-empty">
-        No work on any invoice in this period.
+        No work on any invoice or cut in this period.
       </p>
     );
   }
   return (
     <div data-testid="invoice-work-list">
       <div className="hidden md:flex items-center px-4 py-2 text-sm text-gray-500 font-medium border-b border-gray-200">
-        <span className="flex-grow">Invoice</span>
+        <span className="flex-grow">Invoice / cut</span>
         <span className="w-32 text-center">Workers</span>
         <span className="w-36 text-center">Pay</span>
         <span className="w-40 text-right">Labour to pay</span>
@@ -141,7 +141,7 @@ export function InvoiceWorkList({ entries = [] }) {
       </div>
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-3 mt-4">
         {rows.map((row) => (
-          <InvoiceWork key={row.lotId} row={row} />
+          <InvoiceWork key={row.key} row={row} />
         ))}
       </motion.div>
       <div

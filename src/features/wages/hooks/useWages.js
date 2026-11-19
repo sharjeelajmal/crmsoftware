@@ -68,6 +68,7 @@ export function useWages() {
           note: String(form.note || "").trim(),
         });
         clearAsyncDataCache("wages:");
+        clearAsyncDataCache("khata-"); // the stitching khata shows the same work and payments
         toast.success("Entry recorded");
         await reload();
         return true;
@@ -86,6 +87,7 @@ export function useWages() {
       try {
         await api.delete(`/api/wage-adjustments/${id}`);
         clearAsyncDataCache("wages:");
+        clearAsyncDataCache("khata-"); // the stitching khata shows the same work and payments
         toast.success("Entry deleted");
         await reload();
         return true;

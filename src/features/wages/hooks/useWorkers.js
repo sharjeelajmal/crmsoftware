@@ -22,6 +22,7 @@ export function useWorkers() {
       try {
         await action();
         clearAsyncDataCache("wages:");
+        clearAsyncDataCache("khata-"); // the stitching khata shows the same work and payments
         toast.success(successMessage);
         await reload();
         return true;
@@ -40,6 +41,7 @@ export function useWorkers() {
         phone: form.phone.trim(),
         type: form.type,
         dailyRate: Number(form.dailyRate) || 0,
+        operationIds: form.operationIds ?? [],
         note: form.note.trim(),
       };
       return form._id

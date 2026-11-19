@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { BRAND } from "@/constants/brand";
 import { formatDate, formatMoney } from "@/lib/format";
-import { isPaid, payLabel } from "@/constants/wages";
+import { isPaid, payLabel, workRefLabel } from "@/constants/wages";
 import { Button } from "@/components/ui/Button";
 import { rangeLabel } from "../utils";
 
@@ -87,7 +87,7 @@ function WorkerWages({ row, entries, onSettle, isPaying }) {
               <span className="flex-grow min-w-0">
                 <span className="font-medium">{entry.operationName}</span>
                 <span className="text-xs text-gray-500 block">
-                  {formatDate(entry.date)} · {entry.lotNumber} · {entry.productName}
+                  {formatDate(entry.date)} · {workRefLabel(entry)} · {entry.productName}
                   {entry.note ? ` · ${entry.note}` : ""}
                 </span>
               </span>

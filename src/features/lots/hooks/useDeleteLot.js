@@ -26,6 +26,7 @@ export function useDeleteLot() {
         clearAsyncDataCache(`lot:${lotId}`);
         clearAsyncDataCache("fabric"); // the deleted entry no longer uses fabric
         clearAsyncDataCache("wages:");
+        clearAsyncDataCache("khata-"); // the stitching khata shows the same work and payments
         clearAsyncDataCache(`work-entries:${lotId}`);
         clearAsyncDataCache(`gate-passes:${lotId}`);
         if (removed?.stockReturned) clearStockCaches();

@@ -39,7 +39,7 @@ export const rangeLabel = (from, to) =>
 
 export const WORKER_TYPES = ["stitching", "washing", "packing", "helper", "other"];
 
-export const EMPTY_WORKER_FORM = { name: "", phone: "", type: "stitching", dailyRate: "", note: "" };
+export const EMPTY_WORKER_FORM = { name: "", phone: "", type: "stitching", dailyRate: "", operationIds: [], note: "" };
 
 export const workerFormFrom = (worker) => ({
   ...EMPTY_WORKER_FORM,
@@ -48,8 +48,13 @@ export const workerFormFrom = (worker) => ({
   phone: worker?.phone || "",
   type: worker?.type || "stitching",
   dailyRate: Number(worker?.dailyRate) > 0 ? String(worker.dailyRate) : "",
+  operationIds: (worker?.operationIds ?? []).map(String),
   note: worker?.note || "",
 });
+
+/** The operations a worker usually does (his khata offers them first), in the order they were chosen; deleted ones drop out. */
+export const usualOperations = (worker, operations = []) =>
+  (worker?.operationIds ?? []).map((id) => operations.find((op) => String(op._id) === String(id))).filter(Boolean);
 
 export const EMPTY_OPERATION_FORM = { name: "", rate: "", stage: DEFAULT_MAIN_OPERATION };
 
