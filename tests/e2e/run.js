@@ -1725,6 +1725,46 @@ uiTest("UI: cutting master lands on the cutting portal and sees only its nav", a
   await page.waitForURL((url) => url.pathname.startsWith("/cutting"), { timeout: 60_000 });
 });
 
+uiTest(
+  "UI: admin adds a new article from the cutting form; it is chosen, and the invoice opens on the admin page",
+  async (page) => {
+    await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+    await page.goto(`${BASE}/lots`);
+    await page.click('[data-testid="lots-new-cutting"]');
+    const form = page.locator('[data-testid="lot-form"]');
+    await form.waitFor({ timeout: 60_000 });
+
+    // the article isn't there yet: add it right here — no stock, sizes only
+    await page.click('[data-testid="lot-form-new-article"]');
+    await page.fill('[data-testid="product-form-category"]', "E2E Cargo");
+    await page.waitForSelector('[data-testid="product-form-new-category"]');
+    await page.fill('[data-testid="product-form-name"]', "E2E Cargo Pent");
+    await page.click('[data-testid="product-track-sizes"]');
+    await page.locator('[data-testid="product-sizes-section"] [data-testid="product-size-row"]').first().waitFor();
+    expect(
+      await page.locator('[data-testid="product-sizes-section"] input[type="number"]').count(),
+      "sizes only, no stock"
+    ).toBe(0);
+    await page.click('[data-testid="product-form-submit"]');
+    await page.locator('[data-testid="product-form-submit"]').waitFor({ state: "detached", timeout: 60_000 });
+    expect(await page.locator('[data-testid="lot-form-product"]').innerText(), "chosen").toContain("E2E Cargo Pent");
+    expect(await form.locator('[data-testid="lot-form-size-row"]').count(), "its sizes fill the rows").toBe(4);
+    const product = (await api(S.admin, "GET", "/api/products")).body.find((p) => p.name === "E2E Cargo Pent");
+    S.ids.products.push(product._id);
+    expect([product.remaining, product.purchasePrice, product.sizes.length].join(), "no stock, no price").toBe("0,0,4");
+    expect(product.category, "in its new category").toBe("E2E Cargo");
+    const categories = (await api(S.admin, "GET", "/api/categories")).body.map((c) => c.name);
+    expect(categories.includes("E2E Cargo"), "the category was added").toBe(true);
+
+    // the cutting entry with it, and back on the admin invoice page
+    await page.fill('[data-testid="lot-form-fabric-name"]', "Cargo Twill");
+    await form.locator('[data-testid="lot-form-size-row"] input[type="number"]').first().fill("12");
+    await page.click('[data-testid="lot-form-submit"]');
+    await page.waitForURL((url) => /^\/lots\/[a-f0-9]{24}$/.test(url.pathname), { timeout: 60_000 });
+    S.ids.lots.push(new URL(page.url()).pathname.split("/").pop());
+  }
+);
+
 uiTest("UI: cutting master creates a lot from the form and lands on its detail page", async (page) => {
   await browserLogin(page, "e2e-cutter", "cutter123");
   await page.goto(`${BASE}/cutting/new`);
@@ -1733,6 +1773,7 @@ uiTest("UI: cutting master creates a lot from the form and lands on its detail p
   // Only <main> may scroll: a page-level scroll means a second scrollbar next to it.
   const pageScroll = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
   expect(pageScroll <= 0, `document scrolls by ${pageScroll}px (double scrollbar)`).toBe(true);
+  expect(await page.locator('[data-testid="lot-form-new-article"]').count(), "no New article for him").toBe(0);
   await page.click('[data-testid="lot-form-product"]');
   await page.getByText("E2E Slim Fit Denim", { exact: true }).first().click();
   await page.fill('[data-testid="lot-form-fabric-name"]', "Denim 14oz");

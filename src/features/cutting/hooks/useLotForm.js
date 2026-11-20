@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "@/lib/api-client";
 import { useAsyncData, clearAsyncDataCache } from "@/hooks/useAsyncData";
 import { useToast } from "@/components/ui/ToastProvider";
+import { toProductPayload, validateProductInput } from "@/features/inventory/utils";
 import { EMPTY_LOT_FORM, formFromLot, initialSizeRows, toLotPayload, totalPieces, validateLotInput } from "../utils";
 
 const asList = (value) => (Array.isArray(value) ? value : []);
@@ -25,9 +26,11 @@ export function useLotForm({ lot = null, onSaved } = {}) {
   const toast = useToast();
   const [form, setForm] = useState(() => (lot ? formFromLot(lot) : EMPTY_LOT_FORM));
   const [isSaving, setIsSaving] = useState(false);
+  const [isAddingArticle, setIsAddingArticle] = useState(false);
 
   const {
     data: products,
+    setData: setProducts,
     isLoading: productsLoading,
     error,
   } = useAsyncData(async () => asList(await api.get("/api/products")), [], { initialData: [], cacheKey: "products" });
@@ -60,6 +63,44 @@ export function useLotForm({ lot = null, onSaved } = {}) {
   );
 
   const setSizes = useCallback((sizes) => setForm((prev) => ({ ...prev, sizes })), []);
+
+  // "New article" (admin, client 2026-11-20): add the article right here (and its category when it is a new one); it
+  // joins the list and is chosen, its sizes filling the rows like any article's. Resolves true when it was added.
+  const addArticle = useCallback(
+    async (input, { newCategory = false } = {}) => {
+      const problem = validateProductInput(input);
+      if (problem) {
+        toast.info(problem);
+        return false;
+      }
+      setIsAddingArticle(true);
+      try {
+        if (newCategory) {
+          // already there (made a moment ago, e.g. by a try whose article name was taken) is fine
+          await api.post("/api/categories", { name: input.category }).catch((err) => {
+            if (err?.status !== 409) throw err;
+          });
+          clearAsyncDataCache("categories");
+        }
+        const saved = await api.post("/api/products", toProductPayload(input));
+        setProducts((prev) => [...asList(prev), saved]);
+        clearAsyncDataCache("inventory");
+        clearAsyncDataCache("factory-dashboard");
+        setForm((prev) => {
+          const untouched = totalPieces(prev.sizes) === 0;
+          return { ...prev, productId: saved._id, sizes: untouched ? initialSizeRows(saved) : prev.sizes };
+        });
+        toast.success(`${saved.name} added`);
+        return true;
+      } catch (err) {
+        toast.error(errorMessage(err));
+        return false;
+      } finally {
+        setIsAddingArticle(false);
+      }
+    },
+    [setProducts, toast]
+  );
 
   const total = totalPieces(form.sizes);
 
@@ -100,5 +141,7 @@ export function useLotForm({ lot = null, onSaved } = {}) {
     isSaving,
     isEditing: Boolean(lot),
     submit,
+    addArticle,
+    isAddingArticle,
   };
 }

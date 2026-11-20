@@ -5,9 +5,14 @@ import { sumSizes } from "../utils";
 
 const CELL_CLASS = "w-full min-w-0 p-2.5 bg-gray-100 rounded-xl outline-none text-sm";
 const GRID_CLASS = "grid grid-cols-[1fr_1fr_2rem] gap-2 items-center";
+const SIZES_ONLY_GRID_CLASS = "grid grid-cols-[1fr_2rem] gap-2 items-center";
 
-/** Editable list of `{ size, remaining }` rows; the total is derived from the rows, never typed. */
-export function SizeRowsEditor({ rows, onChange, quantityLabel = "Quantity" }) {
+/**
+ * Editable list of `{ size, remaining }` rows; the total is derived from the rows, never typed. `withQuantity={false}`
+ * edits the size names only (an article made from the cutting form: its stock comes when an invoice is ready).
+ */
+export function SizeRowsEditor({ rows, onChange, quantityLabel = "Quantity", withQuantity = true }) {
+  const grid = withQuantity ? GRID_CLASS : SIZES_ONLY_GRID_CLASS;
   const update = (index, field, value) =>
     onChange(rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
   const remove = (index) => onChange(rows.filter((_, i) => i !== index));
@@ -15,13 +20,13 @@ export function SizeRowsEditor({ rows, onChange, quantityLabel = "Quantity" }) {
 
   return (
     <div className="space-y-2">
-      <div className={`${GRID_CLASS} px-1 text-xs font-semibold uppercase tracking-wide text-gray-500`}>
+      <div className={`${grid} px-1 text-xs font-semibold uppercase tracking-wide text-gray-500`}>
         <span>Size</span>
-        <span>{quantityLabel}</span>
+        {withQuantity && <span>{quantityLabel}</span>}
         <span />
       </div>
       {rows.map((row, index) => (
-        <div key={index} data-testid="product-size-row" className={GRID_CLASS}>
+        <div key={index} data-testid="product-size-row" className={grid}>
           <input
             autoComplete="off"
             type="text"
@@ -31,16 +36,18 @@ export function SizeRowsEditor({ rows, onChange, quantityLabel = "Quantity" }) {
             aria-label="Size"
             className={CELL_CLASS}
           />
-          <input
-            autoComplete="off"
-            type="number"
-            min="0"
-            value={row.remaining}
-            onChange={(e) => update(index, "remaining", e.target.value)}
-            placeholder="0"
-            aria-label={quantityLabel}
-            className={CELL_CLASS}
-          />
+          {withQuantity && (
+            <input
+              autoComplete="off"
+              type="number"
+              min="0"
+              value={row.remaining}
+              onChange={(e) => update(index, "remaining", e.target.value)}
+              placeholder="0"
+              aria-label={quantityLabel}
+              className={CELL_CLASS}
+            />
+          )}
           <button
             type="button"
             onClick={() => remove(index)}
@@ -60,9 +67,11 @@ export function SizeRowsEditor({ rows, onChange, quantityLabel = "Quantity" }) {
         >
           <Plus size={16} /> Add size
         </button>
-        <span className="text-sm text-gray-500">
-          Total: <span className="font-semibold text-gray-800">{sumSizes(rows)} pcs</span>
-        </span>
+        {withQuantity && (
+          <span className="text-sm text-gray-500">
+            Total: <span className="font-semibold text-gray-800">{sumSizes(rows)} pcs</span>
+          </span>
+        )}
       </div>
     </div>
   );

@@ -109,9 +109,17 @@ export const sizesWithChange = (sizes, size, delta) => {
 
 // ---- Product forms --------------------------------------------------------
 
-/** The name is required (no prices any more: client, 2026-11-19). */
-export const validateProductDetails = (product) =>
-  !String(product.name ?? "").trim() ? "Please enter the article name." : null;
+/** The existing category `name` matches (case and spaces ignored), or undefined for a new one. */
+export const categoryOf = (categories = [], name = "") => {
+  const key = String(name).trim().toLowerCase();
+  return categories.find((category) => category.trim().toLowerCase() === key);
+};
+
+/** The name and category are required (no prices any more: client, 2026-11-19). */
+export const validateProductDetails = (product) => {
+  if (!String(product.name ?? "").trim()) return "Please enter the article name.";
+  return !String(product.category ?? "").trim() ? "Please choose the category." : null;
+};
 
 /** Returns a validation hint for the add-product form, or null when it is complete. */
 export const validateProductInput = (product) => {

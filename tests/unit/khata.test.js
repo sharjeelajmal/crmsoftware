@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { productSchema } from "@/lib/validation";
 import { lockCash, lockCutProblem, summarizeWages } from "@/constants/wages";
-import { toProductPayload, toProductUpdatePayload, validateProductInput } from "@/features/inventory/utils";
+import { categoryOf, toProductPayload, toProductUpdatePayload, validateProductInput } from "@/features/inventory/utils";
 import { usualOperations, workerFormFrom } from "@/features/wages/utils";
 import {
   cutOptions,
@@ -112,6 +112,9 @@ describe("articles without prices (client, 2026-11-19)", () => {
     expect(validateProductInput({ name: " ", category: "Pants", remaining: "1" })).toBe(
       "Please enter the article name."
     );
+    expect(validateProductInput({ name: "Cargo", category: "", remaining: "0" })).toBe("Please choose the category.");
+    expect(categoryOf(["Pants", "Shirts"], " pants ")).toBe("Pants");
+    expect(categoryOf(["Pants"], "Cargo")).toBeUndefined();
     expect(toProductUpdatePayload({ name: "Baggy Pent", category: "Pants" })).toEqual({
       name: "Baggy Pent",
       category: "Pants",

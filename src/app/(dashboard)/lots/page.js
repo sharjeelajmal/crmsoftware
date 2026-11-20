@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { FileBarChart, Layers, Loader2, PackageCheck, Scissors, Search } from "lucide-react";
+import { FileBarChart, Layers, Loader2, PackageCheck, Plus, Scissors, Search } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { Loader } from "@/components/ui/Loader";
 import { Button } from "@/components/ui/Button";
@@ -50,11 +50,18 @@ export default function LotsPage({ searchParams }) {
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Invoices</h1>
           <p className="text-gray-500 mt-1">Every cutting invoice and where it is in the pipeline.</p>
         </div>
-        <Link href="/lots/report" className="w-full sm:w-auto" data-testid="lots-report-link">
-          <Button variant="secondary" icon={FileBarChart} className="w-full">
-            Report
-          </Button>
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          <Link href="/lots/report" className="w-full sm:w-auto" data-testid="lots-report-link">
+            <Button variant="secondary" icon={FileBarChart} className="w-full">
+              Report
+            </Button>
+          </Link>
+          <Link href="/cutting/new" className="w-full sm:w-auto" data-testid="lots-new-cutting">
+            <Button icon={Plus} className="w-full whitespace-nowrap">
+              New cutting entry
+            </Button>
+          </Link>
+        </div>
       </motion.div>
 
       <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
