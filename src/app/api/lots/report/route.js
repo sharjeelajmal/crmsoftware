@@ -35,6 +35,7 @@ export const GET = route(async (request) => {
     const shortfall = lotShortfall(lot);
     return {
       lotNumber: lot.lotNumber,
+      cutNumber: lot.bundleNumber || "",
       product: lot.productName,
       stage: STAGE_LABELS[lot.stage] ?? lot.stage,
       cutQty: lot.cutQty,
@@ -53,9 +54,10 @@ export const GET = route(async (request) => {
     const csv = new Parser({
       fields: [
         { label: "Invoice #", value: "lotNumber" },
+        { label: "Cut no.", value: "cutNumber" },
         { label: "Article", value: "product" },
         { label: "Stage", value: "stage" },
-        { label: "Cut", value: "cutQty" },
+        { label: "Pieces cut", value: "cutQty" },
         { label: "Stitched", value: "stitchedQty" },
         { label: "Washed", value: "washedQty" },
         { label: "Ready", value: "readyQty" },

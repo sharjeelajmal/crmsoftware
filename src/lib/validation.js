@@ -556,7 +556,8 @@ export const wageSettleSchema = periodQuerySchema.extend({ workerId: objectId, n
 export const stitchCutSchema = z.object({
   cutNumber: trimmed(40),
   article: optionalText(120),
-  pieces: z.coerce.number().int().min(0).max(1_000_000).default(0),
+  // each operation's limit on this cut (client 2026-11-21: no more pieces than the cut has, whoever does them)
+  pieces: z.coerce.number().int().min(1, "Enter the cut's pieces").max(1_000_000),
   date: dateLike.optional(),
   note: optionalText(500),
 });
@@ -564,7 +565,7 @@ export const stitchCutSchema = z.object({
 export const stitchCutUpdateSchema = z.object({
   cutNumber: trimmed(40).optional(),
   article: z.string().trim().max(120).optional(),
-  pieces: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  pieces: z.coerce.number().int().min(1, "Enter the cut's pieces").max(1_000_000).optional(),
   date: dateLike.optional(),
   note: z.string().trim().max(500).optional(),
 });

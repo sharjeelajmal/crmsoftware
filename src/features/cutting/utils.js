@@ -112,6 +112,7 @@ export const filterLots = (lots, { searchTerm = "", stage = "" } = {}) => {
       (!query ||
         (lot.lotNumber || "").toLowerCase().includes(query) ||
         (lot.productName || "").toLowerCase().includes(query) ||
+        (lot.bundleNumber ? `cut ${lot.bundleNumber}`.toLowerCase().includes(query) : false) ||
         (lot.createdBy?.name || "").toLowerCase().includes(query))
   );
 };

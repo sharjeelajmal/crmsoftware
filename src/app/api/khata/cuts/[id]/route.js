@@ -23,6 +23,23 @@ export const PUT = route(async (request, context) => {
   const updated = await withTransaction(async (db, tx) => {
     const cut = await db.collection(STITCH_CUTS).findOne({ _id }, { session: tx });
     if (!cut) throw notFound("Cut");
+    if (changes.pieces !== undefined) {
+      const [most] = await db
+        .collection("work_entries")
+        .aggregate(
+          [
+            { $match: { cutId: _id } },
+            { $group: { _id: "$operationId", name: { $first: "$operationName" }, pieces: { $sum: "$pieces" } } },
+            { $sort: { pieces: -1 } },
+            { $limit: 1 },
+          ],
+          { session: tx }
+        )
+        .toArray();
+      if (most && most.pieces > changes.pieces) {
+        throw conflict(`${most.name} already has ${most.pieces} pcs entered on this cut — it can't have fewer pieces`);
+      }
+    }
     if (changes.cutNumber !== undefined && changes.cutNumber !== cut.cutNumber) {
       await requireFreeCutNumber(db, changes.cutNumber, { exceptId: _id, session: tx });
     }

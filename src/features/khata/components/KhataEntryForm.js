@@ -8,7 +8,9 @@ import { DatePickerField } from "@/components/ui/DatePickerField";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatMoney } from "@/lib/format";
+import { operationPieces, piecesLeftProblem, workRefOf } from "@/constants/wages";
 import { useLotOperations } from "@/features/wages/hooks/useLotOperations";
+import { useRefWork } from "../hooks/useKhata";
 import {
   cutOptions,
   cutRefOf,
@@ -31,6 +33,8 @@ const PAY_OPTIONS = [
  * fixed on his khata page (`worker`), the cut on a cut's page (`cutValue`); the other is picked. The rate comes in by
  * itself — an invoice's rate card (as on its work sheet), else the operation's own rate — and can be typed over; the
  * wage shows as it is typed. After saving, the cut and operation stay for the next line.
+ * The chosen operation's pieces on that cut show as they stand (entered of the cut's pieces, by whom, what is left);
+ * more than is left can't be saved (client, 2026-11-21 — the server refuses it too).
  */
 export function KhataEntryForm({
   worker = null,
@@ -51,15 +55,26 @@ export function KhataEntryForm({
   const lotWork = useLotOperations(lotId);
   const ratesLoading = Boolean(lotId) && lotWork.isLoading;
   const draft = withSuggestedRate(form, { operations, lotOperations: lotId ? lotWork.operations : [] });
-  const problem = khataEntryProblem(draft);
+  const ref = cutRefOf(form.cut);
+  const refWork = useRefWork(form.cut);
+  const { limit, label } = workRefOf({
+    lot: ref.lotId ? (lots.find((lot) => String(lot._id) === ref.lotId) ?? null) : null,
+    cut: ref.cutId ? (cuts.find((cut) => String(cut._id) === ref.cutId) ?? null) : null,
+  });
+  const operationName = operations.find((op) => String(op._id) === form.operationId)?.name ?? "";
+  const done = form.operationId ? operationPieces(refWork.entries, form.operationId) : null;
+  const left = done && limit > 0 ? Math.max(0, limit - done.total) : null;
+  const capProblem = done ? piecesLeftProblem({ limit, done, adding: draft.pieces, operationName, label }) : "";
+  const problem = khataEntryProblem(draft) || capProblem;
   const amount = khataEntryAmount(draft);
+  const busy = ratesLoading || refWork.isChecking;
 
   const set = (patch) => setForm((prev) => ({ ...prev, ...patch }));
   const pickOperation = (operationId) => set({ operationId, rate: "", rateEdited: false });
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (ratesLoading) return;
+    if (busy) return;
     if (problem) {
       toast.info(problem);
       return;
@@ -67,6 +82,7 @@ export function KhataEntryForm({
     if (await onSave(draft)) {
       // the next line is usually the same cut and operation for another day or worker
       setForm((prev) => ({ ...emptyKhataEntry(prev), date: prev.date }));
+      refWork.reload();
     }
   };
 
@@ -208,6 +224,24 @@ export function KhataEntryForm({
           />
         </div>
       </div>
+      {done && (
+        <p
+          className={`text-sm ${capProblem ? "font-medium text-danger" : "text-gray-600"}`}
+          data-testid="khata-entry-left"
+          data-entered={done.total}
+          data-limit={limit}
+          data-left={left ?? ""}
+        >
+          {capProblem ||
+            (limit > 0
+              ? `${operationName} on ${label}: ${done.total} of ${limit} pcs entered` +
+                (done.byWorker.length
+                  ? ` (${done.byWorker.map((w) => `${w.workerName} ${w.pieces}`).join(", ")})`
+                  : "") +
+                (left > 0 ? ` · ${left} left` : " · all done")
+              : `${label} has no pieces set — set them on the cut so no operation goes past them.`)}
+        </p>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl bg-primary-soft p-3">
         <p className="text-sm text-gray-700" data-testid="khata-entry-total" data-amount={amount}>
           {form.payType === "fixed"
@@ -218,11 +252,11 @@ export function KhataEntryForm({
         <Button
           type="submit"
           icon={PackagePlus}
-          disabled={isSaving || ratesLoading || Boolean(problem)}
+          disabled={isSaving || busy || Boolean(problem)}
           className="w-full sm:w-auto"
           data-testid="khata-entry-submit"
         >
-          {isSaving ? "Saving…" : ratesLoading ? "Loading rates…" : "Add work"}
+          {isSaving ? "Saving…" : busy ? "Checking…" : "Add work"}
         </Button>
       </div>
     </form>

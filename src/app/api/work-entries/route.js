@@ -3,15 +3,24 @@ import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, created, parseBody, parseQuery } from "@/lib/api";
 import { workAssignmentSchema, workEntriesQuerySchema } from "@/lib/validation";
 import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
-import { actorOf, buildWorkEntry, payEntries, requireLot, requireOperations, requireWorkers } from "@/lib/wages";
+import {
+  actorOf,
+  attachCutNumbers,
+  buildWorkEntry,
+  payEntries,
+  requireLot,
+  requireOperations,
+  requirePiecesLeft,
+  requireWorkers,
+} from "@/lib/wages";
 import { requireRunning } from "@/lib/lots";
 import { lotCategory, rateCardOf, rememberTeam } from "@/lib/operations";
 import { cardRateOf } from "@/constants/operations";
-import { teamFromSheet } from "@/constants/wages";
+import { teamFromSheet, workRefOf } from "@/constants/wages";
 
 /**
  * GET /api/work-entries?lotId=&cutId=&workerId=&operationId=&filter=&from=&to=
- * Admin only. Work entries newest first (default: all time).
+ * Admin only. Work entries newest first (default: all time), each invoice entry with its invoice's cut number.
  */
 export const GET = route(async (request) => {
   const { lotId, cutId, workerId, operationId, filter = "all", from, to } = parseQuery(request, workEntriesQuerySchema);
@@ -24,7 +33,7 @@ export const GET = route(async (request) => {
 
   const db = await getDb();
   const entries = await db.collection("work_entries").find(query).sort({ date: -1, createdAt: -1 }).toArray();
-  return ok(entries);
+  return ok(await attachCutNumbers(db, entries));
 });
 
 /**
@@ -34,8 +43,9 @@ export const GET = route(async (request) => {
  * One work entry per row: pieces × rate, or the fixed amount. Without a rate: the rate on the invoice's category
  * rate card, else the operation's own rate. With `rememberTeam`, the rows become the team of the invoice's category,
  * so the next invoice of that category opens with them (see rememberTeam). Rows with `paid: true` are paid in the
- * same save (one early payment per worker). The older
- * `{ lotId, operationId, rate?, rows }` body still works (and remembers nothing).
+ * same save (one early payment per worker). No operation may go past the invoice's pieces, every worker's work
+ * counted (409, naming who wrote what). The older `{ lotId, operationId, rate?, rows }` body still works (and
+ * remembers nothing).
  */
 export const POST = route(async (request, { session }) => {
   const input = await parseBody(request, workAssignmentSchema);
@@ -53,6 +63,17 @@ export const POST = route(async (request, { session }) => {
       input.operations.flatMap((op) => op.rows.map((row) => row.workerId)),
       txn
     );
+    const { limit, label } = workRefOf({ lot });
+    for (const item of input.operations) {
+      await requirePiecesLeft(db, txn, {
+        ref: { lotId: lot._id },
+        operationId: item.operationId,
+        operationName: operations.get(item.operationId).name,
+        pieces: item.rows.reduce((sum, row) => sum + (Math.trunc(Number(row.pieces)) || 0), 0),
+        limit,
+        label,
+      });
+    }
     const category = await lotCategory(db, lot, txn);
     const card = await rateCardOf(db, category, txn);
 

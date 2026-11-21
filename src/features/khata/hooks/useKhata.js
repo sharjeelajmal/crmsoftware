@@ -5,7 +5,7 @@ import { api, errorMessage } from "@/lib/api-client";
 import { useAsyncData, clearAsyncDataCache } from "@/hooks/useAsyncData";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatMoney } from "@/lib/format";
-import { toKhataEntryPayload } from "../utils";
+import { cutRefOf, toKhataEntryPayload } from "../utils";
 
 /** Everything that shows khata work or wages is stale after a change. */
 export const clearKhataCaches = () => {
@@ -195,6 +195,25 @@ export function useCut(cutId) {
     [run, reload]
   );
   return { cut: data ?? null, isLoading, isSaving, reload, addEntry };
+}
+
+/**
+ * The work already entered on a cut or invoice (a cut picker value, "cut:<id>" / "lot:<id>"), every worker's — what
+ * the entry form checks each operation's pieces against. `isChecking` while it (re)loads.
+ */
+export function useRefWork(value) {
+  const ref = cutRefOf(value);
+  const query = ref.cutId ? `cutId=${ref.cutId}` : ref.lotId ? `lotId=${ref.lotId}` : "";
+  const { data, isFetching, reload } = useAsyncData(() => api.get(`/api/work-entries?${query}`), [query], {
+    initialData: [],
+    enabled: Boolean(query),
+    cacheKey: query ? `khata-ref:${query}` : undefined,
+  });
+  return {
+    entries: query && Array.isArray(data) ? data : [],
+    isChecking: Boolean(query) && isFetching,
+    reload,
+  };
 }
 
 /** What the cut picker offers: the khata's cuts, then the invoices. */

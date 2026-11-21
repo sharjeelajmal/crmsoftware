@@ -61,7 +61,10 @@ describe("stockChangeOps", () => {
 describe("inventory date filter (added on)", () => {
   // 2026-10-22 10:00 local, written into a Mongo id the way the server does for older products.
   const oct22 = new Date(2026, 9, 22, 10, 0);
-  const idAt = (date) => Math.floor(date.getTime() / 1000).toString(16).padStart(8, "0") + "0000000000000000";
+  const idAt = (date) =>
+    Math.floor(date.getTime() / 1000)
+      .toString(16)
+      .padStart(8, "0") + "0000000000000000";
   const products = [
     { _id: idAt(new Date(2026, 1, 1)), name: "Old Hoodie", category: "Tops", remaining: 5 },
     { _id: idAt(oct22), name: "New Pents", category: "Pants", remaining: 47, createdAt: oct22.toISOString() },

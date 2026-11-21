@@ -8,9 +8,9 @@ import { stageRows } from "../utils";
 
 const COLUMNS = [
   { key: "count", label: "Invoices" },
-  { key: "cutQty", label: "Cut" },
-  { key: "stitchedQty", label: "Stitched" },
-  { key: "washedQty", label: "Washed" },
+  { key: "cutQty", label: "Pieces cut" },
+  { key: "stitchedQty", label: "Pieces stitched" },
+  { key: "washedQty", label: "Pieces washed" },
 ];
 
 /** Stage-wise totals: a table on md+, one card per stage on phones. */

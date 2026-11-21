@@ -4,7 +4,7 @@ import { route, ok, parseQuery } from "@/lib/api";
 import { wagesQuerySchema } from "@/lib/validation";
 import { dateRangeFromFilter } from "@/lib/dates";
 import { advanceAccounts, round2, DEFAULT_WAGE_PERIOD } from "@/constants/wages";
-import { advanceEntries, periodWages, wageCsvRows } from "@/lib/wages";
+import { advanceEntries, attachCutNumbers, periodWages, wageCsvRows } from "@/lib/wages";
 
 const CSV_FIELDS = [
   { label: "Worker", value: "worker" },
@@ -43,6 +43,7 @@ export const GET = route(async (request) => {
     periodWages(db, { range, workerId }),
     advanceEntries(db, { workerId }),
   ]);
+  await attachCutNumbers(db, entries); // "INV-1015 · Cut 2" on the entries
   const left = new Map(advanceAccounts(advanceRows).accounts.map((a) => [a.workerId, a.balance]));
   const workers = summary.workers.map((w) => ({ ...w, advanceLeft: left.get(w.workerId) ?? 0 }));
   const totals = { ...summary.totals, advanceLeft: round2(workers.reduce((sum, w) => sum + w.advanceLeft, 0)) };

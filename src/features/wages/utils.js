@@ -105,7 +105,12 @@ export const sheetRow = (pieces = 0) => ({
  * workers (`team.items`, only those in `activeIds`) splitting them as last time, else one empty worker row.
  * `teamFilled` counts the operations the team filled.
  */
-export const emptyWorkSheet = (offered = [], entries = [], lotPieces = 0, { team = null, activeIds = null } = {}) => {
+export const emptyWorkSheet = (
+  offered = [],
+  entries = [],
+  lotPieces = 0,
+  { team = null, activeIds = null, limit = 0 } = {}
+) => {
   const teamItems = new Map((team?.items || []).map((item) => [String(item.operationId), item]));
   let teamFilled = 0;
   const operations = operationProgress(offered, entries, lotPieces).map((op) => {
@@ -118,6 +123,7 @@ export const emptyWorkSheet = (offered = [], entries = [], lotPieces = 0, { team
       stage: op.stage,
       rate: String(op.rate),
       done: op.pieces,
+      limit, // the invoice's pieces cut: no operation goes past them (workSheetProblem)
       left,
       rows: fromTeam ?? [sheetRow(left)],
     };

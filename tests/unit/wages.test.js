@@ -502,7 +502,12 @@ describe("stitching khata", () => {
 
   it("validates cuts, entries and locks", () => {
     const id = "64b000000000000000000001";
-    expect(stitchCutSchema.parse({ cutNumber: " 20 " })).toMatchObject({ cutNumber: "20", pieces: 0, article: "" });
+    expect(stitchCutSchema.parse({ cutNumber: " 20 ", pieces: "240" })).toMatchObject({
+      cutNumber: "20",
+      pieces: 240,
+      article: "",
+    });
+    expect(() => stitchCutSchema.parse({ cutNumber: "20" })).toThrow(); // a cut's pieces are its operations' limit
     expect(() => stitchCutSchema.parse({ cutNumber: "" })).toThrow();
     const entry = { workerId: id, operationId: id, pieces: "5" };
     expect(() => khataEntrySchema.parse(entry)).toThrow(/Choose the cut/);

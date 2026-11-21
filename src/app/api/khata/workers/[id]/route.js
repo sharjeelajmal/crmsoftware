@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/mongodb";
 import { route, ok, requireObjectId, notFound } from "@/lib/api";
-import { WAGE_PAYMENTS, advanceEntries } from "@/lib/wages";
+import { WAGE_PAYMENTS, advanceEntries, attachCutNumbers } from "@/lib/wages";
 import { advanceAccount, paidSplit } from "@/constants/wages";
 
 /**
@@ -19,7 +19,7 @@ export const GET = route(async (_request, context) => {
   ]);
   return ok({
     worker,
-    entries,
+    entries: await attachCutNumbers(db, entries),
     payments,
     totals: paidSplit(entries),
     advanceLeft: advanceAccount(advances).balance,

@@ -62,10 +62,10 @@ export default function LotReportPage() {
       </motion.div>
 
       <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
-        <StatCard icon={Layers} title="Invoices" value={totals.count ?? 0} />
-        <StatCard icon={Scissors} title="Cut" value={totals.cutQty ?? 0} />
-        <StatCard icon={Shirt} title="Stitched" value={totals.stitchedQty ?? 0} />
-        <StatCard icon={Droplets} title="Washed" value={totals.washedQty ?? 0} />
+        <StatCard icon={Layers} title="Invoices (cuts)" value={totals.count ?? 0} />
+        <StatCard icon={Scissors} title="Pieces cut" value={`${totals.cutQty ?? 0} pcs`} />
+        <StatCard icon={Shirt} title="Pieces stitched" value={`${totals.stitchedQty ?? 0} pcs`} />
+        <StatCard icon={Droplets} title="Pieces washed" value={`${totals.washedQty ?? 0} pcs`} />
       </motion.div>
 
       <LotReportStageTable byStage={report?.byStage} />

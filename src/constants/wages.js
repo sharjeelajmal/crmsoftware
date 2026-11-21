@@ -126,8 +126,9 @@ const blankAmount = (value) => value === "" || value === null || value === undef
 export const filledRows = (operation) => (operation?.rows || []).filter((row) => row.workerId);
 
 /**
- * Why a work sheet (`{ operations: [{ name, rate, rows: [{ workerId, pieces, payType, amount }] }] }`) cannot be saved,
- * or "". Rows without a worker are left out; at least one row must have one.
+ * Why a work sheet (`{ operations: [{ name, rate, limit, done, rows: [{ workerId, pieces, payType, amount }] }] }`)
+ * cannot be saved, or "". Rows without a worker are left out; at least one row must have one. An operation's rows may
+ * not go past the invoice's pieces cut (`limit`) less what is already entered (`done`; client, 2026-11-21).
  */
 export const workSheetProblem = ({ operations = [] } = {}) => {
   const used = operations.filter((operation) => filledRows(operation).length > 0);
@@ -139,6 +140,14 @@ export const workSheetProblem = ({ operations = [] } = {}) => {
       return `${name}: rate must be 0 or more.`;
     if (new Set(rows.map((row) => row.workerId)).size !== rows.length) return `${name}: a worker can only appear once.`;
     if (rows.some((row) => !(Math.trunc(Number(row.pieces)) > 0))) return `${name}: pieces must be more than 0.`;
+    const adding = rows.reduce((sum, row) => sum + (Math.trunc(Number(row.pieces)) || 0), 0);
+    const limit = Math.trunc(Number(operation.limit)) || 0;
+    const done = Math.trunc(Number(operation.done)) || 0;
+    if (limit > 0 && done + adding > limit) {
+      return done < limit
+        ? `${name}: only ${limit - done} of ${limit} pcs left (${done} already entered), not ${adding}.`
+        : `${name}: all ${limit} pcs are already entered.`;
+    }
     if (rows.some((row) => row.payType === "fixed" && (blankAmount(row.amount) || !(Number(row.amount) >= 0))))
       return `${name}: type the fixed amount.`;
   }
@@ -316,8 +325,74 @@ export const settleDate = (range, now = new Date()) => (range?.end && range.end 
 // grows with it. A cut is added in the khata itself (`stitch_cuts`: cut number, article, pieces), or is an invoice.
 // "Lock" pays everything a worker has not been paid for up to a day; the khata starts again after it.
 
-/** Where a piece of work was done: the invoice number, or "Cut 20" for a cut added in the khata. */
-export const workRefLabel = (entry) => entry?.lotNumber || (entry?.cutNumber ? `Cut ${entry.cutNumber}` : "");
+/**
+ * Where a piece of work was done: "INV-1015 · Cut 2" (an invoice with its cut number), "INV-1015", or "Cut 20" for a
+ * cut added in the khata. An invoice entry's `cutNumber` is its invoice's cut number, attached when it is read
+ * (attachCutNumbers), so it follows an edit of the invoice.
+ */
+export const workRefLabel = (entry) => {
+  const cut = entry?.cutNumber ? `Cut ${entry.cutNumber}` : "";
+  if (!entry?.lotNumber) return cut;
+  return cut ? `${entry.lotNumber} · ${cut}` : entry.lotNumber;
+};
+
+/**
+ * The pieces a cut or invoice has — each operation's limit (client: "cut 240 piece ki hai", so an invoice's pieces
+ * cut, `cutQty`; a khata cut: its pieces, 0 when not given) — and how it is named in messages.
+ */
+export const workRefOf = ({ lot = null, cut = null } = {}) =>
+  lot
+    ? {
+        limit: Math.trunc(Number(lot.cutQty)) || 0,
+        label: workRefLabel({ lotNumber: lot.lotNumber, cutNumber: lot.bundleNumber }),
+      }
+    : { limit: Math.trunc(Number(cut?.pieces)) || 0, label: cut ? `Cut ${cut.cutNumber}` : "" };
+
+/**
+ * Pieces of one operation already entered on a cut or invoice — every worker's, paid or not (`exceptId`: an entry
+ * being edited) — in total and per worker, most first: `{ total, byWorker: [{ workerId, workerName, pieces }] }`.
+ */
+export const operationPieces = (entries = [], operationId, { exceptId = null } = {}) => {
+  const byWorker = new Map();
+  let total = 0;
+  for (const entry of entries) {
+    if (String(entry.operationId) !== String(operationId)) continue;
+    if (exceptId && String(entry._id) === String(exceptId)) continue;
+    const pieces = Math.trunc(Number(entry.pieces)) || 0;
+    total += pieces;
+    const key = String(entry.workerId);
+    const row = byWorker.get(key) ?? { workerId: key, workerName: entry.workerName || "", pieces: 0 };
+    row.pieces += pieces;
+    byWorker.set(key, row);
+  }
+  return { total, byWorker: [...byWorker.values()].sort((a, b) => b.pieces - a.pieces) };
+};
+
+/**
+ * Client, 2026-11-21: an operation can't be entered for more pieces than its cut has, whoever does it (four workers
+ * sharing the back pockets of a 240-piece cut write 240 between them, not 300) — and so a cut's work can't be paid
+ * twice. Why `adding` more pieces of `operationName` on `label` (a cut of `limit` pieces, `done` from
+ * operationPieces) can't be saved, naming who wrote what, or "". No limit (a cut without its pieces) checks nothing.
+ */
+export const piecesLeftProblem = ({
+  limit = 0,
+  done = { total: 0, byWorker: [] },
+  adding = 0,
+  operationName = "",
+  label = "",
+}) => {
+  const cap = Math.trunc(Number(limit)) || 0;
+  if (!(cap > 0)) return "";
+  const entered = Number(done.total) || 0;
+  if (entered + (Math.trunc(Number(adding)) || 0) <= cap) return "";
+  const left = Math.max(0, cap - entered);
+  const who = done.byWorker.map((w) => `${w.workerName} ${w.pieces}`).join(", ");
+  const where = [operationName, label].filter(Boolean).join(" on ");
+  return (
+    `${where}: the cut has ${cap} pcs and ${entered} are already entered${who ? ` (${who})` : ""} — ` +
+    (left > 0 ? `only ${left} left.` : "nothing is left. Check who wrote more pieces.")
+  );
+};
 
 const endOfLocalDay = (value) => {
   const d = new Date(value);

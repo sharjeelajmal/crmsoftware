@@ -1,12 +1,12 @@
 import { getDb } from "@/lib/mongodb";
 import { route, ok, parseBody, requireObjectId, notFound, conflict } from "@/lib/api";
 import { workEntryUpdateSchema } from "@/lib/validation";
-import { workEntryEditOps } from "@/lib/wages";
-import { paidEntryProblem } from "@/constants/wages";
+import { requirePiecesLeft, workEntryEditOps } from "@/lib/wages";
+import { paidEntryProblem, workRefOf } from "@/constants/wages";
 
 /**
  * PUT /api/work-entries/:id  { pieces?, rate?, amount?, date?, note? } — amount is recomputed. A paid entry can't be
- * changed (its payment is for what it was): mark it unpaid first.
+ * changed (its payment is for what it was): mark it unpaid first. More pieces may not go past the cut's (409).
  */
 export const PUT = route(async (request, context) => {
   const _id = await requireObjectId(context);
@@ -17,6 +17,20 @@ export const PUT = route(async (request, context) => {
   if (!existing) throw notFound("Work entry");
   const problem = paidEntryProblem(existing);
   if (problem) throw conflict(problem);
+  if (changes.pieces !== undefined) {
+    const lot = existing.lotId ? await db.collection("lots").findOne({ _id: existing.lotId }) : null;
+    const cut = existing.cutId ? await db.collection("stitch_cuts").findOne({ _id: existing.cutId }) : null;
+    const { limit, label } = workRefOf({ lot, cut });
+    await requirePiecesLeft(db, undefined, {
+      ref: existing.lotId ? { lotId: existing.lotId } : { cutId: existing.cutId },
+      operationId: existing.operationId,
+      operationName: existing.operationName,
+      pieces: changes.pieces,
+      limit,
+      label,
+      exceptId: _id,
+    });
+  }
   await entries.updateOne({ _id }, workEntryEditOps(existing, changes));
   return ok({ updated: true });
 });

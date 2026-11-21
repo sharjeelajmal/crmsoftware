@@ -13,6 +13,8 @@ import {
   lockCutProblem,
   lockPreview,
   lockProblem,
+  operationPieces,
+  piecesLeftProblem,
   payTypeOf,
   round2,
   settleDate,
@@ -186,6 +188,47 @@ export const wageCsvRows = (workers) =>
     paid: w.paid ?? 0,
     due: w.due ?? w.net,
   }));
+
+// ---- Cut numbers and the pieces of a cut -----------------------------------------------------------------------
+
+/**
+ * Gives every invoice work entry its invoice's cut number (`cutNumber`, from the lot's `bundleNumber`) for showing
+ * "INV-1015 · Cut 2" — read each time, so an edit of the invoice shows everywhere. Khata cut entries have theirs.
+ * Returns the same entries.
+ */
+export async function attachCutNumbers(db, entries = [], session) {
+  const lotIds = [...new Set(entries.filter((e) => e.lotId && !e.cutNumber).map((e) => String(e.lotId)))];
+  if (lotIds.length === 0) return entries;
+  const lots = await db
+    .collection("lots")
+    .find({ _id: { $in: lotIds.map((id) => new ObjectId(id)) } }, { projection: { bundleNumber: 1 }, session })
+    .toArray();
+  const cutOf = new Map(lots.map((lot) => [String(lot._id), lot.bundleNumber || ""]));
+  for (const entry of entries) {
+    if (entry.lotId && !entry.cutNumber && cutOf.get(String(entry.lotId)))
+      entry.cutNumber = cutOf.get(String(entry.lotId));
+  }
+  return entries;
+}
+
+/**
+ * 409 when `pieces` more of an operation on a cut or invoice (`ref`: `{ lotId }` / `{ cutId }`) would go past the
+ * `limit` pieces of that cut, every worker's work counted (piecesLeftProblem). `exceptId`: the entry being edited.
+ */
+export async function requirePiecesLeft(db, tx, { ref, operationId, operationName, pieces, limit, label, exceptId }) {
+  if (!(Number(limit) > 0)) return;
+  const where = ref.lotId ? { lotId: new ObjectId(ref.lotId) } : { cutId: new ObjectId(ref.cutId) };
+  const entries = await db
+    .collection("work_entries")
+    .find(
+      { ...where, operationId: new ObjectId(operationId) },
+      { projection: { operationId: 1, workerId: 1, workerName: 1, pieces: 1 }, session: tx }
+    )
+    .toArray();
+  const done = operationPieces(entries, operationId, { exceptId });
+  const problem = piecesLeftProblem({ limit, done, adding: pieces, operationName, label });
+  if (problem) throw conflict(problem);
+}
 
 // ---- Wage payments -----------------------------------------------------------------------------------------------
 

@@ -1,17 +1,19 @@
 import { withTransaction } from "@/lib/mongodb";
 import { route, created, parseBody } from "@/lib/api";
 import { khataEntrySchema } from "@/lib/validation";
-import { buildWorkEntry, requireLot, requireOperations, requireWorker } from "@/lib/wages";
+import { buildWorkEntry, requireLot, requireOperations, requirePiecesLeft, requireWorker } from "@/lib/wages";
 import { requireCut } from "@/lib/khata";
 import { requireRunning } from "@/lib/lots";
 import { lotCategory, rateCardOf } from "@/lib/operations";
 import { cardRateOf } from "@/constants/operations";
+import { workRefOf } from "@/constants/wages";
 
 /**
  * POST /api/khata/entries  { workerId, operationId, cutId | lotId, pieces, rate?, payType?, amount?, date?, note? }
  * Admin only. One line of the stitching khata: a worker did pieces of an operation on a khata cut or an invoice. The
  * wage is pieces × rate (the rate typed, else the invoice's rate card, else the operation's own rate), or the fixed
- * amount. A stopped invoice takes no work.
+ * amount. A stopped invoice takes no work, and no operation may go past the pieces of its cut or invoice, every
+ * worker's work counted (409, naming who wrote what — so a cut's work can't be entered, and paid, twice).
  */
 export const POST = route(async (request, { session }) => {
   const input = await parseBody(request, khataEntrySchema);
@@ -29,6 +31,15 @@ export const POST = route(async (request, { session }) => {
     } else {
       cut = await requireCut(db, input.cutId, tx);
     }
+    const { limit, label } = workRefOf({ lot, cut });
+    await requirePiecesLeft(db, tx, {
+      ref: lot ? { lotId: lot._id } : { cutId: cut._id },
+      operationId: operation._id,
+      operationName: operation.name,
+      pieces: input.pieces,
+      limit,
+      label,
+    });
     const doc = buildWorkEntry({
       lot,
       cut,

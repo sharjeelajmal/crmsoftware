@@ -15,7 +15,7 @@ export const LOTS_COLUMNS = {
   product: "md:flex-1",
   qty: "md:w-24",
   stage: "md:w-32",
-  by: "md:w-36",
+  cut: "md:w-28",
   date: "md:w-28",
 };
 
@@ -28,7 +28,10 @@ function Stat({ label, children }) {
   );
 }
 
-/** One lot: a table row on md+, a card on phones. The whole row links to the lot detail. */
+/**
+ * One lot: a table row on md+, a card on phones. The whole row links to the lot detail. Its cut number shows where
+ * "Created by" used to be (client, 2026-11-21: the work is followed by cut; who made it is on the invoice page).
+ */
 export function LotsRow({ lot }) {
   return (
     <motion.div variants={itemVariants} initial="hidden" animate="visible">
@@ -53,13 +56,16 @@ export function LotsRow({ lot }) {
         <span className={`hidden md:inline ${LOTS_COLUMNS.stage}`}>
           <LotStageBadge stage={lot.stage} />
         </span>
-        <span className={`hidden md:inline text-gray-600 truncate ${LOTS_COLUMNS.by}`}>
-          {lot.createdBy?.name || "—"}
+        <span
+          className={`hidden md:inline font-semibold text-gray-800 truncate ${LOTS_COLUMNS.cut}`}
+          data-testid="lots-row-cut"
+        >
+          {lot.bundleNumber ? `Cut ${lot.bundleNumber}` : "—"}
         </span>
         <span className={`hidden md:inline text-gray-600 ${LOTS_COLUMNS.date}`}>{formatDate(lot.createdAt)}</span>
         <div className="grid grid-cols-3 gap-2 md:hidden border-t border-gray-100 pt-3">
           <Stat label="Cut qty">{formatPieces(lot.cutQty)}</Stat>
-          <Stat label="Created by">{lot.createdBy?.name || "—"}</Stat>
+          <Stat label="Cut no.">{lot.bundleNumber || "—"}</Stat>
           <Stat label="Date">{formatDate(lot.createdAt)}</Stat>
         </div>
         <ChevronRight size={18} className="hidden md:block text-gray-400 shrink-0" />

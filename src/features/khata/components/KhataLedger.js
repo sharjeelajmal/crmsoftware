@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { Lock, Trash2, Undo2 } from "lucide-react";
+import { CheckCheck, Lock, Trash2, Undo2 } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Dialogs";
 import { PAYMENT_KIND_LABELS, isPaid, payLabel, workRefLabel } from "@/constants/wages";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -11,18 +12,33 @@ import { khataSections } from "../utils";
 
 const CARD_CLASS = "bg-white p-4 sm:p-6 rounded-2xl shadow-sm";
 
-function EntryRow({ entry, onTogglePaid, onRemove, isSaving }) {
+/**
+ * Can this line be marked paid / unpaid on its own? Unpaid work, work paid early, and work of a lock ("Pay all") —
+ * held back from it, the lock shrinks. Not work of "Pay the rest" or of a lock with an advance cut: that hand-over is
+ * taken back whole from its section, which asks first.
+ */
+const togglesAlone = (entry, payment) =>
+  !isPaid(entry) ||
+  entry.paymentKind === "work" ||
+  (entry.paymentKind === "lock" && Boolean(payment) && !(Number(payment.advanceCut) > 0));
+
+/** "Cut 2 · 100 pcs" — what the amount is for (client, 2026-11-21: seen by the amount, without opening the invoice). */
+const cutPiecesLabel = (entry) => `${entry.cutNumber ? `Cut ${entry.cutNumber} · ` : ""}${entry.pieces} pcs`;
+
+function EntryRow({ entry, payment = null, onTogglePaid, onRemove, isSaving }) {
   const paid = isPaid(entry);
   return (
     <li
-      className="flex items-center gap-3 px-3 py-2 text-sm"
+      className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-1.5 px-3 py-2 text-sm"
       data-testid="khata-entry"
       data-paid={paid ? "true" : "false"}
       data-amount={entry.amount}
+      data-cut={entry.cutNumber || ""}
     >
-      <span className="flex-grow min-w-0">
+      <span className="basis-full sm:basis-auto flex-grow min-w-0">
         <span className="font-medium text-gray-800">
-          {entry.operationName} · {workRefLabel(entry)}
+          {entry.operationName}
+          {entry.lotNumber ? ` · ${entry.lotNumber}` : ""}
         </span>
         <span className="block text-xs text-gray-500 truncate">
           {formatDate(entry.date)} · {payLabel(entry)}
@@ -30,15 +46,19 @@ function EntryRow({ entry, onTogglePaid, onRemove, isSaving }) {
           {entry.note ? ` · ${entry.note}` : ""}
         </span>
       </span>
+      <span
+        className="mr-auto sm:mr-0 rounded-md bg-primary-soft px-2 py-0.5 text-xs font-semibold text-primary whitespace-nowrap"
+        data-testid="khata-entry-cut-pieces"
+      >
+        {cutPiecesLabel(entry)}
+      </span>
       <span className="font-semibold text-gray-800 whitespace-nowrap">{formatMoney(entry.amount)}</span>
-      {/* Only work paid on its own toggles here; a lock or "Pay the rest" pays it with other work (and maybe an
-          advance cut): take that payment back from its section, which asks first. */}
-      {(!paid || entry.paymentKind === "work") && (
+      {togglesAlone(entry, payment) && (
         <PaidToggle
           paid={paid}
           onToggle={() => onTogglePaid(entry)}
           disabled={isSaving}
-          tip={paid ? "Press to mark unpaid" : "Press to pay this now"}
+          tip={paid ? "Press to mark unpaid (hold it back)" : "Press to pay this now"}
           testId="khata-entry-paid"
         />
       )}
@@ -60,10 +80,19 @@ function EntryRow({ entry, onTogglePaid, onRemove, isSaving }) {
 /**
  * A worker's khata, newest first: the work not paid yet (since the last lock), then each payment — a lock ("paid up
  * to 18 Nov"), work paid early, the rest of a period — with the work it paid. A payment can be taken back (its work
- * is unpaid again); unpaid work can be paid on its own or removed.
+ * is unpaid again); unpaid work can be paid on its own, all at once ("Pay all", client 2026-11-21 — one line can
+ * then be held back with its toggle), or removed.
  */
-export function KhataLedger({ entries = [], payments = [], onTogglePaid, onRemove, onRemovePayment, isSaving }) {
-  const [confirm, setConfirm] = useState(null); // { entry } | { payment }
+export function KhataLedger({
+  entries = [],
+  payments = [],
+  onTogglePaid,
+  onPayAll,
+  onRemove,
+  onRemovePayment,
+  isSaving,
+}) {
+  const [confirm, setConfirm] = useState(null); // { entry } | { payment } | { payAll: section }
   const sections = khataSections(entries, payments);
 
   return (
@@ -79,6 +108,19 @@ export function KhataLedger({ entries = [], payments = [], onTogglePaid, onRemov
             }}
             onCancel={() => setConfirm(null)}
             confirmTestId="khata-entry-remove-confirm"
+          />
+        )}
+        {confirm?.payAll && (
+          <ConfirmDialog
+            title={`Pay all · ${formatMoney(confirm.payAll.amount)}?`}
+            message={`${confirm.payAll.entries.length} ${confirm.payAll.entries.length === 1 ? "line is" : "lines are"} marked paid in one go. To hold one back, press its Paid button afterwards.`}
+            confirmLabel="Pay all"
+            tone="primary"
+            onConfirm={async () => {
+              if (await onPayAll(confirm.payAll.entries)) setConfirm(null);
+            }}
+            onCancel={() => setConfirm(null)}
+            confirmTestId="khata-pay-all-confirm"
           />
         )}
         {confirm?.payment && (
@@ -99,9 +141,23 @@ export function KhataLedger({ entries = [], payments = [], onTogglePaid, onRemov
         if (section.kind === "unpaid") {
           return (
             <section key={section.key} className={CARD_CLASS} data-testid="khata-unpaid" data-amount={section.amount}>
-              <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h2 className="text-lg font-bold text-gray-800">Not paid yet</h2>
-                <span className="text-lg font-bold text-primary">{formatMoney(section.amount)}</span>
+                <span className="flex items-center gap-3">
+                  <span className="text-lg font-bold text-primary">{formatMoney(section.amount)}</span>
+                  {onPayAll && section.entries.length > 0 && (
+                    <Button
+                      size="sm"
+                      icon={CheckCheck}
+                      onClick={() => setConfirm({ payAll: section })}
+                      disabled={isSaving}
+                      className="whitespace-nowrap"
+                      data-testid="khata-pay-all"
+                    >
+                      Pay all
+                    </Button>
+                  )}
+                </span>
               </div>
               {section.entries.length === 0 ? (
                 <p className="text-sm text-gray-500">Everything is paid. New work starts here.</p>
@@ -174,6 +230,7 @@ export function KhataLedger({ entries = [], payments = [], onTogglePaid, onRemov
                   <EntryRow
                     key={entry._id}
                     entry={entry}
+                    payment={payment}
                     onTogglePaid={onTogglePaid}
                     onRemove={(e) => setConfirm({ entry: e })}
                     isSaving={isSaving}

@@ -97,7 +97,7 @@ export default function LotsPage({ searchParams }) {
             <input
               autoComplete="off"
               type="text"
-              placeholder="Search invoice, article or user..."
+              placeholder="Search invoice, article or cut no."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               data-testid="lots-search"

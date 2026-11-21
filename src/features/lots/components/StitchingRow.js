@@ -31,12 +31,18 @@ export function StitchingRow({ lot, onDispatch }) {
           <Link href={`/lots/${lot._id}`} className="font-bold text-primary hover:underline">
             {lot.lotNumber}
           </Link>
+          {lot.bundleNumber && (
+            <span
+              className="rounded-md bg-primary-soft px-2 py-0.5 text-xs font-bold text-primary"
+              data-testid="stitching-row-cut"
+            >
+              Cut {lot.bundleNumber}
+            </span>
+          )}
           <StoppedChip lot={lot} />
         </span>
         <p className="text-sm text-gray-700 truncate">{lot.productName}</p>
-        <p className="text-xs text-gray-500">
-          {lot.bundleNumber ? `Cut ${lot.bundleNumber} · ` : ""}since {formatDate(lot.updatedAt || lot.createdAt)}
-        </p>
+        <p className="text-xs text-gray-500">since {formatDate(lot.updatedAt || lot.createdAt)}</p>
       </div>
       <div className="grid grid-cols-3 gap-3 md:w-80 text-sm">
         <div>

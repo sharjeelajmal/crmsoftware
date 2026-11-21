@@ -854,9 +854,33 @@ const DAILY=[
 ];
 
 
-const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–20 November 2026",who:["admin"],
-  intro:"20 November: New cutting entry par hi <b>naya article</b> banana (Invoices → New cutting entry → New article). 19 November: <b>Stitching Khata</b> — har karigar ka kaam aap khud likhein (cut, operation, pieces), paise khud jurte jayen, aur “<b>Lock</b>” se “yahan tak paise de diye”; cut bhi aap khud banayein. Article banate waqt <b>purchase / sale price</b> ab nahi poocha jata. 17 November: karigaron ko <b>wahin se paise dena</b> jahan kaam diya jata hai — har operation ke aage <b>Paid / Unpaid</b>; baqi Wages page par “<b>Pay the rest</b>”. 9 November: invoice ko <b>kisi bhi stage par rokna</b> (Stop / Resume), <b>ek qadam peeche karna</b> (Reverse) aur <b>kisi bhi stage par delete</b>. 6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
+const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–22 November 2026",who:["admin"],
+  intro:"22 November: <b>Cut no.</b> Invoices aur khata mein, ek cut ke operation ke <b>pieces cut se zyada nahi</b>, khata mein <b>Pay all</b> aur <b>Print</b>. 20 November: New cutting entry par hi <b>naya article</b> banana (Invoices → New cutting entry → New article). 19 November: <b>Stitching Khata</b> — har karigar ka kaam aap khud likhein (cut, operation, pieces), paise khud jurte jayen, aur “<b>Lock</b>” se “yahan tak paise de diye”; cut bhi aap khud banayein. Article banate waqt <b>purchase / sale price</b> ab nahi poocha jata. 17 November: karigaron ko <b>wahin se paise dena</b> jahan kaam diya jata hai — har operation ke aage <b>Paid / Unpaid</b>; baqi Wages page par “<b>Pay the rest</b>”. 9 November: invoice ko <b>kisi bhi stage par rokna</b> (Stop / Resume), <b>ek qadam peeche karna</b> (Reverse) aur <b>kisi bhi stage par delete</b>. 6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
   groups:[
+  {title:"Cut number har jagah, pieces ki hadd, Pay all aur Print (22 Nov)",icon:"scissors",
+   what:"Kaam ab <b>cut</b> ke hisaab se nazar aata hai: Invoices list mein “<b>Cut no.</b>”, karigar ke khata mein har line ke saath “<b>Cut 2 · 100 pcs</b>”. Ek cut ke kisi operation ke pieces, sab karigaron ke mila kar, <b>cut ke pieces se zyada nahi</b> likhe ja sakte — is se ghalat ginti aur ek hi cut ki <b>double payment</b> ruk jati hai. Khata mein “<b>Pay all</b>” aur “<b>Print</b>”.",
+   tasks:[
+    {id:"u-cut-list",t:"Invoices mein Cut no.",s:"Invoices",who:"admin",
+     steps:["“Invoices” kholein (Stitching wala filter bhi dabayein)."],
+     ok:"“Created by” ki jagah ab “<b>Cut no.</b>” ka column — misaal “Cut 2”. Search mein “cut 2” likh kar bhi dhoond sakte hain. Stitching page par bhi invoice ke saath “Cut 2” likha aata hai.",
+     tip:"Cut no. tab aata hai jab cutting entry mein “Cut number” bhara ho."},
+    {id:"u-cut-lines",t:"Khata ki line par cut aur pieces",s:"Stitching Khata → karigar",who:"admin",
+     steps:["Kisi karigar ka khata kholein."],
+     ok:"Har line par raqam ke saath neela chip: “<b>Cut 2 · 100 pcs</b>”. Invoice khole baghair pata chalta hai kaunsa cut, kitne pieces. Note mein “cut nbr” likhne ki zaroorat nahi."},
+    {id:"u-piece-cap",t:"Cut ke pieces se zyada nahi",s:"Karigar ka khata → Add work",who:"admin",
+     steps:["Add work mein cut (misaal INV-1015 · Cut 2, 240 pcs) aur operation (Back pocket) chunein.","Neeche likha aata hai: “Back pocket on INV-1015 · Cut 2: 170 of 240 pcs entered (Rashid 100, Akram 70) · 70 left”.","Pieces mein 80 likhein."],
+     ok:"Laal message: “… only <b>70 left</b>” aur “Add work” band. 70 ya kam likhein to save hota hai. Assign work (sheet) aur purani entry edit mein bhi yahi hadd hai — zyada pieces save hi nahi hote.",
+     tip:"Message mein har karigar ke pieces likhe hote hain — jis ne zyada likhwaya woh foran pata chalta hai. Khata ke naye cut mein ab pieces bharna zaroori hai."},
+    {id:"u-pay-all",t:"Pay all, phir ek rok lein",s:"Karigar ka khata → Pay all",who:"admin",
+     steps:["“Not paid yet” ke saath “<b>Pay all</b>” dabayein aur confirm karein.","Jis line ke paise abhi nahi dene, us ka hara “Paid” button dabayein."],
+     ok:"Saari lines ek hi dafa Paid (“Paid up to [aaj]”), To pay 0. Roki hui line wapas “Not paid yet” mein aa jati hai aur payment utni kam ho jati hai."},
+    {id:"u-khata-print",t:"Karigar ka print",s:"Karigar ka khata → Print",who:"admin",
+     steps:["Karigar ke khata mein upar “<b>Print</b>” dabayein.","“To pay” (jo dena baqi hai) ya “All work” chunein, phir Print."],
+     ok:"Kaghaz par: karigar ka naam, har line ka din, <b>cut</b>, operation, pieces, <b>rate</b>, raqam, Paid/Unpaid; neeche Total work, Paid, <b>To pay</b> (aur advance) aur dono ke dastakhat ki jagah."},
+    {id:"u-report-cards",t:"Invoice Report ke dabbe",s:"Invoice Report",who:"admin",
+     steps:["“Invoice Report” kholein."],
+     ok:"Dabbe ab saaf likhe hain: <b>Invoices (cuts)</b> = kitni invoices/cuts, <b>Pieces cut</b> = un mein kul pieces, <b>Pieces stitched</b> = jo stitching se nikal chuke, <b>Pieces washed</b> = jo washing se nikal chuke."},
+   ]},
   {title:"Cutting entry se hi naya article (20 Nov)",icon:"scissors",
    what:"New cutting entry ke page par Article ke saath “<b>New article</b>” ka button hai. Jo article list mein nahi, use wahin se bana lein — Inventory jane ki zaroorat nahi. Yeh sirf admin ko dikhta hai. Invoices page par bhi ab “<b>New cutting entry</b>” ka button hai.",
    tasks:[
@@ -1012,6 +1036,8 @@ const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–20 November 2026
 const UPDCH={key:UPD.key,title:UPD.title,icon:UPD.icon,tasks:UPD.groups.flatMap(g=>g.tasks)};
 
 const FAQ=[
+ ["Invoice Report mein “Pieces cut” aur “Pieces stitched” ek jaise kyun?","“Pieces cut” = report ki invoices mein kul kitne pieces kate. “Pieces stitched” = un mein se kitne stitching se nikal kar aage (washing) ja chuke. Jab saari invoices stitching se nikal chuki hon aur koi piece kam na hua ho to dono barabar hote hain (misaal 18 invoices, 5,059 dono). Jo invoices abhi stitching mein hain un ke pieces “stitched” mein tab aate hain jab woh washing ko jati hain."],
+ ["Karigar zyada pieces likhwa raha hai — pata kaise chale?","Khata mein cut aur operation chunte hi likha aata hai kis ne kitne pieces likhwaye aur kitne baqi hain. Cut ke pieces se zyada save hi nahi hote; message mein har karigar ke pieces hote hain, us se ghalti wala pata chal jata hai. Purana data agar zyada ho to cut ke page par laal “too many” dikhta hai."],
  ["Stitching Khata aur Wages page ka hisaab alag hai?","Nahi, dono ek hi hain. Khata mein likha kaam Wages page par bhi aata hai, aur invoice par diya kaam karigar ke khata mein bhi. “Lock” ki payment Wages ke “Payments” mein “Paid up to a day” ke naam se dikhti hai, aur jitne din ka kaam us ne ada kiya, Wages mein unhi dinon mein Paid ginta hai."],
  ["Lock ke baad pichla kaam badalna hai?","Lock hua kaam badla ya hataya nahi ja sakta (us ke paise ja chuke). Karigar ke khata mein us “Paid up to …” section ka ↩️ dabayein — kaam dobara Unpaid ho jata hai; theek karein aur phir Lock karein."],
  ["Cut khata mein banana hai ya cutting master banayega?","Stitching Khata ke cut aap (admin) khud “Cuts → Add cut” se banate hain. Cutting master ki cutting entry pehle jaisi hai; us ki invoices bhi khata mein cut ki list mein chuni ja sakti hain. Jo cut number pehle se kisi invoice ka hai (misaal INV-1003 · Cut 20), woh khata mein dobara nahi banta — us cut ka kaam usi invoice ko chun kar likhein, taake us ki labour ek hi jagah rahe."],

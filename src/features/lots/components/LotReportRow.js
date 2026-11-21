@@ -56,7 +56,14 @@ export function LotReportRow({ row }) {
         }
       >
         <div className="flex items-center justify-between md:contents">
-          <span className={`font-bold text-gray-800 ${REPORT_COLUMNS.lot}`}>{row.lotNumber}</span>
+          <span className={`font-bold text-gray-800 ${REPORT_COLUMNS.lot}`}>
+            {row.lotNumber}
+            {row.cutNumber ? (
+              <span className="block text-xs font-semibold text-primary" data-testid="report-row-cut">
+                Cut {row.cutNumber}
+              </span>
+            ) : null}
+          </span>
           <span className="md:hidden">
             <LotStageBadge stage={stage} />
           </span>
@@ -75,7 +82,7 @@ export function LotReportRow({ row }) {
         <span className={`hidden md:inline text-gray-600 text-xs ${REPORT_COLUMNS.date}`}>{row.createdAt}</span>
 
         <div className="grid grid-cols-4 gap-2 md:hidden border-t border-gray-100 pt-3">
-          <Stat label="Cut">{formatQty(row.cutQty)}</Stat>
+          <Stat label="Pieces cut">{formatQty(row.cutQty)}</Stat>
           <Stat label="Stitched">{formatQty(row.stitchedQty)}</Stat>
           <Stat label="Washed">{formatQty(row.washedQty)}</Stat>
           <Stat label="Shortfall">

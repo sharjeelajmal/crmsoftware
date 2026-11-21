@@ -14,7 +14,7 @@ export function LotsTable({ lots, emptyMessage = "No invoices found." }) {
         <span className={LOTS_COLUMNS.product}>Article</span>
         <span className={LOTS_COLUMNS.qty}>Cut qty</span>
         <span className={LOTS_COLUMNS.stage}>Stage</span>
-        <span className={LOTS_COLUMNS.by}>Created by</span>
+        <span className={LOTS_COLUMNS.cut}>Cut no.</span>
         <span className={LOTS_COLUMNS.date}>Date</span>
         <span className="w-[18px]" aria-hidden="true" />
       </div>

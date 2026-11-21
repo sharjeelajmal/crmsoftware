@@ -65,6 +65,7 @@ function WorkSheetForm({ lot, offer, entries, workers, onAssign, isSaving, backH
     emptyWorkSheet(offer.operations, entries, lotPieces, {
       team: offer.team,
       activeIds: new Set(options.map((option) => option.value)),
+      limit: Number(lot.cutQty) || 0,
     })
   );
   const problem = workSheetProblem(sheet);

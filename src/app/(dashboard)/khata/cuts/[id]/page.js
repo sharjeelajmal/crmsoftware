@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Trash2, TriangleAlert } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { cutProgress, isPaid, payLabel } from "@/constants/wages";
 import { formatDate, formatMoney } from "@/lib/format";
@@ -142,11 +142,21 @@ export default function CutPage() {
                       {op.workers.join(", ")}
                     </span>
                   </span>
-                  <span className={`whitespace-nowrap font-semibold ${op.complete ? "text-success" : "text-gray-800"}`}>
-                    {op.complete && <Check size={12} strokeWidth={3} className="inline mr-1" />}
-                    {op.pieces}
-                    {progress.pieces ? ` / ${progress.pieces}` : ""} pcs
-                  </span>
+                  {progress.pieces > 0 && op.pieces > progress.pieces ? (
+                    // entered before the limit was checked: shown so the extra pieces can be found
+                    <span className="whitespace-nowrap font-semibold text-danger" data-testid="cut-operation-over">
+                      <TriangleAlert size={12} strokeWidth={3} className="inline mr-1" />
+                      {op.pieces} / {progress.pieces} pcs · {op.pieces - progress.pieces} too many
+                    </span>
+                  ) : (
+                    <span
+                      className={`whitespace-nowrap font-semibold ${op.complete ? "text-success" : "text-gray-800"}`}
+                    >
+                      {op.complete && <Check size={12} strokeWidth={3} className="inline mr-1" />}
+                      {op.pieces}
+                      {progress.pieces ? ` / ${progress.pieces}` : ""} pcs
+                    </span>
+                  )}
                   <span className="w-24 text-right whitespace-nowrap text-gray-700">{formatMoney(op.amount)}</span>
                 </li>
               ))}
@@ -157,6 +167,7 @@ export default function CutPage() {
         <motion.div variants={itemVariants}>
           <KhataEntryForm
             cutValue={`cut:${cut._id}`}
+            cuts={[cut]}
             workers={workers}
             operations={operations}
             onSave={cutApi.addEntry}

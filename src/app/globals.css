@@ -548,7 +548,9 @@ input[type="number"] {
   #cutting-report-print,
   #cutting-report-print *,
   #attendance-print,
-  #attendance-print * {
+  #attendance-print *,
+  #khata-print,
+  #khata-print * {
     visibility: visible;
   }
   #invoice-section,
@@ -558,7 +560,8 @@ input[type="number"] {
   #purchase-ledger-print,
   #fabric-print,
   #cutting-report-print,
-  #attendance-print {
+  #attendance-print,
+  #khata-print {
     position: absolute;
     left: 0;
     top: 0;

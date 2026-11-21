@@ -38,7 +38,8 @@ export function DispatchModal({ lot, onDone, onCancel }) {
             <Send size={22} className="text-primary" /> Gate pass out
           </h3>
           <p className="text-sm text-gray-500 mt-1">
-            {lot.lotNumber} · {lot.productName} · stitching → washing
+            {lot.lotNumber}
+            {lot.bundleNumber ? ` · Cut ${lot.bundleNumber}` : ""} · {lot.productName} · stitching → washing
           </p>
         </div>
 

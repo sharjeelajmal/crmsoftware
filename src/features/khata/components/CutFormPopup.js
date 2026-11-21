@@ -36,8 +36,8 @@ export function CutFormPopup({ cut = null, onSave, onCancel, isSaving = false })
       toast.info("Please enter the cut number.");
       return;
     }
-    if (form.pieces !== "" && !(Math.trunc(Number(form.pieces)) >= 0)) {
-      toast.info("Pieces must be 0 or more.");
+    if (!(Math.trunc(Number(form.pieces)) > 0)) {
+      toast.info("Enter how many pieces the cut has — no operation can be entered for more.");
       return;
     }
     if (await onSave(form)) onCancel();

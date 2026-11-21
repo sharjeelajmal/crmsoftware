@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Lock } from "lucide-react";
+import { format } from "date-fns";
+import { ArrowLeft, Lock, Printer } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { isPaid } from "@/constants/wages";
 import { formatMoney } from "@/lib/format";
@@ -15,6 +16,7 @@ import { useCutChoices, useWorkerKhata } from "@/features/khata/hooks/useKhata";
 import { KhataEntryForm } from "@/features/khata/components/KhataEntryForm";
 import { KhataLedger } from "@/features/khata/components/KhataLedger";
 import { LockModal } from "@/features/khata/components/LockModal";
+import { KhataPrintModal } from "@/features/khata/components/KhataPrintModal";
 
 const FIGURE_CLASS = "rounded-2xl bg-white p-4 shadow-sm min-w-0";
 
@@ -37,6 +39,7 @@ export default function WorkerKhataPage() {
   const { operations } = useOperations();
   const choices = useCutChoices();
   const [locking, setLocking] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const khata = khataApi.khata;
 
   if (khataApi.isLoading && !khata) return <Loader />;
@@ -53,10 +56,24 @@ export default function WorkerKhataPage() {
 
   const { worker, entries, payments, totals, advanceLeft } = khata;
   const togglePaid = (entry) => (isPaid(entry) ? khataApi.unpayEntry(entry) : khataApi.payEntry(entry));
+  // "Pay all" (client, 2026-11-21): one lock over every unpaid line — up to the last day of work (today at least),
+  // so nothing is left out; a line can then be held back with its own toggle.
+  const payAll = (unpaid) => {
+    const last = unpaid.reduce((day, entry) => (new Date(entry.date) > day ? new Date(entry.date) : day), new Date());
+    return khataApi.lock(format(last, "yyyy-MM-dd"), "");
+  };
 
   return (
     <>
       <AnimatePresence>
+        {printing && (
+          <KhataPrintModal
+            worker={worker}
+            entries={entries}
+            advanceLeft={advanceLeft}
+            onClose={() => setPrinting(false)}
+          />
+        )}
         {locking && (
           <LockModal
             workerName={worker.name}
@@ -90,16 +107,28 @@ export default function WorkerKhataPage() {
               {entries.length} {entries.length === 1 ? "entry" : "entries"}
             </p>
           </div>
-          <Button
-            icon={Lock}
-            onClick={() => setLocking(true)}
-            disabled={totals.unpaid <= 0}
-            data-tip={totals.unpaid <= 0 ? "Nothing to pay" : undefined}
-            className="w-full sm:w-auto"
-            data-testid="khata-lock"
-          >
-            Lock · paid up to…
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <Button
+              variant="secondary"
+              icon={Printer}
+              onClick={() => setPrinting(true)}
+              disabled={entries.length === 0}
+              className="w-full sm:w-auto"
+              data-testid="khata-print"
+            >
+              Print
+            </Button>
+            <Button
+              icon={Lock}
+              onClick={() => setLocking(true)}
+              disabled={totals.unpaid <= 0}
+              data-tip={totals.unpaid <= 0 ? "Nothing to pay" : undefined}
+              className="w-full sm:w-auto"
+              data-testid="khata-lock"
+            >
+              Lock · paid up to…
+            </Button>
+          </div>
         </motion.div>
 
         <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -126,6 +155,7 @@ export default function WorkerKhataPage() {
             entries={entries}
             payments={payments}
             onTogglePaid={togglePaid}
+            onPayAll={payAll}
             onRemove={khataApi.removeEntry}
             onRemovePayment={khataApi.removePayment}
             isSaving={khataApi.isSaving}

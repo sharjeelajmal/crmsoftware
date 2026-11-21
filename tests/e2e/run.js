@@ -1197,7 +1197,11 @@ test("Stitching khata: the owner's cuts, work entered by hand and the lock (paid
   });
   expect(cut.status, "cut added").toBe(201);
   const cutId = cut.body._id;
-  expect((await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "e2e-20" })).status, "same number").toBe(409);
+  expect(
+    (await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "e2e-20", pieces: 10 })).status,
+    "same number"
+  ).toBe(409);
+  expect((await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "E2E-NOPCS" })).status, "pieces needed").toBe(400);
 
   // work entered by hand on different days; the wage is worked out
   const [d3, d1, d0] = [localDay(-3), localDay(-1), localDay(0)];
@@ -1281,6 +1285,115 @@ test("Stitching khata: the owner's cuts, work entered by hand and the lock (paid
   expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cutId}`)).status, "empty cut deleted").toBe(200);
 });
 
+test("Pieces of a cut: no operation goes past them, whoever writes it; invoice work shows its cut", async () => {
+  const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;
+  const belt = ops.find((o) => o.name === "E2E Belt");
+  const pocket = ops.find((o) => o.name === "E2E Pocket");
+  const ids = [];
+  for (const name of ["E2E Cap A", "E2E Cap B", "E2E Cap C"]) {
+    const made = await api(S.admin, "POST", "/api/workers", { name });
+    S.ids.workers.push(made.body._id);
+    ids.push(made.body._id);
+  }
+  const [a, b, c] = ids;
+  // the client's cut 2: 240 pieces
+  const lot = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    bundleNumber: "E2E-C2",
+    fabric: { name: "E2E Cap Denim", qty: 5, unit: "m" },
+    sizes: [{ size: "30", qty: 240 }],
+  });
+  S.ids.lots.push(lot.body._id);
+  const lotId = lot.body._id;
+  const khata = (workerId, operationId, pieces) =>
+    api(S.admin, "POST", "/api/khata/entries", { workerId, operationId, lotId, pieces, rate: 7 });
+
+  const first = await khata(a, belt._id, 100);
+  expect([first.status, first.body.amount].join(), "100 back pockets").toBe("201,700");
+  expect((await khata(b, belt._id, 70)).status, "70 more").toBe(201);
+  const over = await khata(c, belt._id, 80);
+  expect(over.status, "250 > 240").toBe(409);
+  expect(over.body.error, "names who wrote what and what is left").toBe(
+    `E2E Belt on ${lot.body.lotNumber} · Cut E2E-C2: the cut has 240 pcs and 170 are already entered (E2E Cap A 100, E2E Cap B 70) — only 70 left.`
+  );
+  expect((await khata(c, belt._id, 70)).status, "exactly 240").toBe(201);
+  const again = await khata(a, belt._id, 1);
+  expect([again.status, again.body.error.includes("nothing is left")].join(), "the same cut can't be paid twice").toBe(
+    "409,true"
+  );
+
+  // the work sheet and an edit keep to it too
+  const sheet = (rows) =>
+    api(S.admin, "POST", "/api/work-entries", { lotId, operations: [{ operationId: pocket._id, rate: 2, rows }] });
+  expect(
+    (
+      await sheet([
+        { workerId: a, pieces: 200 },
+        { workerId: b, pieces: 50 },
+      ])
+    ).status,
+    "sheet: 250"
+  ).toBe(409);
+  expect(
+    (
+      await sheet([
+        { workerId: a, pieces: 200 },
+        { workerId: b, pieces: 40 },
+      ])
+    ).status,
+    "sheet: 240"
+  ).toBe(201);
+  expect((await api(S.admin, "PUT", `/api/work-entries/${first.body._id}`, { pieces: 101 })).status, "edit up").toBe(
+    409
+  );
+  expect((await api(S.admin, "PUT", `/api/work-entries/${first.body._id}`, { pieces: 90 })).status, "edit down").toBe(
+    200
+  );
+
+  // invoice work carries the invoice's cut number when read
+  const onLot = (await api(S.admin, "GET", `/api/work-entries?lotId=${lotId}`)).body;
+  expect(onLot.length === 5 && onLot.every((e) => e.cutNumber === "E2E-C2"), "cut number on the work").toBe(true);
+  const d0 = localDay(0);
+  const report = (await api(S.admin, "GET", `/api/wages/report?filter=custom&from=${d0}&to=${d0}&workerId=${a}`)).body;
+  expect(
+    report.entries.every((e) => e.cutNumber === "E2E-C2"),
+    "and on the Wages page"
+  ).toBe(true);
+  const workerKhata = (await api(S.admin, "GET", `/api/khata/workers/${a}`)).body;
+  expect(
+    workerKhata.entries.every((e) => e.cutNumber === "E2E-C2"),
+    "and in his khata"
+  ).toBe(true);
+
+  // a khata cut: its pieces are the limit, and can't go below an operation's
+  const cut = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "E2E-CAP", pieces: 50 });
+  const onCut = await api(S.admin, "POST", "/api/khata/entries", {
+    workerId: a,
+    operationId: belt._id,
+    cutId: cut.body._id,
+    pieces: 50,
+  });
+  expect(onCut.status, "all 50").toBe(201);
+  expect(
+    (
+      await api(S.admin, "POST", "/api/khata/entries", {
+        workerId: b,
+        operationId: belt._id,
+        cutId: cut.body._id,
+        pieces: 1,
+      })
+    ).status,
+    "51st"
+  ).toBe(409);
+  expect((await api(S.admin, "PUT", `/api/khata/cuts/${cut.body._id}`, { pieces: 40 })).status, "below 50").toBe(409);
+  expect((await api(S.admin, "PUT", `/api/khata/cuts/${cut.body._id}`, { pieces: 60 })).status, "more is fine").toBe(
+    200
+  );
+  expect((await api(S.admin, "DELETE", `/api/work-entries/${onCut.body._id}`)).status, "work removed").toBe(200);
+  expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cut.body._id}`)).status, "cut removed").toBe(200);
+  expect((await api(S.admin, "DELETE", `/api/lots/${lotId}`)).status, "invoice and its work removed").toBe(200);
+});
+
 test("Stitching khata: an advance cut at the lock, and an invoice's cut number can't be a khata cut", async () => {
   const belt = (await api(S.admin, "GET", "/api/operations")).body.operations.find((o) => o.name === "E2E Belt");
   const made = await api(S.admin, "POST", "/api/workers", { name: "E2E Khata Akbar" });
@@ -1340,7 +1453,7 @@ test("Stitching khata: an advance cut at the lock, and an invoice's cut number c
     sizes: [{ size: "30", qty: 10 }],
   });
   S.ids.lots.push(lot.body._id);
-  const clash = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "e2e-b77" });
+  const clash = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "e2e-b77", pieces: 10 });
   expect(clash.status, "invoice's cut number").toBe(409);
   expect(String(clash.body.error), "points to the invoice").toContain(lot.body.lotNumber);
 
@@ -2765,6 +2878,100 @@ uiTest("UI: pay work on the spot from the sheet and the invoice, and the rest on
   });
   expect((await api(S.admin, "DELETE", `/api/lots/${id}`)).status, "cleaned up").toBe(200);
 });
+
+uiTest(
+  "UI: khata lines show cut and pieces, the form stops at the cut's pieces, Pay all, hold one back, print",
+  async (page) => {
+    const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;
+    const belt = ops.find((o) => o.name === "E2E Belt");
+    const pocket = ops.find((o) => o.name === "E2E Pocket");
+    const worker = await api(S.admin, "POST", "/api/workers", { name: "E2E Khata Siddique", operationIds: [belt._id] });
+    S.ids.workers.push(worker.body._id);
+    const workerId = worker.body._id;
+    const lot = await api(S.cutter, "POST", "/api/lots", {
+      productId: S.productId,
+      bundleNumber: "E2E-C9",
+      fabric: { name: "E2E Print Denim", qty: 5, unit: "m" },
+      sizes: [{ size: "30", qty: 40 }],
+    });
+    S.ids.lots.push(lot.body._id);
+    const add = (operationId, pieces) =>
+      api(S.admin, "POST", "/api/khata/entries", { workerId, operationId, lotId: lot.body._id, pieces, rate: 5 });
+    expect((await add(belt._id, 20)).status, "belt 20").toBe(201);
+    expect((await add(pocket._id, 10)).status, "pocket 10").toBe(201);
+    await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+
+    // the Invoices list shows the cut number
+    await page.goto(`${BASE}/lots`);
+    const row = page.locator(`[data-testid="lots-row"][data-lot-number="${lot.body.lotNumber}"]`);
+    await row.waitFor({ timeout: 60_000 });
+    expect(await row.locator('[data-testid="lots-row-cut"]').innerText(), "cut column").toBe("Cut E2E-C9");
+
+    // his khata: each line shows its cut and pieces by the amount
+    await page.goto(`${BASE}/khata/workers/${workerId}`);
+    await page.waitForSelector('[data-testid="khata-entry"][data-cut="E2E-C9"]', { timeout: 60_000 });
+    const chips = await page.locator('[data-testid="khata-entry-cut-pieces"]').allInnerTexts();
+    expect(chips.sort().join(" | "), "cut and pieces").toBe("Cut E2E-C9 · 10 pcs | Cut E2E-C9 · 20 pcs");
+
+    // the form: 20 of 40 belts are in, so 30 more can't be added
+    await page.locator('[data-testid="khata-entry-cut"] button').first().click();
+    await page.locator(".dropdown-portal li", { hasText: "Cut E2E-C9" }).click();
+    await page.locator(".dropdown-portal").waitFor({ state: "detached" });
+    await page.locator('[data-testid="khata-entry-operation"] button').first().click();
+    await page.locator(".dropdown-portal li", { hasText: "E2E Belt" }).first().click();
+    await page.locator(".dropdown-portal").waitFor({ state: "detached" });
+    const leftNote = page.locator('[data-testid="khata-entry-left"]');
+    await page.waitForSelector('[data-testid="khata-entry-left"][data-entered="20"][data-limit="40"]', {
+      timeout: 60_000,
+    });
+    expect(await leftNote.innerText(), "who entered what").toContain("E2E Khata Siddique 20");
+    await page.fill('[data-testid="khata-entry-pieces"]', "30");
+    expect(await leftNote.innerText(), "over").toContain("only 20 left");
+    expect(await page.locator('[data-testid="khata-entry-submit"]').isDisabled(), "can't save 30").toBe(true);
+    await page.fill('[data-testid="khata-entry-pieces"]', "20");
+    expect(await page.locator('[data-testid="khata-entry-submit"]').isDisabled(), "20 is fine").toBe(false);
+    await page.fill('[data-testid="khata-entry-pieces"]', "");
+
+    // Pay all: every line paid in one go; then one is held back with its own button
+    await page.click('[data-testid="khata-pay-all"]');
+    await page.click('[data-testid="khata-pay-all-confirm"]');
+    await page.waitForSelector('[data-testid="khata-payment"][data-kind="lock"][data-amount="150"]', {
+      timeout: 60_000,
+    });
+    await page.waitForSelector('[data-testid="khata-to-pay"][data-amount="0"]', { timeout: 60_000 });
+    await page
+      .locator(
+        '[data-testid="khata-payment"] [data-testid="khata-entry"][data-amount="50"] [data-testid="khata-entry-paid"]'
+      )
+      .click();
+    await page.waitForSelector('[data-testid="khata-unpaid"][data-amount="50"]', { timeout: 60_000 });
+    await page.waitForSelector('[data-testid="khata-payment"][data-kind="lock"][data-amount="100"]', {
+      timeout: 60_000,
+    });
+
+    // print: what is still to pay, or all his work, with the cuts, rates and the payment
+    await page.click('[data-testid="khata-print"]');
+    const statement = page.locator('[data-testid="khata-statement"]');
+    await statement.waitFor({ timeout: 60_000 });
+    expect(
+      [await statement.getAttribute("data-lines"), await statement.getAttribute("data-to-pay")].join(),
+      "to pay"
+    ).toBe("1,50");
+    expect(await statement.innerText(), "cut on the print").toContain(`${lot.body.lotNumber} · Cut E2E-C9`);
+    await page.click('[data-testid="khata-print-view-all"]');
+    await page.waitForSelector('[data-testid="khata-statement"][data-lines="2"][data-total="150"]', {
+      timeout: 60_000,
+    });
+    expect(await page.locator('[data-testid="khata-statement-to-pay"]').innerText(), "to pay at the bottom").toContain(
+      "50"
+    );
+
+    // clean up: take the lock back; the invoice goes with its work
+    const khata = (await api(S.admin, "GET", `/api/khata/workers/${workerId}`)).body;
+    for (const payment of khata.payments) await api(S.admin, "DELETE", `/api/wage-payments/${payment._id}`);
+    expect((await api(S.admin, "DELETE", `/api/lots/${lot.body._id}`)).status, "cleaned up").toBe(200);
+  }
+);
 
 uiTest("UI: stitching khata — add a cut, enter a worker's work, lock it and see it on the cut", async (page) => {
   const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;

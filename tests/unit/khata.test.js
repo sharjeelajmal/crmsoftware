@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { productSchema } from "@/lib/validation";
-import { lockCash, lockCutProblem, summarizeWages } from "@/constants/wages";
+import {
+  lockCash,
+  lockCutProblem,
+  operationPieces,
+  piecesLeftProblem,
+  summarizeWages,
+  workRefLabel,
+  workRefOf,
+  workSheetProblem,
+} from "@/constants/wages";
 import { categoryOf, toProductPayload, toProductUpdatePayload, validateProductInput } from "@/features/inventory/utils";
 import { usualOperations, workerFormFrom } from "@/features/wages/utils";
 import {
@@ -160,5 +169,60 @@ describe("advance cut at a lock", () => {
     const payments = [{ ...w, _id: "p1", kind: "lock", amount: 4000, workAmount: 5000, advanceCut: 1000 }];
     const [row] = summarizeWages(entries, adjustments, payments).workers;
     expect([row.amount, row.recoveries, row.net, row.paid, row.due].join()).toBe("5000,1000,4000,4000,0");
+  });
+});
+
+describe("an operation can't go past its cut's pieces (client, 2026-11-21)", () => {
+  // cut 2: 240 pieces; three workers write the back pockets between them
+  const entries = [
+    { _id: "e1", operationId: "bp", workerId: "w1", workerName: "Rashid", pieces: 100 },
+    { _id: "e2", operationId: "bp", workerId: "w2", workerName: "Akram", pieces: 70 },
+    { _id: "e3", operationId: "bp", workerId: "w1", workerName: "Rashid", pieces: 20 },
+    { _id: "e4", operationId: "ov", workerId: "w3", workerName: "Bilal", pieces: 240 },
+  ];
+
+  it("counts every worker's pieces of the operation, most first", () => {
+    expect(operationPieces(entries, "bp")).toEqual({
+      total: 190,
+      byWorker: [
+        { workerId: "w1", workerName: "Rashid", pieces: 120 },
+        { workerId: "w2", workerName: "Akram", pieces: 70 },
+      ],
+    });
+    expect(operationPieces(entries, "bp", { exceptId: "e3" }).total).toBe(170);
+  });
+
+  it("refuses more than is left, naming who wrote what", () => {
+    const done = operationPieces(entries, "bp");
+    const base = { limit: 240, done, operationName: "Back pocket", label: "INV-1015 · Cut 2" };
+    expect(piecesLeftProblem({ ...base, adding: 50 })).toBe("");
+    expect(piecesLeftProblem({ ...base, adding: 80 })).toBe(
+      "Back pocket on INV-1015 · Cut 2: the cut has 240 pcs and 190 are already entered (Rashid 120, Akram 70) — only 50 left."
+    );
+    const full = operationPieces(entries, "ov");
+    expect(piecesLeftProblem({ ...base, done: full, adding: 1 })).toContain("nothing is left");
+    expect(piecesLeftProblem({ ...base, limit: 0, adding: 999 })).toBe(""); // a cut without its pieces checks nothing
+  });
+
+  it("knows each cut's limit and name; an invoice shows its cut number", () => {
+    expect(workRefOf({ lot: { lotNumber: "INV-1015", bundleNumber: "2", cutQty: 240 } })).toEqual({
+      limit: 240,
+      label: "INV-1015 · Cut 2",
+    });
+    expect(workRefOf({ lot: { lotNumber: "INV-1015", cutQty: 240, stitchedQty: 236 } }).limit).toBe(240); // the pieces cut
+    expect(workRefOf({ cut: { cutNumber: "20", pieces: 150 } })).toEqual({ limit: 150, label: "Cut 20" });
+    expect(workRefLabel({ lotNumber: "INV-1015", cutNumber: "2" })).toBe("INV-1015 · Cut 2");
+    expect(workRefLabel({ lotNumber: "INV-1015" })).toBe("INV-1015");
+    expect(workRefLabel({ cutNumber: "20" })).toBe("Cut 20");
+  });
+
+  it("the work sheet stops at what is left", () => {
+    const op = { name: "Back pocket", rate: "7", limit: 240, done: 190 };
+    const sheet = (pieces) => ({ operations: [{ ...op, rows: [{ workerId: "w1", pieces, payType: "piece" }] }] });
+    expect(workSheetProblem(sheet("50"))).toBe("");
+    expect(workSheetProblem(sheet("60"))).toBe("Back pocket: only 50 of 240 pcs left (190 already entered), not 60.");
+    expect(workSheetProblem({ operations: [{ ...op, done: 240, rows: [{ workerId: "w1", pieces: "1" }] }] })).toBe(
+      "Back pocket: all 240 pcs are already entered."
+    );
   });
 });
