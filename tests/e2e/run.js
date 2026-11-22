@@ -1464,6 +1464,122 @@ test("Stitching khata: an advance cut at the lock, and an invoice's cut number c
   );
 });
 
+test("An invoice's cut number is used only once: not by another invoice or a khata cut, in any case", async () => {
+  const newLot = (bundleNumber) =>
+    api(S.cutter, "POST", "/api/lots", {
+      productId: S.productId,
+      bundleNumber,
+      fabric: { name: "E2E Dup", qty: 5, unit: "m" },
+      sizes: [{ size: "30", qty: 10 }],
+    });
+  const first = await newLot("E2E-DUP-155");
+  expect(first.status, "first invoice").toBe(201);
+  S.ids.lots.push(first.body._id);
+  const twice = await newLot("e2e-dup-155");
+  expect(twice.status, "same cut number, other case").toBe(409);
+  expect(String(twice.body.error), "points to the invoice").toContain(first.body.lotNumber);
+
+  // the form sends the cut number with every edit: unchanged, the other fields still save
+  const edit = await api(S.cutter, "PUT", `/api/lots/${first.body._id}`, {
+    bundleNumber: "E2E-DUP-155",
+    note: "e2e dup edit",
+  });
+  expect([edit.status, edit.body.note].join(), "other fields edited").toBe("200,e2e dup edit");
+
+  const second = await newLot("E2E-DUP-156");
+  expect(second.status, "another cut number").toBe(201);
+  S.ids.lots.push(second.body._id);
+  const renamed = await api(S.cutter, "PUT", `/api/lots/${second.body._id}`, { bundleNumber: "E2E-DUP-155" });
+  expect(renamed.status, "changed to a taken number").toBe(409);
+  expect(String(renamed.body.error), "names the invoice").toContain(first.body.lotNumber);
+
+  // a stitching-khata cut's number can't become an invoice's
+  const cut = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "E2E-DUP-K1", pieces: 10 });
+  expect(cut.status, "khata cut").toBe(201);
+  const onKhataCut = await newLot("E2E-DUP-K1");
+  expect(onKhataCut.status, "a khata cut's number").toBe(409);
+  expect(String(onKhataCut.body.error), "says the khata").toContain("Stitching Khata");
+  expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cut.body._id}`)).status, "cut removed").toBe(200);
+});
+
+test("Baqaya: cash given less or more than due, and old balances, stay on the worker's khata", async () => {
+  const belt = (await api(S.admin, "GET", "/api/operations")).body.operations.find((o) => o.name === "E2E Belt");
+  const made = await api(S.admin, "POST", "/api/workers", { name: "E2E Baqaya Siddique" });
+  const workerId = made.body._id;
+  S.ids.workers.push(workerId);
+  const d0 = localDay(0);
+  const cut = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "E2E-BQ", pieces: 100 });
+  const entry = (pieces, rate) =>
+    api(S.admin, "POST", "/api/khata/entries", {
+      workerId,
+      operationId: belt._id,
+      cutId: cut.body._id,
+      pieces,
+      rate,
+      date: d0,
+    });
+  const first = await entry(50, 10); // 500
+  const second = await entry(30, 10); // 300
+  const khataOf = async () => (await api(S.admin, "GET", `/api/khata/workers/${workerId}`)).body;
+
+  // an old balance from the copy: the owner still owes him 200
+  const old = await api(S.admin, "POST", `/api/khata/workers/${workerId}/balances`, {
+    owedBy: "owner",
+    amount: 200,
+    note: "from the copy",
+  });
+  expect([old.status, old.body.amount].join(), "old balance").toBe("201,200");
+  expect((await khataOf()).baqaya, "baqaya 200").toBe(200);
+
+  // a lock brings it in: due 800 + 200 = 1000; only 900 given, so 100 stays
+  const lockUrl = `/api/khata/workers/${workerId}/lock`;
+  const lock = await api(S.admin, "POST", lockUrl, { upTo: d0, cash: 900 });
+  expect(
+    [lock.status, lock.body.amount, lock.body.workAmount, lock.body.baqayaBefore, lock.body.balanceChange].join(),
+    "900 of 1000"
+  ).toBe("201,900,800,200,-100");
+  expect((await khataOf()).baqaya, "100 still to give").toBe(100);
+  const box = (await api(S.admin, "GET", "/api/khata/workers")).body.find((w) => w._id === workerId);
+  expect(box.baqaya, "on his box").toBe(100);
+
+  // holding one line back keeps the baqaya as it was
+  expect(
+    (await api(S.admin, "POST", "/api/wage-payments/undo", { entryIds: [second.body._id] })).status,
+    "hold back"
+  ).toBe(200);
+  let khata = await khataOf();
+  const shrunk = khata.payments.find((p) => p._id === lock.body._id);
+  expect([shrunk.amount, shrunk.workAmount, shrunk.balanceChange, khata.baqaya].join(), "lock shrinks").toBe(
+    "600,500,-100,100"
+  );
+
+  // the next payment, all given: 300 + the 100 = 400, and nothing is left
+  const next = await api(S.admin, "POST", lockUrl, { upTo: d0 });
+  expect([next.status, next.body.amount, next.body.balanceChange].join(), "all of it").toBe("201,400,-100");
+  expect((await khataOf()).baqaya, "settled").toBe(0);
+
+  // he owes something from before; then it is removed again
+  const owes = await api(S.admin, "POST", `/api/khata/workers/${workerId}/balances`, { owedBy: "worker", amount: 50 });
+  expect([owes.status, owes.body.amount].join(), "he owes 50").toBe("201,-50");
+  expect((await khataOf()).baqaya, "he owes you 50").toBe(-50);
+  expect((await api(S.admin, "DELETE", `/api/khata/balances/${owes.body._id}`)).status, "removed").toBe(200);
+  expect(
+    (await api(S.admin, "POST", `/api/khata/workers/${workerId}/balances`, { owedBy: "worker" })).status,
+    "amount"
+  ).toBe(400);
+  expect((await api(S.cutter, "GET", `/api/khata/workers/${workerId}`)).status, "admin only").toBe(403);
+
+  // taking the payments back takes their baqaya with them
+  for (const payment of [next.body, lock.body]) {
+    expect((await api(S.admin, "DELETE", `/api/wage-payments/${payment._id}`)).status, "taken back").toBe(200);
+  }
+  khata = await khataOf();
+  expect([khata.baqaya, khata.totals.unpaid].join(), "only the old 200 left; work unpaid").toBe("200,800");
+  expect((await api(S.admin, "DELETE", `/api/khata/balances/${old.body._id}`)).status, "old removed").toBe(200);
+  for (const e of [first, second]) await api(S.admin, "DELETE", `/api/work-entries/${e.body._id}`);
+  expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cut.body._id}`)).status, "cleaned up").toBe(200);
+});
+
 test("Articles are added without a purchase or sale price", async () => {
   const product = await api(S.admin, "POST", "/api/products", {
     name: "E2E No Price",
@@ -2934,7 +3050,8 @@ uiTest(
 
     // Pay all: every line paid in one go; then one is held back with its own button
     await page.click('[data-testid="khata-pay-all"]');
-    await page.click('[data-testid="khata-pay-all-confirm"]');
+    await page.waitForSelector('[data-testid="khata-lock-preview"][data-due="150"]', { timeout: 60_000 });
+    await page.click('[data-testid="khata-lock-confirm"]');
     await page.waitForSelector('[data-testid="khata-payment"][data-kind="lock"][data-amount="150"]', {
       timeout: 60_000,
     });
@@ -2966,8 +3083,20 @@ uiTest(
       "50"
     );
 
+    await page.locator('button[aria-label="Close"]').last().click();
+    await page.locator('[data-testid="khata-statement"]').waitFor({ state: "detached" });
+
+    // an old balance from the copy joins his baqaya, and the overall line says who owes whom
+    await page.click('[data-testid="khata-add-balance"]');
+    await page.fill('[data-testid="balance-form-amount"]', "200");
+    await page.click('[data-testid="balance-form-submit"]');
+    await page.waitForSelector('[data-testid="khata-baqaya-figure"][data-amount="200"]', { timeout: 60_000 });
+    expect(await page.getAttribute('[data-testid="khata-overall"]', "data-amount"), "50 work + 200 baqaya").toBe("250");
+    expect(await page.locator('[data-testid="khata-overall"]').innerText(), "in words").toContain("You owe him Rs 250");
+
     // clean up: take the lock back; the invoice goes with its work
     const khata = (await api(S.admin, "GET", `/api/khata/workers/${workerId}`)).body;
+    for (const balance of khata.balances) await api(S.admin, "DELETE", `/api/khata/balances/${balance._id}`);
     for (const payment of khata.payments) await api(S.admin, "DELETE", `/api/wage-payments/${payment._id}`);
     expect((await api(S.admin, "DELETE", `/api/lots/${lot.body._id}`)).status, "cleaned up").toBe(200);
   }

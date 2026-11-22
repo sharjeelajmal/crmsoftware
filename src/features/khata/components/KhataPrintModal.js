@@ -14,7 +14,7 @@ const VIEWS = [
 ];
 
 /** Preview of a worker's printable khata — what is still to pay (default) or all his work — with a Print button. */
-export function KhataPrintModal({ worker, entries = [], advanceLeft = 0, onClose }) {
+export function KhataPrintModal({ worker, entries = [], advanceLeft = 0, baqaya = 0, onClose }) {
   const [view, setView] = useState("unpaid");
   const lines = view === "all" ? entries : entries.filter((entry) => !isPaid(entry));
 
@@ -40,6 +40,7 @@ export function KhataPrintModal({ worker, entries = [], advanceLeft = 0, onClose
             entries={lines}
             title={view === "all" ? "All work" : "Work to pay"}
             advanceLeft={advanceLeft}
+            baqaya={baqaya}
           />
         </div>
       </div>

@@ -6,13 +6,14 @@ import { attendanceAdjustments } from "@/constants/attendance";
 import {
   ADVANCE_TYPES,
   advanceAccount,
+  baqayaOf,
   effectiveRate,
   entryAmount,
   leaveAmount,
-  lockCash,
   lockCutProblem,
   lockPreview,
   lockProblem,
+  lockSettlement,
   operationPieces,
   piecesLeftProblem,
   payTypeOf,
@@ -188,6 +189,22 @@ export const wageCsvRows = (workers) =>
     paid: w.paid ?? 0,
     due: w.due ?? w.net,
   }));
+
+// ---- Baqaya ---------------------------------------------------------------------------------------------------------
+
+/** Old balances written in from the notebook, per worker (signed `amount`: + owner owes, − worker owes). */
+export const KHATA_BALANCES = "khata_balances";
+
+/** A worker's baqaya now (baqayaOf): his old balances and what his locks left. */
+export async function workerBaqaya(db, workerId, session) {
+  const id = new ObjectId(workerId);
+  const balances = await db.collection(KHATA_BALANCES).find({ workerId: id }, { session }).toArray();
+  const locks = await db
+    .collection(WAGE_PAYMENTS)
+    .find({ workerId: id, kind: "lock" }, { projection: { kind: 1, balanceChange: 1 }, session })
+    .toArray();
+  return baqayaOf({ balances, payments: locks });
+}
 
 // ---- Cut numbers and the pieces of a cut -----------------------------------------------------------------------
 
@@ -374,10 +391,19 @@ export async function unpayEntries(db, tx, { entries }) {
       removed += 1;
       continue;
     }
-    const amount = round2(payment.amount - paidEntries.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
+    const back = paidEntries.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const amount = round2(Math.max(0, payment.amount - back));
+    // A lock keeps its baqaya: held-back work comes off its work and off the cash (as far as there is cash).
+    const lockFields =
+      payment.kind === "lock" && payment.workAmount !== undefined
+        ? (() => {
+            const workAmount = round2(payment.workAmount - back);
+            return { workAmount, balanceChange: round2(workAmount - (Number(payment.advanceCut) || 0) - amount) };
+          })()
+        : {};
     await db
       .collection(WAGE_PAYMENTS)
-      .updateOne({ _id: payment._id }, { $set: { entryIds: left, amount } }, { session: tx });
+      .updateOne({ _id: payment._id }, { $set: { entryIds: left, amount, ...lockFields } }, { session: tx });
     await db
       .collection("work_entries")
       .updateMany(
@@ -421,7 +447,11 @@ export async function settleWorker(db, tx, { workerId, range, note = "", session
  * payment of those entries' wages, dated on that day; the khata starts again after it. Refused when nothing is unpaid
  * up to that day.
  */
-export async function lockWorker(db, tx, { workerId, upTo, advanceCut = 0, note = "", session, now = new Date() }) {
+export async function lockWorker(
+  db,
+  tx,
+  { workerId, upTo, advanceCut = 0, cash, note = "", session, now = new Date() }
+) {
   const worker = await db.collection("workers").findOne({ _id: new ObjectId(workerId) }, { session: tx });
   if (!worker) throw notFound("Worker");
   const unpaid = await db
@@ -437,12 +467,15 @@ export async function lockWorker(db, tx, { workerId, upTo, advanceCut = 0, note 
     const cutProblem = lockCutProblem(cut, { work: preview.amount, advanceLeft: balance });
     if (cutProblem) throw conflict(`${worker.name}: ${cutProblem}`);
   }
+  // the baqaya is brought in: what is due is the work − the cut + it; cash given less or more stays as baqaya
+  const baqayaBefore = await workerBaqaya(db, worker._id, tx);
+  const settlement = lockSettlement({ work: preview.amount, advanceCut: cut, baqaya: baqayaBefore, cash });
   const paymentId = new ObjectId();
   const adjustmentId = cut > 0 ? new ObjectId() : null;
   const doc = {
     ...buildWagePayment({
       worker: { workerId: String(worker._id), workerName: worker.name },
-      amount: lockCash(preview.amount, cut),
+      amount: settlement.cash,
       date: upTo,
       kind: "lock",
       entries: preview.entries,
@@ -450,7 +483,10 @@ export async function lockWorker(db, tx, { workerId, upTo, advanceCut = 0, note 
       session,
       now,
     }),
-    ...(adjustmentId ? { workAmount: preview.amount, advanceCut: cut, adjustmentId } : {}),
+    workAmount: preview.amount,
+    baqayaBefore,
+    balanceChange: settlement.change,
+    ...(adjustmentId ? { advanceCut: cut, adjustmentId } : {}),
   };
   await db.collection(WAGE_PAYMENTS).insertOne({ _id: paymentId, ...doc }, { session: tx });
   if (adjustmentId) {

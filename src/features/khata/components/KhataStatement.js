@@ -1,7 +1,7 @@
 "use client";
 
 import { BRAND } from "@/constants/brand";
-import { isPaid, payTypeOf, round2, workRefLabel } from "@/constants/wages";
+import { baqayaLabel, isPaid, overallBalance, payTypeOf, round2, workRefLabel } from "@/constants/wages";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 
 /**
@@ -25,7 +25,7 @@ const totalRow = { ...num, fontWeight: 700, fontSize: "12px" };
 
 const sumOf = (entries) => round2(entries.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
 
-export function KhataStatement({ worker, entries = [], title, advanceLeft = 0, printedAt = new Date() }) {
+export function KhataStatement({ worker, entries = [], title, advanceLeft = 0, baqaya = 0, printedAt = new Date() }) {
   const lines = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
   const total = sumOf(lines);
   const paid = sumOf(lines.filter(isPaid));
@@ -126,10 +126,26 @@ export function KhataStatement({ worker, entries = [], title, advanceLeft = 0, p
               {formatMoney(toPay)}
             </td>
           </tr>
+          {baqaya !== 0 && (
+            <tr>
+              <td style={td}>Baqaya ({baqaya > 0 ? "still to give him" : "he has to give"})</td>
+              <td style={num} data-testid="khata-statement-baqaya">
+                {baqaya > 0 ? "+" : "−"} {formatMoney(Math.abs(baqaya))}
+              </td>
+            </tr>
+          )}
           {advanceLeft > 0 && (
             <tr>
               <td style={td}>Advance left</td>
-              <td style={num}>{formatMoney(advanceLeft)}</td>
+              <td style={num}>− {formatMoney(advanceLeft)}</td>
+            </tr>
+          )}
+          {(baqaya !== 0 || advanceLeft > 0) && (
+            <tr>
+              <td style={{ ...td, fontWeight: 800, fontSize: "13px" }}>Overall</td>
+              <td style={{ ...num, fontWeight: 800, fontSize: "13px" }} data-testid="khata-statement-overall">
+                {baqayaLabel(overallBalance({ toPay, baqaya, advanceLeft }))}
+              </td>
             </tr>
           )}
         </tbody>

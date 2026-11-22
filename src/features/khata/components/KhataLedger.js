@@ -80,8 +80,8 @@ function EntryRow({ entry, payment = null, onTogglePaid, onRemove, isSaving }) {
 /**
  * A worker's khata, newest first: the work not paid yet (since the last lock), then each payment — a lock ("paid up
  * to 18 Nov"), work paid early, the rest of a period — with the work it paid. A payment can be taken back (its work
- * is unpaid again); unpaid work can be paid on its own, all at once ("Pay all", client 2026-11-21 — one line can
- * then be held back with its toggle), or removed.
+ * is unpaid again); unpaid work can be paid on its own, all at once ("Pay all", client 2026-11-21: `onPayAll(section)`
+ * opens the payment with the cash given — one line can then be held back with its toggle), or removed.
  */
 export function KhataLedger({
   entries = [],
@@ -92,7 +92,7 @@ export function KhataLedger({
   onRemovePayment,
   isSaving,
 }) {
-  const [confirm, setConfirm] = useState(null); // { entry } | { payment } | { payAll: section }
+  const [confirm, setConfirm] = useState(null); // { entry } | { payment }
   const sections = khataSections(entries, payments);
 
   return (
@@ -108,19 +108,6 @@ export function KhataLedger({
             }}
             onCancel={() => setConfirm(null)}
             confirmTestId="khata-entry-remove-confirm"
-          />
-        )}
-        {confirm?.payAll && (
-          <ConfirmDialog
-            title={`Pay all · ${formatMoney(confirm.payAll.amount)}?`}
-            message={`${confirm.payAll.entries.length} ${confirm.payAll.entries.length === 1 ? "line is" : "lines are"} marked paid in one go. To hold one back, press its Paid button afterwards.`}
-            confirmLabel="Pay all"
-            tone="primary"
-            onConfirm={async () => {
-              if (await onPayAll(confirm.payAll.entries)) setConfirm(null);
-            }}
-            onCancel={() => setConfirm(null)}
-            confirmTestId="khata-pay-all-confirm"
           />
         )}
         {confirm?.payment && (
@@ -149,7 +136,7 @@ export function KhataLedger({
                     <Button
                       size="sm"
                       icon={CheckCheck}
-                      onClick={() => setConfirm({ payAll: section })}
+                      onClick={() => onPayAll(section)}
                       disabled={isSaving}
                       className="whitespace-nowrap"
                       data-testid="khata-pay-all"
@@ -201,6 +188,8 @@ export function KhataLedger({
                     {payment.advanceCut > 0
                       ? `work ${formatMoney(payment.workAmount)} − advance cut ${formatMoney(payment.advanceCut)} · `
                       : ""}
+                    {payment.balanceChange > 0 ? `${formatMoney(payment.balanceChange)} still to give (baqaya) · ` : ""}
+                    {payment.balanceChange < 0 ? `${formatMoney(-payment.balanceChange)} given extra (baqaya) · ` : ""}
                     {payment.by?.name ? `by ${payment.by.name} · ` : ""}
                     {section.entries.length} {section.entries.length === 1 ? "entry" : "entries"}
                     {payment.note ? ` · ${payment.note}` : ""}

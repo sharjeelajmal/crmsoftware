@@ -10,6 +10,7 @@ import {
   deleteProblem,
   isAdmin,
   lotEvents,
+  requireFreeLotCutNumber,
   requireRunning,
 } from "@/lib/lots";
 import { returnReadyStock } from "@/lib/production";
@@ -39,6 +40,7 @@ export const GET = route(
 /**
  * PUT /api/lots/:id — edit cutting data while the lot is still at the cutting stage.
  * A change to anything printed on the cutting gate pass issues a fresh one (printed numbers never change).
+ * A new cut number already used by another invoice or a khata cut is refused (requireFreeLotCutNumber).
  */
 export const PUT = route(
   async (request, { session, ...context }) => {
@@ -51,6 +53,10 @@ export const PUT = route(
       if (!canViewLot(lot, session)) throw forbidden();
       requireRunning(lot);
       if (!canEditCutting(lot, session)) throw conflict("Invoice can only be edited before stitching starts");
+      // checked only when the cut number changes: other edits of an invoice that shares an old number still save
+      const cutNumberChanged =
+        input.bundleNumber !== undefined && input.bundleNumber.toLowerCase() !== (lot.bundleNumber || "").toLowerCase();
+      if (cutNumberChanged) await requireFreeLotCutNumber(db, input.bundleNumber, { exceptId: _id, session: tx });
 
       const $set = { updatedAt: new Date() };
       if (input.productId) {

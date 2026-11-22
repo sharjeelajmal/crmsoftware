@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { productSchema } from "@/lib/validation";
 import {
+  baqayaLabel,
+  baqayaOf,
   lockCash,
   lockCutProblem,
+  lockSettlement,
+  overallBalance,
   operationPieces,
   piecesLeftProblem,
   summarizeWages,
@@ -224,5 +228,42 @@ describe("an operation can't go past its cut's pieces (client, 2026-11-21)", () 
     expect(workSheetProblem({ operations: [{ ...op, done: 240, rows: [{ workerId: "w1", pieces: "1" }] }] })).toBe(
       "Back pocket: all 240 pcs are already entered."
     );
+  });
+});
+
+describe("baqaya: what is left between the owner and a worker (client, 2026-11-22)", () => {
+  it("adds old balances and what each lock left", () => {
+    const balances = [{ amount: 500 }, { amount: -200 }];
+    const payments = [
+      { kind: "lock", balanceChange: 270 },
+      { kind: "lock" }, // an older lock, paid exactly
+      { kind: "work", balanceChange: 999 }, // only locks carry a baqaya
+    ];
+    expect(baqayaOf({ balances, payments })).toBe(570);
+    expect(baqayaOf()).toBe(0);
+  });
+
+  it("a lock brings the baqaya in, and what is not given stays", () => {
+    // work 4,270, nothing from before, 4,000 in hand: 270 still to give
+    expect(lockSettlement({ work: 4270, cash: 4000 })).toEqual({ due: 4270, cash: 4000, after: 270, change: 270 });
+    // next time: work 1,000 + the 270, all given
+    expect(lockSettlement({ work: 1000, baqaya: 270 })).toEqual({ due: 1270, cash: 1270, after: 0, change: -270 });
+    // a little extra given: he owes it back
+    expect(lockSettlement({ work: 1000, cash: 1100 })).toEqual({ due: 1000, cash: 1100, after: -100, change: -100 });
+    // an advance cut comes off before the cash; he owes more than his work: nothing to give
+    expect(lockSettlement({ work: 1000, advanceCut: 200, baqaya: -1500 })).toEqual({
+      due: -700,
+      cash: 0,
+      after: -700,
+      change: 800,
+    });
+  });
+
+  it("says who owes whom", () => {
+    expect(baqayaLabel(270)).toBe("You owe him Rs 270");
+    expect(baqayaLabel(-1300)).toBe("He owes you Rs 1,300");
+    expect(baqayaLabel(0)).toBe("Settled");
+    expect(overallBalance({ toPay: 1000, baqaya: 270, advanceLeft: 500 })).toBe(770);
+    expect(overallBalance({ toPay: 0, baqaya: -100, advanceLeft: 500 })).toBe(-600);
   });
 });

@@ -77,6 +77,29 @@ export function requireRunning(lot) {
   if (problem) throw conflict(problem);
 }
 
+/** Same cut number ignoring case ("155a" = "155A"), as the stitching khata compares its cuts. */
+const SAME_CUT_NUMBER = { locale: "en", strength: 2 };
+
+/**
+ * 409 when an invoice's cut number (`bundleNumber`) is already used — by another invoice, or by a stitching-khata cut
+ * (client, 2026-11-22: a cut number is never added twice). Empty = no check. `exceptId` = the invoice being edited.
+ */
+export async function requireFreeLotCutNumber(db, cutNumber, { exceptId = null, session } = {}) {
+  const number = String(cutNumber || "").trim();
+  if (!number) return;
+  const invoice = await db
+    .collection("lots")
+    .findOne(
+      { bundleNumber: number, ...(exceptId ? { _id: { $ne: new ObjectId(exceptId) } } : {}) },
+      { collation: SAME_CUT_NUMBER, session, projection: { lotNumber: 1 } }
+    );
+  if (invoice) throw conflict(`Cut ${number} is already invoice ${invoice.lotNumber} — check the cut number`);
+  const cut = await db
+    .collection("stitch_cuts") // STITCH_CUTS in src/lib/khata.js
+    .findOne({ cutNumber: number }, { collation: SAME_CUT_NUMBER, session, projection: { _id: 1 } });
+  if (cut) throw conflict(`Cut ${number} is already a cut in the Stitching Khata — check the cut number`);
+}
+
 /** Highest lot sequence so far, 0 when there are no lots. */
 export async function latestLotSeq(db, session) {
   const [latest] = await db

@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
-import { ArrowLeft, Lock, Printer } from "lucide-react";
+import { ArrowLeft, Lock, Printer, Scale } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
-import { isPaid } from "@/constants/wages";
+import { baqayaLabel, isPaid, overallBalance } from "@/constants/wages";
 import { formatMoney } from "@/lib/format";
 import { Loader } from "@/components/ui/Loader";
 import { Button } from "@/components/ui/Button";
@@ -17,29 +17,39 @@ import { KhataEntryForm } from "@/features/khata/components/KhataEntryForm";
 import { KhataLedger } from "@/features/khata/components/KhataLedger";
 import { LockModal } from "@/features/khata/components/LockModal";
 import { KhataPrintModal } from "@/features/khata/components/KhataPrintModal";
+import { BaqayaCard } from "@/features/khata/components/BaqayaCard";
+import { BalanceFormPopup } from "@/features/khata/components/BalanceFormPopup";
 
 const FIGURE_CLASS = "rounded-2xl bg-white p-4 shadow-sm min-w-0";
 
-function Figure({ label, value, tone = "text-gray-800", testId }) {
+function Figure({ label, value, text, tone = "text-gray-800", testId }) {
   return (
     <div className={FIGURE_CLASS} data-testid={testId} data-amount={value}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 truncate">{label}</p>
-      <p className={`text-xl sm:text-2xl font-bold tabular-nums truncate ${tone}`}>{formatMoney(value)}</p>
+      <p className={`text-xl sm:text-2xl font-bold tabular-nums truncate ${tone}`}>{text ?? formatMoney(value)}</p>
     </div>
   );
 }
 
+/** The last day of the unpaid work (today at least) — "Pay all" locks up to it, so nothing is left out. */
+const lastWorkDay = (entries) =>
+  format(
+    entries.reduce((day, entry) => (new Date(entry.date) > day ? new Date(entry.date) : day), new Date()),
+    "yyyy-MM-dd"
+  );
+
 /**
  * One worker's stitching khata: add the evening's work, see what is not paid yet grow with it, and lock it when he
- * is paid ("paid up to here").
+ * is paid ("paid up to here") — with the cash actually given; less or more stays as his baqaya (client, 2026-11-22),
+ * beside old balances from the notebook. One line says who owes whom overall.
  */
 export default function WorkerKhataPage() {
   const { id } = useParams();
   const khataApi = useWorkerKhata(id);
   const { operations } = useOperations();
   const choices = useCutChoices();
-  const [locking, setLocking] = useState(false);
-  const [printing, setPrinting] = useState(false);
+  const [paying, setPaying] = useState(null); // null | { upTo, title }
+  const [popup, setPopup] = useState(null); // "print" | "balance"
   const khata = khataApi.khata;
 
   if (khataApi.isLoading && !khata) return <Loader />;
@@ -54,33 +64,42 @@ export default function WorkerKhataPage() {
     );
   }
 
-  const { worker, entries, payments, totals, advanceLeft } = khata;
+  const { worker, entries, payments, totals, advanceLeft, balances = [], baqaya = 0 } = khata;
+  const overall = overallBalance({ toPay: totals.unpaid, baqaya, advanceLeft });
   const togglePaid = (entry) => (isPaid(entry) ? khataApi.unpayEntry(entry) : khataApi.payEntry(entry));
-  // "Pay all" (client, 2026-11-21): one lock over every unpaid line — up to the last day of work (today at least),
-  // so nothing is left out; a line can then be held back with its own toggle.
-  const payAll = (unpaid) => {
-    const last = unpaid.reduce((day, entry) => (new Date(entry.date) > day ? new Date(entry.date) : day), new Date());
-    return khataApi.lock(format(last, "yyyy-MM-dd"), "");
-  };
+  // "Pay all" (client, 2026-11-21): the same lock over every unpaid line, with the cash given
+  const payAll = (section) => setPaying({ upTo: lastWorkDay(section.entries), title: `Pay all · ${worker.name}` });
 
   return (
     <>
       <AnimatePresence>
-        {printing && (
+        {popup === "print" && (
           <KhataPrintModal
             worker={worker}
             entries={entries}
             advanceLeft={advanceLeft}
-            onClose={() => setPrinting(false)}
+            baqaya={baqaya}
+            onClose={() => setPopup(null)}
           />
         )}
-        {locking && (
+        {popup === "balance" && (
+          <BalanceFormPopup
+            workerName={worker.name}
+            onSave={khataApi.addBalance}
+            onCancel={() => setPopup(null)}
+            isSaving={khataApi.isSaving}
+          />
+        )}
+        {paying && (
           <LockModal
             workerName={worker.name}
+            title={paying.title}
+            initialUpTo={paying.upTo}
             entries={entries}
             advanceLeft={advanceLeft}
+            baqaya={baqaya}
             onLock={khataApi.lock}
-            onCancel={() => setLocking(false)}
+            onCancel={() => setPaying(null)}
             isSaving={khataApi.isSaving}
           />
         )}
@@ -111,8 +130,8 @@ export default function WorkerKhataPage() {
             <Button
               variant="secondary"
               icon={Printer}
-              onClick={() => setPrinting(true)}
-              disabled={entries.length === 0}
+              onClick={() => setPopup("print")}
+              disabled={entries.length === 0 && baqaya === 0}
               className="w-full sm:w-auto"
               data-testid="khata-print"
             >
@@ -120,7 +139,7 @@ export default function WorkerKhataPage() {
             </Button>
             <Button
               icon={Lock}
-              onClick={() => setLocking(true)}
+              onClick={() => setPaying({ upTo: "", title: "" })}
               disabled={totals.unpaid <= 0}
               data-tip={totals.unpaid <= 0 ? "Nothing to pay" : undefined}
               className="w-full sm:w-auto"
@@ -131,10 +150,40 @@ export default function WorkerKhataPage() {
           </div>
         </motion.div>
 
-        <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Figure label="To pay" value={totals.unpaid} tone="text-primary" testId="khata-to-pay" />
+        <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Figure label="To pay (work)" value={totals.unpaid} tone="text-primary" testId="khata-to-pay" />
           <Figure label="Paid (all)" value={totals.paid} tone="text-success" testId="khata-paid" />
           <Figure label="Advance left" value={advanceLeft} testId="khata-advance" />
+          <Figure
+            label="Baqaya"
+            value={baqaya}
+            text={`${baqaya < 0 ? "−" : ""}${formatMoney(Math.abs(baqaya))}`}
+            tone={baqaya > 0 ? "text-primary" : baqaya < 0 ? "text-amber-700" : "text-gray-800"}
+            testId="khata-baqaya-figure"
+          />
+        </motion.div>
+
+        <motion.div
+          variants={itemVariants}
+          className={`flex items-center gap-3 rounded-2xl p-4 text-sm font-semibold ${
+            overall > 0
+              ? "bg-primary-soft text-primary"
+              : overall < 0
+                ? "bg-warning-soft text-amber-800"
+                : "bg-success-soft text-success"
+          }`}
+          data-testid="khata-overall"
+          data-amount={overall}
+        >
+          <Scale size={18} className="shrink-0" />
+          <span>
+            Overall: {overall === 0 ? "nothing is owed either way" : baqayaLabel(overall)}
+            <span className="block text-xs font-normal opacity-80">
+              Work to pay {formatMoney(totals.unpaid)}
+              {baqaya ? ` · baqaya ${baqaya > 0 ? "+" : "−"}${formatMoney(Math.abs(baqaya))}` : ""}
+              {advanceLeft ? ` · advance − ${formatMoney(advanceLeft)}` : ""}
+            </span>
+          </span>
         </motion.div>
 
         {worker.active !== false && (
@@ -158,6 +207,17 @@ export default function WorkerKhataPage() {
             onPayAll={payAll}
             onRemove={khataApi.removeEntry}
             onRemovePayment={khataApi.removePayment}
+            isSaving={khataApi.isSaving}
+          />
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <BaqayaCard
+            baqaya={baqaya}
+            balances={balances}
+            payments={payments}
+            onAdd={() => setPopup("balance")}
+            onRemove={khataApi.removeBalance}
             isSaving={khataApi.isSaving}
           />
         </motion.div>

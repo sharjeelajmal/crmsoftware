@@ -120,21 +120,46 @@ export function useWorkerKhata(workerId) {
       ).then(after),
     [run, after]
   );
+  // `cash`: what was handed over (undefined: all that is due) — less or more stays as his baqaya
   const lock = useCallback(
-    (upTo, note, advanceCut = 0) =>
+    (upTo, note, advanceCut = 0, cash) =>
       run(
         () =>
           api.post(`/api/khata/workers/${workerId}/lock`, {
             upTo,
             note,
             ...(advanceCut > 0 ? { advanceCut } : {}),
+            ...(cash !== undefined ? { cash } : {}),
           }),
         (payment) =>
-          payment.advanceCut > 0
-            ? `Locked · ${formatMoney(payment.amount)} paid, ${formatMoney(payment.advanceCut)} advance cut`
-            : `Locked · ${formatMoney(payment.amount)} paid`
+          [
+            `Locked · ${formatMoney(payment.amount)} given`,
+            payment.advanceCut > 0 ? `${formatMoney(payment.advanceCut)} advance cut` : "",
+            payment.balanceChange > 0 ? `${formatMoney(payment.balanceChange)} still to give` : "",
+            payment.balanceChange < 0 ? `${formatMoney(-payment.balanceChange)} extra given` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")
       ).then(after),
     [run, after, workerId]
+  );
+  const addBalance = useCallback(
+    (form) =>
+      run(
+        () =>
+          api.post(`/api/khata/workers/${workerId}/balances`, {
+            owedBy: form.owedBy,
+            amount: Number(form.amount) || 0,
+            date: form.date,
+            note: String(form.note || "").trim(),
+          }),
+        "Old balance added to his baqaya"
+      ).then(after),
+    [run, after, workerId]
+  );
+  const removeBalance = useCallback(
+    (balance) => run(() => api.delete(`/api/khata/balances/${balance._id}`), "Old balance removed").then(after),
+    [run, after]
   );
   const removePayment = useCallback(
     (payment) =>
@@ -168,6 +193,8 @@ export function useWorkerKhata(workerId) {
     reload,
     addEntry,
     lock,
+    addBalance,
+    removeBalance,
     removePayment,
     removeEntry,
     payEntry,

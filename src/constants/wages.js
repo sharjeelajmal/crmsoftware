@@ -425,6 +425,45 @@ export const lockCutProblem = (cut, { work = 0, advanceLeft = 0 } = {}) => {
 /** What the worker gets in hand at a lock: the work's wages less the advance cut there. */
 export const lockCash = (work, cut = 0) => round2((Number(work) || 0) - (Number(cut) || 0));
 
+// ---- Baqaya: what is left between the owner and a worker (client, 2026-11-22) -------------------------------------
+// A signed running balance per worker, beside his work and his advance: + the owner still owes him, − he owes the
+// owner (was given extra). It is made of old balances written in from the notebook and of what each lock left:
+// the cash handed over can be less than due (no change in hand) or more.
+
+/** A worker's baqaya: his old balances (signed `amount`) plus what each of his locks left (`balanceChange`). */
+export const baqayaOf = ({ balances = [], payments = [] } = {}) =>
+  round2(
+    balances.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) +
+      payments.reduce((sum, p) => sum + (p.kind === "lock" ? Number(p.balanceChange) || 0 : 0), 0)
+  );
+
+/**
+ * A lock's settlement: what is due (the work − the advance cut there + the baqaya brought in), the cash given (by
+ * default all that is due, never below 0), the baqaya left after it (signed) and the change the lock makes to it.
+ */
+export const lockSettlement = ({ work = 0, advanceCut = 0, baqaya = 0, cash } = {}) => {
+  const due = round2((Number(work) || 0) - (Number(advanceCut) || 0) + (Number(baqaya) || 0));
+  const given = cash === undefined || cash === null || cash === "" ? Math.max(0, due) : round2(cash);
+  return {
+    due,
+    cash: given,
+    after: round2(due - given),
+    change: round2((Number(work) || 0) - (Number(advanceCut) || 0) - given),
+  };
+};
+
+/** "You owe him Rs 270" / "He owes you Rs 300" / "Settled" — a signed baqaya in words. */
+export const baqayaLabel = (amount) => {
+  const value = round2(amount);
+  if (value > 0) return `You owe him ${rupeesOf(value)}`;
+  if (value < 0) return `He owes you ${rupeesOf(-value)}`;
+  return "Settled";
+};
+
+/** What a worker comes to overall: his unpaid work plus his baqaya, less the advance he still has. Signed. */
+export const overallBalance = ({ toPay = 0, baqaya = 0, advanceLeft = 0 } = {}) =>
+  round2((Number(toPay) || 0) + (Number(baqaya) || 0) - (Number(advanceLeft) || 0));
+
 /**
  * A cut's work per operation: pieces done (out of the cut's pieces), who did them and their wages, in first-seen
  * order; plus the cut's labour paid and still to pay.

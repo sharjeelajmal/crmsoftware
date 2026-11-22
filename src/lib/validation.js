@@ -570,6 +570,14 @@ export const stitchCutUpdateSchema = z.object({
   note: z.string().trim().max(500).optional(),
 });
 
+/** An old balance from the notebook (client, 2026-11-22): who owes whom how much. */
+export const khataBalanceSchema = z.object({
+  owedBy: z.enum(["owner", "worker"]), // owner: the owner owes the worker; worker: the worker owes the owner
+  amount: z.coerce.number().positive("Type the amount").max(100_000_000),
+  date: dateLike.optional(),
+  note: optionalText(300),
+});
+
 /** One line of the khata: a worker did pieces of an operation on a cut (a khata cut or an invoice). */
 export const khataEntrySchema = z
   .object({
@@ -593,6 +601,7 @@ export const khataEntrySchema = z
 /** "Lock": pay a worker everything not paid yet up to a day. */
 export const khataLockSchema = z.object({
   upTo: dateLike,
+  cash: nonNegative.optional(), // handed over; default all that is due — the difference stays as baqaya
   advanceCut: nonNegative.default(0), // advance taken back at this lock (comes off the cash given)
   note: optionalText(300),
 });

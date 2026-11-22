@@ -1,6 +1,6 @@
 import { ObjectId } from "mongodb";
 import { notFound, conflict } from "@/lib/api";
-import { actorOf, WAGE_PAYMENTS } from "@/lib/wages";
+import { actorOf, KHATA_BALANCES, WAGE_PAYMENTS } from "@/lib/wages";
 import { round2 } from "@/constants/wages";
 
 /**
@@ -81,6 +81,29 @@ export async function cutTotals(db, cutIds) {
       { entries: row.entries, workers: row.workers.length, amount: round2(row.amount), unpaid: round2(row.unpaid) },
     ])
   );
+}
+
+/** Every worker's baqaya (signed; see baqayaOf): his old balances plus what his locks left. Map workerId → amount. */
+export async function workerBaqayas(db) {
+  const [balances, locks] = await Promise.all([
+    db
+      .collection(KHATA_BALANCES)
+      .aggregate([{ $group: { _id: "$workerId", amount: { $sum: "$amount" } } }])
+      .toArray(),
+    db
+      .collection(WAGE_PAYMENTS)
+      .aggregate([
+        { $match: { kind: "lock", balanceChange: { $exists: true } } },
+        { $group: { _id: "$workerId", amount: { $sum: "$balanceChange" } } },
+      ])
+      .toArray(),
+  ]);
+  const total = new Map();
+  for (const row of [...balances, ...locks]) {
+    const key = String(row._id);
+    total.set(key, round2((total.get(key) ?? 0) + (Number(row.amount) || 0)));
+  }
+  return total;
 }
 
 /**

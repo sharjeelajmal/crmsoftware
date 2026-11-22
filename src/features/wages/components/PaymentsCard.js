@@ -19,6 +19,8 @@ const detailOf = (payment) => {
     work ? `${work} work ${work === 1 ? "entry" : "entries"}` : "",
     payment.lotNumbers?.length ? payment.lotNumbers.join(", ") : "",
     payment.advanceCut > 0 ? `advance cut ${formatMoney(payment.advanceCut)}` : "",
+    payment.balanceChange > 0 ? `${formatMoney(payment.balanceChange)} still to give (baqaya)` : "",
+    payment.balanceChange < 0 ? `${formatMoney(-payment.balanceChange)} given extra (baqaya)` : "",
     payment.note || "",
   ];
   return parts.filter(Boolean).join(" · ");
