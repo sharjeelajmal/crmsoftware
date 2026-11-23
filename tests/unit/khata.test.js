@@ -5,6 +5,7 @@ import {
   baqayaOf,
   lockCash,
   lockCutProblem,
+  baqayaAndAdvance,
   lockSettlement,
   overallBalance,
   operationPieces,
@@ -245,17 +246,36 @@ describe("baqaya: what is left between the owner and a worker (client, 2026-11-2
 
   it("a lock brings the baqaya in, and what is not given stays", () => {
     // work 4,270, nothing from before, 4,000 in hand: 270 still to give
-    expect(lockSettlement({ work: 4270, cash: 4000 })).toEqual({ due: 4270, cash: 4000, after: 270, change: 270 });
+    expect(lockSettlement({ work: 4270, cash: 4000 })).toEqual({
+      due: 4270,
+      cash: 4000,
+      after: 270,
+      change: 270,
+      extra: 0,
+    });
     // next time: work 1,000 + the 270, all given
-    expect(lockSettlement({ work: 1000, baqaya: 270 })).toEqual({ due: 1270, cash: 1270, after: 0, change: -270 });
-    // a little extra given: he owes it back
-    expect(lockSettlement({ work: 1000, cash: 1100 })).toEqual({ due: 1000, cash: 1100, after: -100, change: -100 });
-    // an advance cut comes off before the cash; he owes more than his work: nothing to give
+    expect(lockSettlement({ work: 1000, baqaya: 270 })).toEqual({
+      due: 1270,
+      cash: 1270,
+      after: 0,
+      change: -270,
+      extra: 0,
+    });
+    // a little extra given: not baqaya but an advance he gives back (client, 2026-11-23)
+    expect(lockSettlement({ work: 1000, cash: 1100 })).toEqual({
+      due: 1000,
+      cash: 1100,
+      after: 0,
+      change: 0,
+      extra: 100,
+    });
+    // a baqaya below 0 kept from before is settled too: what he owes moves to his advance
     expect(lockSettlement({ work: 1000, advanceCut: 200, baqaya: -1500 })).toEqual({
       due: -700,
       cash: 0,
-      after: -700,
-      change: 800,
+      after: 0,
+      change: 1500,
+      extra: 700,
     });
   });
 
@@ -265,5 +285,23 @@ describe("baqaya: what is left between the owner and a worker (client, 2026-11-2
     expect(baqayaLabel(0)).toBe("Settled");
     expect(overallBalance({ toPay: 1000, baqaya: 270, advanceLeft: 500 })).toBe(770);
     expect(overallBalance({ toPay: 0, baqaya: -100, advanceLeft: 500 })).toBe(-600);
+    // kept apart: what he is still owed, and what he gives back (a baqaya below 0 from before is advance)
+    expect(baqayaAndAdvance({ baqaya: 270, advanceLeft: 500 })).toEqual({ baqaya: 270, advance: 500 });
+    expect(baqayaAndAdvance({ baqaya: -326, advanceLeft: 0 })).toEqual({ baqaya: 0, advance: 326 });
+  });
+});
+
+describe("gate pass a stage step issued (client, 2026-11-23: where is the print)", () => {
+  it("is the newest pass of the step's type, not a cancelled one", async () => {
+    const { passIssuedBy } = await import("@/constants/gatepass");
+    const passes = [
+      { _id: "c", type: "cutting", issuedAt: "2026-11-23T08:00:00Z" },
+      { _id: "w1", type: "washing", issuedAt: "2026-11-23T09:00:00Z" },
+      { _id: "w2", type: "washing", issuedAt: "2026-11-23T10:00:00Z" },
+      { _id: "w3", type: "washing", issuedAt: "2026-11-23T11:00:00Z", cancelled: true },
+    ];
+    expect(passIssuedBy("stitched", passes)._id).toBe("w2");
+    expect(passIssuedBy("send_stitching", passes)).toBeNull();
+    expect(passIssuedBy("washed", passes)).toBeNull();
   });
 });

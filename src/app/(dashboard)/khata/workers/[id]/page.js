@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { ArrowLeft, Lock, Printer, Scale } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
-import { baqayaLabel, isPaid, overallBalance } from "@/constants/wages";
+import { baqayaAndAdvance, baqayaLabel, isPaid, overallBalance } from "@/constants/wages";
 import { formatMoney } from "@/lib/format";
 import { Loader } from "@/components/ui/Loader";
 import { Button } from "@/components/ui/Button";
@@ -64,8 +64,10 @@ export default function WorkerKhataPage() {
     );
   }
 
-  const { worker, entries, payments, totals, advanceLeft, balances = [], baqaya = 0 } = khata;
+  const { worker, entries, payments, totals, advanceLeft, balances = [], advances = [], baqaya = 0 } = khata;
   const overall = overallBalance({ toPay: totals.unpaid, baqaya, advanceLeft });
+  // shown apart (client, 2026-11-23): what he is still owed, and what he has to give back
+  const split = baqayaAndAdvance({ baqaya, advanceLeft });
   const togglePaid = (entry) => (isPaid(entry) ? khataApi.unpayEntry(entry) : khataApi.payEntry(entry));
   // "Pay all" (client, 2026-11-21): the same lock over every unpaid line, with the cash given
   const payAll = (section) => setPaying({ upTo: lastWorkDay(section.entries), title: `Pay all · ${worker.name}` });
@@ -153,13 +155,17 @@ export default function WorkerKhataPage() {
         <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Figure label="To pay (work)" value={totals.unpaid} tone="text-primary" testId="khata-to-pay" />
           <Figure label="Paid (all)" value={totals.paid} tone="text-success" testId="khata-paid" />
-          <Figure label="Advance left" value={advanceLeft} testId="khata-advance" />
           <Figure
-            label="Baqaya"
-            value={baqaya}
-            text={`${baqaya < 0 ? "−" : ""}${formatMoney(Math.abs(baqaya))}`}
-            tone={baqaya > 0 ? "text-primary" : baqaya < 0 ? "text-amber-700" : "text-gray-800"}
+            label="Baqaya · you give him"
+            value={split.baqaya}
+            tone={split.baqaya > 0 ? "text-primary" : "text-gray-800"}
             testId="khata-baqaya-figure"
+          />
+          <Figure
+            label="Advance · he gives back"
+            value={split.advance}
+            tone={split.advance > 0 ? "text-amber-700" : "text-gray-800"}
+            testId="khata-advance"
           />
         </motion.div>
 
@@ -180,8 +186,8 @@ export default function WorkerKhataPage() {
             Overall: {overall === 0 ? "nothing is owed either way" : baqayaLabel(overall)}
             <span className="block text-xs font-normal opacity-80">
               Work to pay {formatMoney(totals.unpaid)}
-              {baqaya ? ` · baqaya ${baqaya > 0 ? "+" : "−"}${formatMoney(Math.abs(baqaya))}` : ""}
-              {advanceLeft ? ` · advance − ${formatMoney(advanceLeft)}` : ""}
+              {split.baqaya ? ` · baqaya + ${formatMoney(split.baqaya)}` : ""}
+              {split.advance ? ` · advance − ${formatMoney(split.advance)}` : ""}
             </span>
           </span>
         </motion.div>
@@ -213,9 +219,11 @@ export default function WorkerKhataPage() {
 
         <motion.div variants={itemVariants}>
           <BaqayaCard
-            baqaya={baqaya}
+            baqaya={split.baqaya}
+            advance={split.advance}
             balances={balances}
             payments={payments}
+            advances={advances}
             onAdd={() => setPopup("balance")}
             onRemove={khataApi.removeBalance}
             isSaving={khataApi.isSaving}

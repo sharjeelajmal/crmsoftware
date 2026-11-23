@@ -14,7 +14,7 @@ export const DELETE = route(async (_request, context) => {
   const adjustment = await db.collection("wage_adjustments").findOne({ _id });
   if (!adjustment) throw notFound("Adjustment");
   if (adjustment.paymentId) {
-    throw conflict("This advance cut was made with a lock — take that lock back in the worker's khata");
+    throw conflict("This was made with a payment in the worker's khata — take that payment back there");
   }
   if (adjustment.type === "advance") {
     const { balance } = advanceAccount(await advanceEntries(db, { workerId: adjustment.workerId }));

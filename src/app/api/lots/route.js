@@ -4,6 +4,7 @@ import { route, ok, created, parseBody, parseQuery, notFound } from "@/lib/api";
 import { lotCreateSchema, lotsQuerySchema } from "@/lib/validation";
 import { buildLot, buildLotEvent, isAdmin, nextLotSeq, requireFreeLotCutNumber } from "@/lib/lots";
 import { issueGatePass } from "@/lib/gatepass";
+import { currentCutList } from "@/lib/cutLists";
 import { ALL_ROLES } from "@/constants/roles";
 
 /**
@@ -27,7 +28,8 @@ export const GET = route(
 
 /**
  * POST /api/lots — cutting entry (cutting master or admin). Issues the lot's cutting gate pass with it.
- * A cut number already used by an invoice or a khata cut is refused (requireFreeLotCutNumber).
+ * The lot joins the cut list open now (`cutList`, src/lib/cutLists.js); a cut number already used in that list by an
+ * invoice or a khata cut is refused (requireFreeLotCutNumber).
  */
 export const POST = route(
   async (request, { session }) => {
@@ -38,10 +40,11 @@ export const POST = route(
         .collection("products")
         .findOne({ _id: new ObjectId(input.productId) }, { session: session_ });
       if (!product) throw notFound("Product");
-      await requireFreeLotCutNumber(db, input.bundleNumber, { session: session_ });
+      const cutList = await currentCutList(db, session_);
+      await requireFreeLotCutNumber(db, input.bundleNumber, { cutList, session: session_ });
 
       const seq = await nextLotSeq(db, session_);
-      const doc = buildLot({ input, product, seq, session });
+      const doc = buildLot({ input, product, seq, session, cutList });
       const { insertedId } = await db.collection("lots").insertOne(doc, { session: session_ });
       await db
         .collection("lot_events")

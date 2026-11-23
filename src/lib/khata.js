@@ -1,7 +1,9 @@
 import { ObjectId } from "mongodb";
 import { notFound, conflict } from "@/lib/api";
 import { actorOf, KHATA_BALANCES, WAGE_PAYMENTS } from "@/lib/wages";
+import { currentCutList } from "@/lib/cutLists";
 import { round2 } from "@/constants/wages";
+import { cutListFilter } from "@/constants/cutLists";
 
 /**
  * Stitching khata — server helpers (client, 2026-11-19). The owner adds the cuts himself (`stitch_cuts`) and, each
@@ -15,9 +17,11 @@ export const STITCH_CUTS = "stitch_cuts";
 /** Same cut number ignoring case ("20a" = "20A"). */
 const SAME_NUMBER = { locale: "en", strength: 2 };
 
-export function buildCut({ input, session, now = new Date() }) {
+/** `cutList` = the cut list open now (src/lib/cutLists.js); it never changes afterwards. */
+export function buildCut({ input, session, cutList = 1, now = new Date() }) {
   return {
     cutNumber: input.cutNumber,
+    cutList,
     article: input.article || "",
     pieces: Math.trunc(Number(input.pieces)) || 0,
     date: input.date ? new Date(input.date) : now,
@@ -29,22 +33,28 @@ export function buildCut({ input, session, now = new Date() }) {
 }
 
 /**
- * 409 when another cut already has this number — a khata cut, or an invoice whose cut number it is (that cut's work
- * belongs on the invoice, so its labour stays in one place: the invoice, its dispatch cost and the khata).
+ * 409 when another cut of the same cut list already has this number — a khata cut, or an invoice whose cut number it
+ * is (that cut's work belongs on the invoice, so its labour stays in one place: the invoice, its dispatch cost and the
+ * khata). Numbers start again in every list (client, 2026-11-23), so other lists don't count. `cutList` = the cut's
+ * own list (default: the open list, for a new cut).
  */
-export async function requireFreeCutNumber(db, cutNumber, { exceptId = null, session } = {}) {
+export async function requireFreeCutNumber(db, cutNumber, { exceptId = null, cutList, session } = {}) {
+  const list = cutList ?? (await currentCutList(db, session));
+  const inList = cutListFilter(list);
   const clash = await db
     .collection(STITCH_CUTS)
     .findOne(
-      { cutNumber, ...(exceptId ? { _id: { $ne: new ObjectId(exceptId) } } : {}) },
+      { cutNumber, ...inList, ...(exceptId ? { _id: { $ne: new ObjectId(exceptId) } } : {}) },
       { collation: SAME_NUMBER, session }
     );
-  if (clash) throw conflict(`Cut ${clash.cutNumber} already exists`);
+  if (clash) throw conflict(`Cut ${clash.cutNumber} already exists in list ${list}`);
   const invoice = await db
     .collection("lots")
-    .findOne({ bundleNumber: cutNumber }, { collation: SAME_NUMBER, session, projection: { lotNumber: 1 } });
+    .findOne({ bundleNumber: cutNumber, ...inList }, { collation: SAME_NUMBER, session, projection: { lotNumber: 1 } });
   if (invoice) {
-    throw conflict(`Cut ${cutNumber} is invoice ${invoice.lotNumber} — choose that invoice when you add the work`);
+    throw conflict(
+      `Cut ${cutNumber} is invoice ${invoice.lotNumber} in list ${list} — choose that invoice when you add the work`
+    );
   }
 }
 

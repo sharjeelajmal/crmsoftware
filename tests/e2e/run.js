@@ -1558,11 +1558,30 @@ test("Baqaya: cash given less or more than due, and old balances, stay on the wo
   expect([next.status, next.body.amount, next.body.balanceChange].join(), "all of it").toBe("201,400,-100");
   expect((await khataOf()).baqaya, "settled").toBe(0);
 
-  // he owes something from before; then it is removed again
+  // "he gives me" from before is an advance, not baqaya (client, 2026-11-23)
   const owes = await api(S.admin, "POST", `/api/khata/workers/${workerId}/balances`, { owedBy: "worker", amount: 50 });
-  expect([owes.status, owes.body.amount].join(), "he owes 50").toBe("201,-50");
-  expect((await khataOf()).baqaya, "he owes you 50").toBe(-50);
-  expect((await api(S.admin, "DELETE", `/api/khata/balances/${owes.body._id}`)).status, "removed").toBe(200);
+  expect([owes.status, owes.body.kind, owes.body.type, owes.body.amount].join(), "an advance").toBe(
+    "201,advance,advance,50"
+  );
+  khata = await khataOf();
+  expect([khata.baqaya, khata.advanceLeft].join(), "baqaya 0, advance 50").toBe("0,50");
+  // more cash than due: the extra goes to his advance too
+  const third = await entry(10, 10); // 100
+  const extra = await api(S.admin, "POST", lockUrl, { upTo: d0, cash: 150 });
+  expect([extra.status, extra.body.amount, extra.body.extraAdvance, extra.body.balanceChange].join(), "50 extra").toBe(
+    "201,150,50,0"
+  );
+  khata = await khataOf();
+  expect([khata.baqaya, khata.advanceLeft].join(), "advance 100").toBe("0,100");
+  expect(
+    (await api(S.admin, "DELETE", `/api/wage-adjustments/${extra.body.extraAdvanceId}`)).status,
+    "the payment's advance goes with the payment"
+  ).toBe(409);
+  expect((await api(S.admin, "DELETE", `/api/wage-payments/${extra.body._id}`)).status, "taken back").toBe(200);
+  khata = await khataOf();
+  expect([khata.advanceLeft, khata.totals.unpaid].join(), "extra gone, work unpaid").toBe("50,100");
+  expect((await api(S.admin, "DELETE", `/api/wage-adjustments/${owes.body._id}`)).status, "advance removed").toBe(200);
+  expect((await api(S.admin, "DELETE", `/api/work-entries/${third.body._id}`)).status, "work removed").toBe(200);
   expect(
     (await api(S.admin, "POST", `/api/khata/workers/${workerId}/balances`, { owedBy: "worker" })).status,
     "amount"
@@ -1905,6 +1924,196 @@ test("Phase 9: the dashboard API returns production, stock, spending and wages i
   expect(typeof d.money.purchasesMonth, "spending").toBe("number");
   expect(typeof d.wages.advanceLeft, "advance left on the dashboard").toBe("number");
   expect(d.wages.week.pieces >= 0 && d.wages.activeWorkers >= 0, "wages this week").toBe(true);
+});
+
+test("Dashboard: stitching pieces — received, out this week, out in all and left move with an invoice", async () => {
+  const dashboard = async () => {
+    const res = await api(S.admin, "GET", "/api/dashboard");
+    expect(res.status, "dashboard").toBe(200);
+    return res.body;
+  };
+  // Change since the start of this test (other tests leave invoices behind, so only the differences are exact).
+  const before = (await dashboard()).stitchingPieces;
+  expect(typeof before.received, "received is a number").toBe("number");
+  expect(typeof before.week.start === "string" && typeof before.week.end === "string", "week range").toBe(true);
+  const moved = (now) => ({
+    received: now.received - before.received,
+    outWeek: now.outWeek - before.outWeek,
+    outAll: now.outAll - before.outAll,
+    left: now.left - before.left,
+    short: now.short - before.short,
+  });
+
+  const created = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "Denim 12oz", qty: 20 },
+    sizes: [
+      { size: "30", qty: 30 },
+      { size: "32", qty: 30 },
+    ],
+    note: "dash-stitch-pieces",
+  });
+  expect(created.status, "create invoice").toBe(201);
+  const id = created.body._id;
+  S.ids.lots.push(id);
+  expect(moved((await dashboard()).stitchingPieces), "still at cutting: nothing came to stitching").toEqual({
+    received: 0,
+    outWeek: 0,
+    outAll: 0,
+    left: 0,
+    short: 0,
+  });
+
+  const stage = (body) => api(S.admin, "POST", `/api/lots/${id}/stage`, body);
+  expect((await stage({ action: "send_stitching" })).status, "send to stitching").toBe(200);
+  expect(moved((await dashboard()).stitchingPieces), "60 received, all left").toEqual({
+    received: 60,
+    outWeek: 0,
+    outAll: 0,
+    left: 60,
+    short: 0,
+  });
+
+  const out = await api(S.admin, "POST", `/api/lots/${id}/dispatch`, { pieces: 25, washType: "Stone wash" });
+  expect(out.status, "gate pass out (partial)").toBe(200);
+  const afterOut = await dashboard();
+  expect(moved(afterOut.stitchingPieces), "25 out this week and in all, 35 left").toEqual({
+    received: 60,
+    outWeek: 25,
+    outAll: 25,
+    left: 35,
+    short: 0,
+  });
+  const summary = (await api(S.admin, "GET", "/api/lots/summary")).body;
+  expect(afterOut.stitchingPieces.left, "left = Lying on the Stitching page").toBe(summary.stitching.lying);
+  expect(afterOut.stitchingPieces.left, "left = the Lying in stitching tile").toBe(afterOut.production.stitching.lying);
+  expect(afterOut.stitchingPieces.lots, "invoices at stitching").toBe(summary.stitching.lots);
+
+  // Stitching received with 58 of 60: the final washing pass carries 33, 2 pieces are short.
+  expect((await stage({ action: "stitched", qty: 58, washType: "Stone wash" })).status, "stitching received").toBe(200);
+  expect(moved((await dashboard()).stitchingPieces), "58 out, none left, 2 short").toEqual({
+    received: 60,
+    outWeek: 58,
+    outAll: 58,
+    left: 0,
+    short: 2,
+  });
+
+  // A washing pass issued again by hand reprints pieces already out: not counted twice.
+  const reissue = await api(S.admin, "POST", `/api/lots/${id}/gate-passes`, { type: "washing" });
+  expect(reissue.status, "reissue washing pass").toBe(201);
+  expect(moved((await dashboard()).stitchingPieces).outAll, "reissue not counted").toBe(58);
+
+  // Reverse to stitching cancels the final pass (and the reissue): only the partial 25 stay out.
+  const reversed = await api(S.admin, "POST", `/api/lots/${id}/reverse`, { reason: "dashboard pieces test" });
+  expect(reversed.status, "reverse to stitching").toBe(200);
+  expect(moved((await dashboard()).stitchingPieces), "cancelled passes do not count").toEqual({
+    received: 60,
+    outWeek: 25,
+    outAll: 25,
+    left: 35,
+    short: 0,
+  });
+
+  // Deleting the invoice takes its pieces and gate passes out of every figure.
+  expect((await api(S.admin, "DELETE", `/api/lots/${id}`)).status, "delete invoice").toBe(200);
+  expect(moved((await dashboard()).stitchingPieces), "back to where it was").toEqual({
+    received: 0,
+    outWeek: 0,
+    outAll: 0,
+    left: 0,
+    short: 0,
+  });
+});
+
+test("Cut lists: a cut number is used once per list; the admin closes the list and numbers start again from 1", async () => {
+  const listNow = async () => (await api(S.admin, "GET", "/api/cut-list")).body;
+  const newLot = (bundleNumber) =>
+    api(S.cutter, "POST", "/api/lots", {
+      productId: S.productId,
+      bundleNumber,
+      fabric: { name: "E2E List Fabric", qty: 2, unit: "m" },
+      sizes: [{ size: "30", qty: 5 }],
+    });
+
+  const read = await api(S.cutter, "GET", "/api/cut-list");
+  expect(read.status, "the cutting master reads the open list").toBe(200);
+  const list = read.body.current;
+  expect(Number.isInteger(list) && list >= 1, "a list number").toBe(true);
+
+  // inside the open list a number is used once only
+  const first = await newLot("E2E-LIST-155");
+  expect(first.status, "first invoice").toBe(201);
+  S.ids.lots.push(first.body._id);
+  expect(first.body.cutList, "the invoice joins the open list").toBe(list);
+  const twice = await newLot("e2e-list-155");
+  expect(twice.status, "same number, same list, other case").toBe(409);
+  expect(String(twice.body.error), "names the invoice").toContain(first.body.lotNumber);
+  expect(String(twice.body.error), "names the list").toContain(`in list ${list}`);
+  const oldCut = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "E2E-LIST-K1", pieces: 10 });
+  expect([oldCut.status, oldCut.body.cutList].join(), "a khata cut joins the open list too").toBe(`201,${list}`);
+  expect((await listNow()).lastCutNumber, "the last cut entered in the list").toBe("E2E-LIST-K1");
+
+  // only the admin closes it, once
+  expect((await api(S.cutter, "POST", "/api/cut-list/close", { current: list })).status, "cutting master").toBe(403);
+  const closed = await api(S.admin, "POST", "/api/cut-list/close", { current: list });
+  expect(closed.status, "closed").toBe(200);
+  expect(
+    [closed.body.current, closed.body.cuts, closed.body.lastCutNumber].join(),
+    "the next list is open, empty"
+  ).toBe(`${list + 1},0,`);
+  const row = closed.body.history.at(-1);
+  expect([row.number, row.lastCut, row.cuts >= 2].join(), "the closed list is in the history").toBe(
+    `${list},E2E-LIST-K1,true`
+  );
+  const sameClick = await api(S.admin, "POST", "/api/cut-list/close", { current: list });
+  expect(sameClick.status, "the same click again closes nothing").toBe(409);
+  expect(String(sameClick.body.error), "says it was closed").toContain("already closed");
+  const empty = await api(S.admin, "POST", "/api/cut-list/close", {});
+  expect(empty.status, "an empty list is not closed").toBe(409);
+  expect(String(empty.body.error), "says why").toContain("no cuts yet");
+  expect((await listNow()).current, "still the new list").toBe(list + 1);
+
+  // the new list starts again: the old list's numbers are free
+  const again = await newLot("E2E-LIST-155");
+  expect(again.status, "same number, new list").toBe(201);
+  S.ids.lots.push(again.body._id);
+  expect(again.body.cutList, "in the new list").toBe(list + 1);
+  const newCut = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "e2e-list-k1", pieces: 10 });
+  expect([newCut.status, newCut.body.cutList].join(), "the old list's khata number, again").toBe(`201,${list + 1}`);
+
+  // …but inside the new list a khata cut and an invoice still can't share a number
+  const khataOnInvoice = await api(S.admin, "POST", "/api/khata/cuts", { cutNumber: "e2e-list-155", pieces: 10 });
+  expect(khataOnInvoice.status, "khata cut on the new list's invoice number").toBe(409);
+  expect(String(khataOnInvoice.body.error), "names the new list's invoice").toContain(again.body.lotNumber);
+  expect(String(khataOnInvoice.body.error), "and the list").toContain(`in list ${list + 1}`);
+  const invoiceOnKhata = await newLot("E2E-LIST-K1");
+  expect(invoiceOnKhata.status, "invoice on the new list's khata number").toBe(409);
+  expect(String(invoiceOnKhata.body.error), "says the khata and the list").toContain(
+    `Stitching Khata in list ${list + 1}`
+  );
+
+  // an edit keeps the invoice's own list (a cutList sent is ignored) and checks the number there
+  const later = await newLot("E2E-LIST-200");
+  expect(later.status, "another number in the new list").toBe(201);
+  S.ids.lots.push(later.body._id);
+  const moved = await api(S.cutter, "PUT", `/api/lots/${first.body._id}`, {
+    bundleNumber: "E2E-LIST-200",
+    cutList: list + 1,
+  });
+  expect(
+    [moved.status, moved.body.cutList, moved.body.bundleNumber].join(),
+    "free in its own (old) list; the list is unchanged"
+  ).toBe(`200,${list},E2E-LIST-200`);
+  const taken = await api(S.cutter, "PUT", `/api/lots/${again.body._id}`, { bundleNumber: "e2e-list-200" });
+  expect(taken.status, "taken in its own list").toBe(409);
+  expect(String(taken.body.error), "names the invoice and the list").toContain(
+    `${later.body.lotNumber} in list ${list + 1}`
+  );
+
+  for (const id of [oldCut.body._id, newCut.body._id]) {
+    expect((await api(S.admin, "DELETE", `/api/khata/cuts/${id}`)).status, "khata cut removed").toBe(200);
+  }
 });
 
 test("logout invalidates the session", async () => {
@@ -2470,14 +2679,23 @@ uiTest("UI (Phase 2): admin moves a lot through the stage panel and sees shortfa
   const panel = page.locator('[data-testid="lot-stage-panel"]');
   await panel.waitFor({ timeout: 60_000 });
 
-  // cutting → stitching
+  // the gate pass a step issues opens for printing (client, 2026-11-23); closed to go on
+  const closePrintedPass = async (type) => {
+    await page.waitForSelector(`[data-testid="gate-pass-document"][data-type="${type}"]`, { timeout: 60_000 });
+    await page.locator('button[aria-label="Close"]').last().click();
+    await page.locator('[data-testid="gate-pass-document"]').waitFor({ state: "detached" });
+  };
+
+  // cutting → stitching: the stitching gate pass opens
   await page.click('[data-testid="lot-stage-action"]');
   await page.waitForSelector('[data-testid="lot-stage-panel"][data-action="stitched"]', { timeout: 60_000 });
+  await closePrintedPass("stitching");
 
-  // stitching → washing with 98 pieces (2 short)
+  // stitching → washing with 98 pieces (2 short): the washing gate pass opens
   await page.fill('[data-testid="lot-stage-qty"]', "98");
   await page.click('[data-testid="lot-stage-action"]');
   await page.waitForSelector('[data-testid="lot-stage-panel"][data-action="washed"]', { timeout: 60_000 });
+  await closePrintedPass("washing");
   expect(await page.locator('[data-testid="lot-pipeline-qty-stitching"]').innerText(), "pipeline stitched").toContain(
     "98"
   );
@@ -3168,6 +3386,140 @@ uiTest("UI: stitching khata — add a cut, enter a worker's work, lock it and se
   for (const entry of khata.entries) await api(S.admin, "DELETE", `/api/work-entries/${entry._id}`);
   expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cut._id}`)).status, "cleaned up").toBe(200);
 });
+
+uiTest("UI: Invoices stage tabs show that stage's pieces — received, sent on, lying", async (page) => {
+  await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+  const boxes = '[data-testid="lots-stats"]';
+  const stat = async (key) =>
+    Number(await page.getAttribute(`${boxes} [data-testid="lots-stat-${key}"]`, "data-value"));
+  const readStage = async (stage) => {
+    await page.click(`[data-testid="lots-filter-${stage}"]`);
+    await page.waitForSelector(`${boxes}[data-stage="${stage}"]`, { timeout: 60_000 });
+    return {
+      invoices: await stat("invoices"),
+      received: await stat("received"),
+      out: await stat("out"),
+      lying: await stat("lying"),
+    };
+  };
+  const openList = async () => {
+    await page.goto(`${BASE}/lots`);
+    await page.waitForSelector(`${boxes}[data-stage="all"]`, { timeout: 60_000 });
+  };
+
+  // "All" keeps the overview boxes; the stage tabs count from every invoice, so take a baseline first
+  await openList();
+  expect(await page.locator(`${boxes} [data-testid="lots-stat-newLots"]`).count(), "overview on All").toBe(1);
+  const before = { stitching: await readStage("stitching"), washing: await readStage("washing") };
+
+  // 20 pieces cut, sent to stitching, 8 sent out early to washing with a gate pass, then the invoice is stopped
+  const created = await api(S.cutter, "POST", "/api/lots", {
+    productId: S.productId,
+    fabric: { name: "E2E Stage Denim", qty: 10 },
+    sizes: [
+      { size: "30", qty: 12 },
+      { size: "32", qty: 8 },
+    ],
+    note: "stage boxes",
+  });
+  expect(created.status, "create lot").toBe(201);
+  const id = created.body._id;
+  S.ids.lots.push(id);
+  expect(
+    (await api(S.admin, "POST", `/api/lots/${id}/stage`, { action: "send_stitching" })).status,
+    "to stitching"
+  ).toBe(200);
+  const out = await api(S.admin, "POST", `/api/lots/${id}/dispatch`, { pieces: 8, washType: "Stone wash" });
+  expect(out.status, "8 pieces out").toBe(200);
+  expect(out.body.lot.stitchOutQty, "sent out").toBe(8);
+  expect((await api(S.admin, "POST", `/api/lots/${id}/hold`, { reason: "e2e stage boxes" })).status, "stopped").toBe(
+    200
+  );
+
+  // Stitching: +1 invoice, +20 received, +8 sent to washing, +12 still lying — the stopped invoice still counts
+  await openList();
+  const stitching = await readStage("stitching");
+  expect(stitching.invoices - before.stitching.invoices, "one more invoice in stitching").toBe(1);
+  expect(stitching.received - before.stitching.received, "received in stitching").toBe(20);
+  expect(stitching.out - before.stitching.out, "sent to washing").toBe(8);
+  expect(stitching.lying - before.stitching.lying, "lying in stitching").toBe(12);
+  expect(await page.locator(`${boxes} [data-testid="lots-stat-lying"]`).innerText(), "lying box").toContain(
+    "Lying in stitching"
+  );
+  expect(await page.locator(`${boxes} [data-testid="lots-stat-out"]`).innerText(), "sent box").toContain(
+    "Sent to washing"
+  );
+  await page
+    .locator(`[data-testid="lots-row"][data-lot-number="${created.body.lotNumber}"]`)
+    .waitFor({ timeout: 60_000 });
+
+  // The boxes follow the tab, not the search box
+  await page.fill('[data-testid="lots-search"]', "no-such-invoice");
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid="lots-row"]').length === 0, null, {
+    timeout: 60_000,
+  });
+  expect(await stat("lying"), "search leaves the boxes alone").toBe(stitching.lying);
+  await page.fill('[data-testid="lots-search"]', "");
+
+  // Washing: the 8 pieces sent out early are already lying at washing; the invoice itself is still in stitching
+  const washing = await readStage("washing");
+  expect(washing.invoices - before.washing.invoices, "no new invoice in washing").toBe(0);
+  expect(washing.received - before.washing.received, "received at washing").toBe(8);
+  expect(washing.lying - before.washing.lying, "lying at washing").toBe(8);
+  expect(washing.out - before.washing.out, "nothing on to packing").toBe(0);
+
+  // Back on All: the overview again
+  await page.click('[data-testid="lots-filter-all"]');
+  await page.waitForSelector(`${boxes}[data-stage="all"] [data-testid="lots-stat-newLots"]`, { timeout: 60_000 });
+});
+
+uiTest(
+  "UI: the cutting form shows the open cut list (admin's Close list asks first) and New fabric fills the fabric",
+  async (page) => {
+    const state = (await api(S.admin, "GET", "/api/cut-list")).body;
+
+    // cutting master: the list, no Close button; New fabric goes into his fabric khata and is chosen
+    await browserLogin(page, "e2e-cutter", "cutter123");
+    await page.goto(`${BASE}/cutting/new`);
+    await page.locator('[data-testid="lot-form"]').waitFor({ timeout: 60_000 });
+    const hint = page.locator('[data-testid="lot-form-cut-list"]');
+    await hint.waitFor({ timeout: 60_000 });
+    expect(await hint.innerText(), "the open list").toContain(`List ${state.current}`);
+    expect(await page.locator('[data-testid="lot-form-close-list"]').count(), "no Close for the cutting master").toBe(
+      0
+    );
+
+    await page.click('[data-testid="lot-form-new-fabric"]');
+    await page.waitForSelector('[data-testid="fabric-receipt-form"]');
+    await page.fill('[data-testid="fabric-receipt-name"]', "E2E List Twill");
+    await page.fill('[data-testid="fabric-receipt-qty"]', "40");
+    await page.click('[data-testid="fabric-receipt-submit"]');
+    await page.waitForSelector('[data-testid="fabric-receipt-form"]', { state: "detached", timeout: 60_000 });
+    expect(await page.inputValue('[data-testid="lot-form-fabric-name"]'), "the new fabric is chosen").toBe(
+      "E2E List Twill"
+    );
+    const khata = (await api(S.cutter, "GET", "/api/fabric")).body;
+    const receipt = khata.receipts.find((r) => r.name === "E2E List Twill");
+    expect([receipt?.qty, receipt?.unit].join(), "received in his own khata").toBe("40,m");
+    expect((await api(S.cutter, "DELETE", `/api/fabric/receipts/${receipt._id}`)).status, "receipt removed").toBe(200);
+
+    // admin: the Close list button asks first; cancelling closes nothing
+    await page.context().clearCookies();
+    await browserLogin(page, ENV.FIRST_USER_NAME, ENV.FIRST_USER_PASS);
+    await page.goto(`${BASE}/cutting/new`);
+    const close = page.locator('[data-testid="lot-form-close-list"]');
+    await close.waitFor({ timeout: 60_000 });
+    await close.click();
+    const dialog = page.locator('[role="dialog"]', { hasText: `Close list ${state.current}?` });
+    await dialog.waitFor();
+    expect(await dialog.innerText(), "explains the next list").toContain(
+      `start again from 1 in list ${state.current + 1}`
+    );
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await dialog.waitFor({ state: "detached" });
+    expect((await api(S.admin, "GET", "/api/cut-list")).body.current, "nothing closed").toBe(state.current);
+  }
+);
 
 uiTest("UI: admin stops, resumes, reverses and deletes an invoice from its page", async (page) => {
   const created = await api(S.cutter, "POST", "/api/lots", {

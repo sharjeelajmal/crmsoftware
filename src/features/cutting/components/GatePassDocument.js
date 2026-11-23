@@ -83,6 +83,8 @@ export function GatePassDocument({ pass, id = "gate-pass-print" }) {
             </>
           ) : isWashing ? (
             <>
+              {/* the work is followed by cut (client, 2026-11-23) */}
+              <Row label="Cut no." value={pass.bundleNumber || "—"} testId="gate-pass-bundle" />
               <Row label="Pieces" value={`${pass.pieces} pcs`} testId="gate-pass-pieces" />
               <Row label="Wash" value={pass.washType || "—"} testId="gate-pass-wash" />
             </>

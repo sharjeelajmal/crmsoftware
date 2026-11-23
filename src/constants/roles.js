@@ -30,6 +30,7 @@ export const CUTTING_MASTER_PATHS = Object.freeze([
   "/api/lots",
   "/api/fabric",
   "/api/products", // read-only article list for the cutting form (route itself allows GET only)
+  "/api/cut-list", // the open cut list for the cutting form (closing it is admin only, in the route)
   "/api/profile",
   "/api/auth",
 ]);

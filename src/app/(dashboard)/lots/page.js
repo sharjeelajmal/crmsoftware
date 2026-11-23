@@ -3,14 +3,14 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { FileBarChart, Layers, Loader2, PackageCheck, Plus, Scissors, Search } from "lucide-react";
+import { FileBarChart, Plus, Search } from "lucide-react";
 import { containerVariants, itemVariants } from "@/constants/animations";
 import { Loader } from "@/components/ui/Loader";
 import { Button } from "@/components/ui/Button";
-import { StatCard } from "@/components/ui/StatCard";
 import { FilterButton } from "@/components/ui/FilterButton";
 import { useLots } from "@/features/lots/hooks/useLots";
 import { LotsTable } from "@/features/lots/components/LotsTable";
+import { LotsStatCards } from "@/features/lots/components/LotsStatCards";
 import { STAGES, STAGE_FILTERS, filterLots } from "@/features/cutting/utils";
 
 const SEARCH_CLASS =
@@ -29,9 +29,11 @@ export default function LotsPage({ searchParams }) {
     setStage(value);
     window.history.replaceState(null, "", value ? `?stage=${value}` : window.location.pathname);
   };
-  const { lots, summary, isLoading, isFetching } = useLots(stage);
+  // Every invoice is loaded once and the tab filters them here: a stage's boxes also count invoices that moved past it.
+  const { lots, summary, isLoading, isFetching } = useLots();
 
-  const visible = filterLots(lots, { searchTerm });
+  const atStage = filterLots(lots, { stage });
+  const visible = filterLots(atStage, { searchTerm });
 
   if (isLoading) return <Loader />;
 
@@ -64,12 +66,7 @@ export default function LotsPage({ searchParams }) {
         </div>
       </motion.div>
 
-      <motion.div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
-        <StatCard icon={Scissors} title="New invoices" value={summary?.newLots ?? 0} />
-        <StatCard icon={Loader2} title="In process" value={summary?.inProcess ?? 0} />
-        <StatCard icon={PackageCheck} title="Ready" value={summary?.ready ?? 0} />
-        <StatCard icon={Layers} title="Today's pieces" value={summary?.today?.pieces ?? 0} />
-      </motion.div>
+      <LotsStatCards stage={stage} lots={lots} summary={summary} />
 
       <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4 mb-5">
@@ -111,7 +108,7 @@ export default function LotsPage({ searchParams }) {
         ) : (
           <LotsTable
             lots={visible}
-            emptyMessage={lots.length === 0 ? "No invoices at this stage yet." : "No invoices match your search."}
+            emptyMessage={atStage.length === 0 ? "No invoices at this stage yet." : "No invoices match your search."}
           />
         )}
       </motion.div>

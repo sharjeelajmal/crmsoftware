@@ -854,9 +854,36 @@ const DAILY=[
 ];
 
 
-const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–22 November 2026",who:["admin"],
-  intro:"22 November (shaam): har karigar ka <b>Baqaya</b> (kam/zyada diye paise aur copy ke purane baqaye) aur <b>cut number sirf ek dafa</b>. 22 November: <b>Cut no.</b> Invoices aur khata mein, ek cut ke operation ke <b>pieces cut se zyada nahi</b>, khata mein <b>Pay all</b> aur <b>Print</b>. 20 November: New cutting entry par hi <b>naya article</b> banana (Invoices → New cutting entry → New article). 19 November: <b>Stitching Khata</b> — har karigar ka kaam aap khud likhein (cut, operation, pieces), paise khud jurte jayen, aur “<b>Lock</b>” se “yahan tak paise de diye”; cut bhi aap khud banayein. Article banate waqt <b>purchase / sale price</b> ab nahi poocha jata. 17 November: karigaron ko <b>wahin se paise dena</b> jahan kaam diya jata hai — har operation ke aage <b>Paid / Unpaid</b>; baqi Wages page par “<b>Pay the rest</b>”. 9 November: invoice ko <b>kisi bhi stage par rokna</b> (Stop / Resume), <b>ek qadam peeche karna</b> (Reverse) aur <b>kisi bhi stage par delete</b>. 6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
+const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–24 November 2026",who:["admin"],
+  intro:"24 November: <b>Baqaya aur advance alag</b>, gate pass ka <b>print foran</b>, Invoices par <b>har stage ke pieces</b>, Dashboard par <b>stitching pieces</b>, <b>cut list</b> band karna aur <b>New fabric</b>. 22 November (shaam): har karigar ka <b>Baqaya</b> (kam/zyada diye paise aur copy ke purane baqaye) aur <b>cut number sirf ek dafa</b>. 22 November: <b>Cut no.</b> Invoices aur khata mein, ek cut ke operation ke <b>pieces cut se zyada nahi</b>, khata mein <b>Pay all</b> aur <b>Print</b>. 20 November: New cutting entry par hi <b>naya article</b> banana (Invoices → New cutting entry → New article). 19 November: <b>Stitching Khata</b> — har karigar ka kaam aap khud likhein (cut, operation, pieces), paise khud jurte jayen, aur “<b>Lock</b>” se “yahan tak paise de diye”; cut bhi aap khud banayein. Article banate waqt <b>purchase / sale price</b> ab nahi poocha jata. 17 November: karigaron ko <b>wahin se paise dena</b> jahan kaam diya jata hai — har operation ke aage <b>Paid / Unpaid</b>; baqi Wages page par “<b>Pay the rest</b>”. 9 November: invoice ko <b>kisi bhi stage par rokna</b> (Stop / Resume), <b>ek qadam peeche karna</b> (Reverse) aur <b>kisi bhi stage par delete</b>. 6–7 November ko yeh nayi cheezein aayi hain: invoice par <b>saare operations ek hi dafa</b> karigaron ko dena (Assign work), har karigar ka <b>pay ka tareeqa</b> (Per piece ya Fixed), kaam ki <b>history</b>, Wages mein <b>By invoice</b>, Workers page se hi <b>nayi category</b> banana, aur <b>pichli team khud aana</b> — ek Simple Pent par jo karigar lagaye, agli Simple Pent invoice par woh khud bhar jate hain. Har kaam kar ke dekhein aur “Theek hai” ya “Masla hai” dabayein.",
   groups:[
+  {title:"Baqaya aur advance alag, gate pass ka print (24 Nov)",icon:"wallet",
+   what:"Karigar ke khata mein ab do alag cheezein: <b>Baqaya</b> = jo aap ne usay abhi dene hain, aur <b>Advance</b> = jo us ne aap ko wapas dene hain. Payment mein <b>zyada</b> diye paise ab baqaya mein minus nahi, seedha <b>advance</b> mein jate hain. Stitching mukammal kar ke washing ko bhejte hi <b>washing gate pass print ke liye khud khul jata hai</b>.",
+   tasks:[
+    {id:"u-adv-extra",t:"Zyada diye paise advance mein",s:"Karigar ka khata → Pay all",who:"admin",
+     steps:["Pay all dabayein; Due misaal 4,000.","Cash given mein 4,300 likhein."],
+     ok:"Likha aata hai “300 more than due — it goes to his advance”. Lock ke baad upar “<b>Advance · he gives back</b>” 300 aur “Baqaya” 0. Neeche “Baqaya &amp; advance” card ke <b>Advance</b> hisse mein “Extra given at the lock +300”.",
+     tip:"Agli payment mein Advance cut mein likh kar yeh 300 kaat lein."},
+    {id:"u-adv-old",t:"Copy ka purana: “He gives me”",s:"Khata → Baqaya &amp; advance → Old balance",who:"admin",
+     steps:["Old balance dabayein, “<b>He gives me (advance)</b>” chunein, raqam (misaal 100) aur note likhein."],
+     ok:"Yeh <b>Advance</b> mein jata hai (Baqaya mein nahi). “I give him (baqaya)” chunein to Baqaya mein. Wages page par bhi yeh advance dikhta hai."},
+    {id:"u-gp-print",t:"Washing gate pass ka print",s:"Invoice → Next step",who:"admin",
+     steps:["Stitching wali invoice kholein (misaal Cut 176).","Hisson mein bhejna ho to “<b>Gate pass out</b>” — pieces likh kar save; poori stitching ho gayi ho to Next step mein total pieces likh kar aage bhejein."],
+     ok:"Dono soorton mein naya <b>washing gate pass</b> foran print ke liye khulta hai (ab is par <b>Cut no.</b> bhi likha hota hai) — upar “Print” dabayein. Baad mein bhi invoice ke “Gate passes” hisse mein har pass ke saath Print hai; manual banane ki zaroorat nahi."},
+    {id:"u-stage-boxes",t:"Invoices: har stage ke pieces",s:"Invoices → Stitching / Washing / Packing",who:"admin",
+     steps:["Invoices kholein aur upar “Stitching” tab dabayein, phir Washing, Packing."],
+     ok:"Upar ke chaar dabbe us stage ke hisaab se badalte hain: <b>Received so far</b>, <b>Sent to washing</b> (ya agla stage), <b>Lying</b> (jo pada hai) aur us stage ki invoices. “All” par pehle wale dabbe."},
+    {id:"u-dash-pieces",t:"Dashboard: stitching pieces",s:"Dashboard",who:"admin",
+     steps:["Dashboard kholein."],
+     ok:"Upar “<b>Stitching pieces</b>” box: <b>Total received</b> (stitching mein aaye kul pieces), <b>Out this week</b>, <b>Out in all</b> (washing gate passes) aur <b>Left</b> (baqaya — jo abhi stitching mein pade hain; Stitching page ke Lying jitna)."},
+    {id:"u-cut-list",t:"Cut list band karna",s:"Invoices → New cutting entry",who:"admin",
+     steps:["New cutting entry mein Cut number ke neeche dekhein: “List 1 · next after cut 176”.","Jab fabric ki list khatam ho jaye, “<b>Close list…</b>” dabayein aur confirm karein."],
+     ok:"Hint “List 2 · no cuts yet — numbers start from 1” ho jata hai. Ab cut 1, 2, 3… dobara likh sakte hain; <b>ek hi list ke andar</b> number dobara nahi chalta. List khud-ba-khud kabhi band nahi hoti.",
+     tip:"Cutting master ko list ka hint dikhta hai magar band sirf admin karta hai."},
+    {id:"u-new-fabric",t:"Cutting entry se naya fabric",s:"New cutting entry → New fabric",who:"admin",
+     steps:["Fabric ke saath “<b>New fabric</b>” dabayein, naam, quantity, unit likh kar save karein."],
+     ok:"Fabric Khata mein receipt ban jati hai aur form mein fabric name + unit khud bhar jate hain."},
+   ]},
   {title:"Baqaya har karigar ka, aur cut number sirf ek dafa (22 Nov, shaam)",icon:"wallet",
    what:"Payment karte waqt jitne paise <b>asal mein diye</b> woh likhein. Kam diye (khulle nahi the) to farq “<b>aap ne dene hain</b>”, zyada diye to “<b>us ne dene hain</b>” — yeh karigar ka <b>Baqaya</b> hai, jo agli payment mein khud shamil ho jata hai. Copy pe likhe purane baqaye bhi “<b>Old balance</b>” se darj hote hain. Aur invoice ka <b>cut number dobara</b> nahi lag sakta.",
    tasks:[
@@ -1051,6 +1078,8 @@ const UPD={key:"updates",icon:"spark",title:"Updates",date:"6–22 November 2026
 const UPDCH={key:UPD.key,title:UPD.title,icon:UPD.icon,tasks:UPD.groups.flatMap(g=>g.tasks)};
 
 const FAQ=[
+ ["Advance aur baqaya mein kya farq hai?","<b>Baqaya</b> = jo aap ne karigar ko abhi dene hain (payment mein kam diye, ya copy ka purana). <b>Advance</b> = jo karigar ne aap ko wapas dene hain (advance diya, payment mein zyada diye, ya copy ka “he gives me”). Dono khata mein alag dabbon mein aate hain; “Overall” dono ko mila kar batata hai kis ki taraf kitna banta hai."],
+ ["Gate pass ka print kahan se niklega?","Invoice ke page par: “Gate pass out” (hisson mein) ya Next step se stitching mukammal kar ke washing ko bhejein — naya gate pass foran print ke liye khulta hai. Purane pass invoice ke “Gate passes” hisse mein Print ke saath hote hain."],
  ["Baqaya kya hai?","Karigar aur aap ke darmiyan jo raqam reh gayi: payment mein kam diye to “You owe him”, zyada diye to “He owes you”, aur copy ke purane baqaye. Agli payment (Pay all / Lock) mein yeh khud “Due now” mein jud jata hai. Advance alag hai (Wages page), magar “Overall” mein sab ek saath dikhta hai."],
  ["Invoice Report mein “Pieces cut” aur “Pieces stitched” ek jaise kyun?","“Pieces cut” = report ki invoices mein kul kitne pieces kate. “Pieces stitched” = un mein se kitne stitching se nikal kar aage (washing) ja chuke. Jab saari invoices stitching se nikal chuki hon aur koi piece kam na hua ho to dono barabar hote hain (misaal 18 invoices, 5,059 dono). Jo invoices abhi stitching mein hain un ke pieces “stitched” mein tab aate hain jab woh washing ko jati hain."],
  ["Karigar zyada pieces likhwa raha hai — pata kaise chale?","Khata mein cut aur operation chunte hi likha aata hai kis ne kitne pieces likhwaye aur kitne baqi hain. Cut ke pieces se zyada save hi nahi hote; message mein har karigar ke pieces hote hain, us se ghalti wala pata chal jata hai. Purana data agar zyada ho to cut ke page par laal “too many” dikhta hai."],

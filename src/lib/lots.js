@@ -1,6 +1,8 @@
 import { ObjectId } from "mongodb";
 import { ROLES, normalizeRole } from "@/constants/roles";
 import { conflict } from "@/lib/api";
+import { currentCutList } from "@/lib/cutLists";
+import { cutListFilter } from "@/constants/cutLists";
 
 /**
  * Production lots: one lot = one article (product), cut into sizes, moving through
@@ -81,23 +83,31 @@ export function requireRunning(lot) {
 const SAME_CUT_NUMBER = { locale: "en", strength: 2 };
 
 /**
- * 409 when an invoice's cut number (`bundleNumber`) is already used — by another invoice, or by a stitching-khata cut
- * (client, 2026-11-22: a cut number is never added twice). Empty = no check. `exceptId` = the invoice being edited.
+ * 409 when an invoice's cut number (`bundleNumber`) is already used in its cut list — by another invoice, or by a
+ * stitching-khata cut (client, 2026-11-22: a cut number is never added twice; 2026-11-23: numbers start again from 1
+ * in every list, so only the same list counts — see src/lib/cutLists.js). Empty = no check. `exceptId` = the invoice
+ * being edited; `cutList` = the invoice's list (default: the open list, for a new invoice).
  */
-export async function requireFreeLotCutNumber(db, cutNumber, { exceptId = null, session } = {}) {
+export async function requireFreeLotCutNumber(db, cutNumber, { exceptId = null, cutList, session } = {}) {
   const number = String(cutNumber || "").trim();
   if (!number) return;
+  const list = cutList ?? (await currentCutList(db, session));
+  const inList = cutListFilter(list);
   const invoice = await db
     .collection("lots")
     .findOne(
-      { bundleNumber: number, ...(exceptId ? { _id: { $ne: new ObjectId(exceptId) } } : {}) },
+      { bundleNumber: number, ...inList, ...(exceptId ? { _id: { $ne: new ObjectId(exceptId) } } : {}) },
       { collation: SAME_CUT_NUMBER, session, projection: { lotNumber: 1 } }
     );
-  if (invoice) throw conflict(`Cut ${number} is already invoice ${invoice.lotNumber} — check the cut number`);
+  if (invoice) {
+    throw conflict(`Cut ${number} is already invoice ${invoice.lotNumber} in list ${list} — check the cut number`);
+  }
   const cut = await db
     .collection("stitch_cuts") // STITCH_CUTS in src/lib/khata.js
-    .findOne({ cutNumber: number }, { collation: SAME_CUT_NUMBER, session, projection: { _id: 1 } });
-  if (cut) throw conflict(`Cut ${number} is already a cut in the Stitching Khata — check the cut number`);
+    .findOne({ cutNumber: number, ...inList }, { collation: SAME_CUT_NUMBER, session, projection: { _id: 1 } });
+  if (cut) {
+    throw conflict(`Cut ${number} is already a cut in the Stitching Khata in list ${list} — check the cut number`);
+  }
 }
 
 /** Highest lot sequence so far, 0 when there are no lots. */
@@ -116,8 +126,8 @@ export async function nextLotSeq(db, session) {
   return latest >= FIRST_LOT_SEQ ? latest + 1 : FIRST_LOT_SEQ;
 }
 
-/** Builds a new lot document from validated input. */
-export function buildLot({ input, product, seq, session }) {
+/** Builds a new lot document from validated input; `cutList` = the cut list open now (src/lib/cutLists.js). */
+export function buildLot({ input, product, seq, session, cutList = 1 }) {
   const sizes = input.sizes.map((s) => ({ size: s.size, qty: Math.trunc(Number(s.qty)) || 0 }));
   const now = new Date();
   return {
@@ -129,6 +139,7 @@ export function buildLot({ input, product, seq, session }) {
     sizes,
     cutQty: cutQtyOf(sizes),
     bundleNumber: input.bundleNumber || "", // the "Cut number" on screen and on the gate passes
+    cutList, // never changes: the cut number has to be free only inside this list
     shrinkage: input.shrinkage ?? "", // free text
     washType: "",
     note: input.note || "",

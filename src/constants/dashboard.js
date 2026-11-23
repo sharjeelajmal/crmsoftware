@@ -86,6 +86,48 @@ export const pipelineLoad = (lots = []) => {
   return load;
 };
 
+/**
+ * Invoices at stitching right now: cut pieces received, pieces already sent out with gate passes, and pieces still
+ * lying ("padi hui") — the same numbers as the Stitching page cards (GET /api/lots/summary).
+ */
+export const stitchingBalance = (lots = []) => {
+  const inStitching = lots.filter((lot) => lot?.stage === "stitching");
+  const received = inStitching.reduce((sum, lot) => sum + (Number(lot.cutQty) || 0), 0);
+  const out = inStitching.reduce((sum, lot) => sum + stitchOutQtyOf(lot), 0);
+  return { lots: inStitching.length, received, out, lying: received - out };
+};
+
+/** Stages at which an invoice's cut pieces have come to stitching: sent to stitching, or already past it. */
+export const STITCH_RECEIVED_STAGES = Object.freeze(["stitching", "washing", "packing", "ready"]);
+
+/**
+ * The owner's stitching pieces picture (client, 2026-11-23): everything that came to stitching, what went out to
+ * washing this week and in all, and what is still left there (baqaya).
+ * - `received`: cut pieces of every invoice sent to stitching (one at STITCH_RECEIVED_STAGES; an invoice reversed
+ *   back to cutting or deleted drops out).
+ * - `out.week` / `out.all`: pieces on washing gate passes issued this week (Mon–Sun) / ever — the parts sent out of
+ *   stitching early and the rest when stitching was received. Cancelled passes and hand reissues (reprints of pieces
+ *   already out) are not counted.
+ * - `lots`: the invoices in process; the ones at stitching give `left` (their cut − sent out), the same as "Lying" on
+ *   the Stitching page and the "Lying in stitching" tile.
+ * `short` is what the other three don't explain: received − out in all − left, i.e. pieces fewer than cut when
+ * stitching was received (never below 0). So received = out in all + left + short.
+ */
+export function stitchingPieces({ received = 0, out = {}, lots = [] } = {}) {
+  const now = stitchingBalance(lots);
+  const total = Math.max(0, Number(received) || 0);
+  const outAll = Math.max(0, Number(out.all) || 0);
+  const outWeek = Math.max(0, Number(out.week) || 0);
+  return {
+    received: total,
+    outWeek,
+    outAll,
+    left: now.lying,
+    short: Math.max(0, total - outAll - now.lying),
+    lots: now.lots,
+  };
+}
+
 /** Whole days since the lot last changed (stage move, dispatch or edit). */
 export const idleDays = (lot, now = new Date()) => {
   const since = new Date(lot?.updatedAt ?? lot?.createdAt ?? now).getTime();

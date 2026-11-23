@@ -57,13 +57,9 @@ export function WorkerBox({ worker, operations = [] }) {
           <span className="text-right">
             <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">To pay</span>
             <span className="block text-lg font-bold text-primary tabular-nums">{formatMoney(worker.unpaid ?? 0)}</span>
-            {worker.baqaya ? (
-              <span
-                className={`block text-[11px] font-semibold ${worker.baqaya > 0 ? "text-primary" : "text-amber-700"}`}
-                data-testid="khata-worker-baqaya"
-              >
-                baqaya {worker.baqaya > 0 ? "+" : "−"}
-                {formatMoney(Math.abs(worker.baqaya))}
+            {worker.baqaya > 0 ? (
+              <span className="block text-[11px] font-semibold text-primary" data-testid="khata-worker-baqaya">
+                baqaya + {formatMoney(worker.baqaya)}
               </span>
             ) : null}
           </span>

@@ -6,7 +6,7 @@ import { Lock } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { DatePickerField } from "@/components/ui/DatePickerField";
-import { baqayaLabel, lockCutProblem, lockPreview, lockProblem, lockSettlement } from "@/constants/wages";
+import { lockCutProblem, lockPreview, lockProblem, lockSettlement } from "@/constants/wages";
 import { formatMoney } from "@/lib/format";
 
 const INPUT_CLASS = "w-full p-2.5 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-primary";
@@ -109,7 +109,7 @@ export function LockModal({
               {advanceCut > 0 && <Line label="Advance cut" value={`− ${formatMoney(advanceCut)}`} />}
               {baqaya !== 0 && (
                 <Line
-                  label={baqaya > 0 ? "Baqaya from before (you owe him)" : "Baqaya from before (he owes you)"}
+                  label={baqaya > 0 ? "Baqaya from before (you still give him)" : "Given extra before (he gives back)"}
                   value={`${baqaya > 0 ? "+" : "−"} ${formatMoney(Math.abs(baqaya))}`}
                   testId="khata-lock-baqaya"
                 />
@@ -127,7 +127,7 @@ export function LockModal({
         {!problem && (
           <div>
             <label htmlFor="khata-lock-cash" className={LABEL_CLASS}>
-              Cash given <span className="text-gray-400">(less or more stays as his baqaya)</span>
+              Cash given <span className="text-gray-400">(less stays as baqaya, more goes to his advance)</span>
             </label>
             <input
               autoComplete="off"
@@ -143,13 +143,18 @@ export function LockModal({
               data-testid="khata-lock-cash"
             />
             <p
-              className={`mt-1 text-sm font-medium ${settlement.after === 0 ? "text-success" : "text-amber-700"}`}
+              className={`mt-1 text-sm font-medium ${
+                settlement.after === 0 && settlement.extra === 0 ? "text-success" : "text-amber-700"
+              }`}
               data-testid="khata-lock-after"
               data-after={settlement.after}
+              data-extra={settlement.extra}
             >
-              {settlement.after === 0
-                ? "All settled — no baqaya left."
-                : `Baqaya after: ${baqayaLabel(settlement.after)}.`}
+              {settlement.extra > 0
+                ? `${formatMoney(settlement.extra)} more than due — it goes to his advance (he gives it back).`
+                : settlement.after > 0
+                  ? `Baqaya after: you still give him ${formatMoney(settlement.after)}.`
+                  : "All settled — no baqaya left."}
             </p>
           </div>
         )}

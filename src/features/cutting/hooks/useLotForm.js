@@ -5,16 +5,21 @@ import { api, errorMessage } from "@/lib/api-client";
 import { useAsyncData, clearAsyncDataCache } from "@/hooks/useAsyncData";
 import { useToast } from "@/components/ui/ToastProvider";
 import { toProductPayload, validateProductInput } from "@/features/inventory/utils";
+import { toReceiptPayload } from "@/features/fabric/utils";
+import { formatFabricQty, receiptProblem } from "@/constants/fabric";
 import { EMPTY_LOT_FORM, formFromLot, initialSizeRows, toLotPayload, totalPieces, validateLotInput } from "../utils";
+import { CUT_LIST_CACHE } from "./useCutList";
 
 const asList = (value) => (Array.isArray(value) ? value : []);
 
-// Every cached list that shows lot data (and the fabric khata, which counts the fabric used) must be refreshed.
+// Every cached list that shows lot data (and the fabric khata, which counts the fabric used, and the cut list, whose
+// last cut number it may be) must be refreshed.
 const invalidateLotCaches = () => {
   clearAsyncDataCache("my-lots");
   clearAsyncDataCache("lots");
   clearAsyncDataCache("lot:");
   clearAsyncDataCache("fabric");
+  clearAsyncDataCache(CUT_LIST_CACHE);
 };
 
 /**
@@ -27,6 +32,7 @@ export function useLotForm({ lot = null, onSaved } = {}) {
   const [form, setForm] = useState(() => (lot ? formFromLot(lot) : EMPTY_LOT_FORM));
   const [isSaving, setIsSaving] = useState(false);
   const [isAddingArticle, setIsAddingArticle] = useState(false);
+  const [isAddingFabric, setIsAddingFabric] = useState(false);
 
   const {
     data: products,
@@ -102,6 +108,32 @@ export function useLotForm({ lot = null, onSaved } = {}) {
     [setProducts, toast]
   );
 
+  // "New fabric" (client 2026-11-23): fabric received right here goes into the fabric khata like a receipt there, and
+  // becomes this entry's fabric. Resolves the saved receipt (the caller reloads the balances), or null.
+  const addFabric = useCallback(
+    async (input) => {
+      const problem = receiptProblem(input);
+      if (problem) {
+        toast.info(problem);
+        return null;
+      }
+      setIsAddingFabric(true);
+      try {
+        const saved = await api.post("/api/fabric/receipts", toReceiptPayload(input));
+        clearAsyncDataCache("fabric");
+        setForm((prev) => ({ ...prev, fabricName: saved.name, fabricUnit: saved.unit }));
+        toast.success(`${saved.name} received · ${formatFabricQty(saved.qty, saved.unit)}`);
+        return saved;
+      } catch (err) {
+        toast.error(errorMessage(err));
+        return null;
+      } finally {
+        setIsAddingFabric(false);
+      }
+    },
+    [toast]
+  );
+
   const total = totalPieces(form.sizes);
 
   const submit = useCallback(async () => {
@@ -143,5 +175,7 @@ export function useLotForm({ lot = null, onSaved } = {}) {
     submit,
     addArticle,
     isAddingArticle,
+    addFabric,
+    isAddingFabric,
   };
 }

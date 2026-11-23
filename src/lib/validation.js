@@ -250,6 +250,14 @@ export const lotCreateSchema = z.object({
 
 export const lotUpdateSchema = updateSchemaOf(lotCreateSchema);
 
+/**
+ * Close the open cut list (client, 2026-11-23; src/lib/cutLists.js). `current` = the list the admin saw when he
+ * pressed Close: when it was already closed meanwhile, nothing is closed twice. Optional (an empty body is fine).
+ */
+export const cutListCloseSchema = z.object({
+  current: z.coerce.number().int().min(1).optional(),
+});
+
 /** Ready pieces leaving the factory: where to, and how many of each size (a part is fine). */
 export const dispatchOutSchema = z.object({
   party: trimmed(120),

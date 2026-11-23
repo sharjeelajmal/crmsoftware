@@ -2,6 +2,7 @@ import { getDb, withTransaction } from "@/lib/mongodb";
 import { route, ok, parseBody, requireObjectId, notFound, conflict } from "@/lib/api";
 import { stitchCutUpdateSchema } from "@/lib/validation";
 import { STITCH_CUTS, requireFreeCutNumber } from "@/lib/khata";
+import { cutListOf } from "@/constants/cutLists";
 
 /** GET /api/khata/cuts/:id — the cut and every piece of work done on it (newest first). Admin only. */
 export const GET = route(async (_request, context) => {
@@ -41,7 +42,8 @@ export const PUT = route(async (request, context) => {
       }
     }
     if (changes.cutNumber !== undefined && changes.cutNumber !== cut.cutNumber) {
-      await requireFreeCutNumber(db, changes.cutNumber, { exceptId: _id, session: tx });
+      // checked in the cut's own list, which never changes
+      await requireFreeCutNumber(db, changes.cutNumber, { exceptId: _id, cutList: cutListOf(cut), session: tx });
     }
     const $set = { ...changes, updatedAt: new Date() };
     if (changes.date !== undefined) $set.date = new Date(changes.date);

@@ -11,6 +11,7 @@ export function DashboardSkeleton() {
         <div className="h-4 w-40 rounded bg-white/80 motion-safe:animate-pulse" />
         <div className="h-8 w-72 max-w-full rounded-lg bg-white/80 motion-safe:animate-pulse" />
       </div>
+      <Block className="h-90 lg:h-58" />
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-5">
         <Block brand className="xl:col-span-5 h-80" />
         <div className="xl:col-span-7 grid grid-cols-2 gap-4 sm:gap-5">

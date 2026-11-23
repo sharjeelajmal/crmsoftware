@@ -1,7 +1,15 @@
 "use client";
 
 import { BRAND } from "@/constants/brand";
-import { baqayaLabel, isPaid, overallBalance, payTypeOf, round2, workRefLabel } from "@/constants/wages";
+import {
+  baqayaAndAdvance,
+  baqayaLabel,
+  isPaid,
+  overallBalance,
+  payTypeOf,
+  round2,
+  workRefLabel,
+} from "@/constants/wages";
 import { formatDate, formatDateTime, formatMoney } from "@/lib/format";
 
 /**
@@ -31,6 +39,7 @@ export function KhataStatement({ worker, entries = [], title, advanceLeft = 0, b
   const paid = sumOf(lines.filter(isPaid));
   const toPay = round2(total - paid);
   const pieces = lines.reduce((sum, e) => sum + (Math.trunc(Number(e.pieces)) || 0), 0);
+  const split = baqayaAndAdvance({ baqaya, advanceLeft });
 
   return (
     <div
@@ -126,18 +135,20 @@ export function KhataStatement({ worker, entries = [], title, advanceLeft = 0, b
               {formatMoney(toPay)}
             </td>
           </tr>
-          {baqaya !== 0 && (
+          {split.baqaya > 0 && (
             <tr>
-              <td style={td}>Baqaya ({baqaya > 0 ? "still to give him" : "he has to give"})</td>
+              <td style={td}>Baqaya (still to give him)</td>
               <td style={num} data-testid="khata-statement-baqaya">
-                {baqaya > 0 ? "+" : "−"} {formatMoney(Math.abs(baqaya))}
+                + {formatMoney(split.baqaya)}
               </td>
             </tr>
           )}
-          {advanceLeft > 0 && (
+          {split.advance > 0 && (
             <tr>
-              <td style={td}>Advance left</td>
-              <td style={num}>− {formatMoney(advanceLeft)}</td>
+              <td style={td}>Advance (he gives back)</td>
+              <td style={num} data-testid="khata-statement-advance">
+                − {formatMoney(split.advance)}
+              </td>
             </tr>
           )}
           {(baqaya !== 0 || advanceLeft > 0) && (

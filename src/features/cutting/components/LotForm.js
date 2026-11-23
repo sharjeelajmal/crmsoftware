@@ -3,18 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Save } from "lucide-react";
+import { PackagePlus, Plus, Save } from "lucide-react";
 import { ROLES } from "@/constants/roles";
 import { useRole } from "@/hooks/useRole";
 import { containerVariants, itemVariants } from "@/constants/animations";
+import { cutListHint, cutListOf } from "@/constants/cutLists";
 import { Button } from "@/components/ui/Button";
 import { Loader } from "@/components/ui/Loader";
+import { ConfirmDialog } from "@/components/ui/Dialogs";
 import { SelectDropdown } from "@/components/ui/CustomDropdown";
 import { SuggestInput } from "@/components/ui/SuggestInput";
 import { useFabricBalances } from "@/features/fabric/hooks/useFabricBalances";
 import { FabricBalanceHint } from "@/features/fabric/components/FabricBalanceHint";
+import { ReceiveFabricModal } from "@/features/fabric/components/ReceiveFabricModal";
 import { fabricSuggestions } from "@/features/fabric/utils";
 import { useLotForm } from "../hooks/useLotForm";
+import { useCutList } from "../hooks/useCutList";
 import { FABRIC_UNITS } from "../utils";
 import { SizeRowsEditor } from "./SizeRowsEditor";
 import { NewArticlePopup } from "./NewArticlePopup";
@@ -36,25 +40,69 @@ function Field({ label, children }) {
 /**
  * Cutting entry form (create or edit). `lot` switches it to edit mode;
  * `onSaved(lot)` receives the saved document; `cancelHref` is where "Cancel" goes.
- * An admin can add a new article right next to the article picker (only admins may add articles).
+ * An admin can add a new article right next to the article picker (only admins may add articles). Anyone cutting can
+ * receive a new fabric right next to the Fabric heading (both roles may receive fabric in the fabric khata).
+ * Under the cut number: the open cut list and its last cut (editing: the invoice's own list); a new entry lets the
+ * admin close the list when the fabric list is finished (client 2026-11-23: cut numbers then start again from 1).
  */
 export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
   const f = useLotForm({ lot, onSaved });
-  const { balances } = useFabricBalances();
-  const canAddArticle = useRole() === ROLES.ADMIN;
+  const { balances, admin: fabricAdmin, holders, reload: reloadBalances } = useFabricBalances();
+  const isAdmin = useRole() === ROLES.ADMIN;
+  const canAddArticle = isAdmin;
   const [addingArticle, setAddingArticle] = useState(false);
+  const [addingFabric, setAddingFabric] = useState(false);
+  const { cutList, close: closeCutList, isClosing } = useCutList();
+  const [closingList, setClosingList] = useState(false);
 
   if (f.productsLoading) return <Loader text="Loading articles" />;
 
+  const listHint = lot
+    ? cutListHint({ current: cutList?.current, lotList: cutListOf(lot) })
+    : cutList
+      ? cutListHint({ current: cutList.current, lastCutNumber: cutList.lastCutNumber })
+      : "";
+
   return (
     <>
-      {/* outside the <form>: the popup's buttons and Enter key never submit the cutting entry */}
+      {/* outside the <form>: the popups' buttons and Enter key never submit the cutting entry */}
       <AnimatePresence>
         {addingArticle && (
           <NewArticlePopup
             onSave={f.addArticle}
             onCancel={() => setAddingArticle(false)}
             isSaving={f.isAddingArticle}
+          />
+        )}
+        {addingFabric && (
+          <ReceiveFabricModal
+            initial={{ name: f.form.fabricName.trim(), unit: f.form.fabricUnit }}
+            balances={balances}
+            admin={fabricAdmin}
+            holders={holders}
+            isSaving={f.isAddingFabric}
+            onSave={async (input) => {
+              if (await f.addFabric(input)) {
+                setAddingFabric(false);
+                reloadBalances();
+              }
+            }}
+            onCancel={() => setAddingFabric(false)}
+          />
+        )}
+        {closingList && cutList && (
+          <ConfirmDialog
+            title={`Close list ${cutList.current}?`}
+            message={`Cut numbers start again from 1 in list ${cutList.current + 1}. Do this only when the fabric list is finished.`}
+            confirmLabel={isClosing ? "Closing…" : "Close list"}
+            tone="primary"
+            onConfirm={async () => {
+              if (isClosing) return;
+              await closeCutList();
+              setClosingList(false);
+            }}
+            onCancel={() => setClosingList(false)}
+            confirmTestId="cut-list-close-confirm"
           />
         )}
       </AnimatePresence>
@@ -107,7 +155,19 @@ export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
         </motion.section>
 
         <motion.section variants={itemVariants} className={SECTION_CLASS}>
-          <h2 className="text-lg font-bold text-gray-800">Fabric</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-gray-800">Fabric</h2>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={PackagePlus}
+              onClick={() => setAddingFabric(true)}
+              className="whitespace-nowrap"
+              data-testid="lot-form-new-fabric"
+            >
+              New fabric
+            </Button>
+          </div>
           <Field label="Fabric name">
             <SuggestInput
               value={f.form.fabricName}
@@ -156,18 +216,40 @@ export function LotForm({ lot = null, onSaved, cancelHref = "/cutting" }) {
             lot={lot}
           />
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            <Field label="Cut number (optional)">
-              <input
-                autoComplete="off"
-                type="text"
-                value={f.form.bundleNumber}
-                onChange={(e) => f.setField("bundleNumber", e.target.value)}
-                placeholder="e.g. C-12"
-                maxLength={40}
-                data-testid="lot-form-bundle"
-                className={INPUT_CLASS}
-              />
-            </Field>
+            <div>
+              <Field label="Cut number (optional)">
+                <input
+                  autoComplete="off"
+                  type="text"
+                  value={f.form.bundleNumber}
+                  onChange={(e) => f.setField("bundleNumber", e.target.value)}
+                  placeholder="e.g. C-12"
+                  maxLength={40}
+                  data-testid="lot-form-bundle"
+                  className={INPUT_CLASS}
+                />
+              </Field>
+              {listHint && (
+                <p
+                  className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500"
+                  data-testid="lot-form-cut-list"
+                  data-list={lot ? cutListOf(lot) : cutList?.current}
+                >
+                  <span>{listHint}</span>
+                  {isAdmin && !lot && (
+                    <button
+                      type="button"
+                      onClick={() => setClosingList(true)}
+                      disabled={isClosing}
+                      className="font-semibold text-primary hover:underline cursor-pointer disabled:opacity-50"
+                      data-testid="lot-form-close-list"
+                    >
+                      Close list…
+                    </button>
+                  )}
+                </p>
+              )}
+            </div>
             <Field label="Shrinkage (optional)">
               <input
                 autoComplete="off"

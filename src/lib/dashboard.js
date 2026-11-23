@@ -3,18 +3,20 @@ import { dateRangeFromFilter, dateQuery } from "@/lib/dates";
 import { PRODUCTION_REASONS, producedPiecesInRange } from "@/lib/production";
 import { ADVANCE_TYPES, round2 } from "@/constants/wages";
 import { periodWages } from "@/lib/wages";
-import { stitchOutQtyOf } from "@/constants/lots";
 import { LOW_STOCK_THRESHOLD } from "@/features/inventory/utils";
 import {
   IDLE_WARN_DAYS,
   LIST_LIMIT,
   PIPELINE_STAGES,
+  STITCH_RECEIVED_STAGES,
   TREND_DAYS,
   dayKey,
   fillDailySeries,
   idleDays,
   lastDayKeys,
   pipelineLoad,
+  stitchingBalance,
+  stitchingPieces,
   utcOffsetOf,
   waitingLongest,
 } from "@/constants/dashboard";
@@ -69,12 +71,13 @@ function stockHealth(products) {
   };
 }
 
-function stitchingBalance(lots) {
-  const inStitching = lots.filter((lot) => lot.stage === "stitching");
-  const received = sumOf(inStitching, "cutQty");
-  const out = inStitching.reduce((sum, lot) => sum + stitchOutQtyOf(lot), 0);
-  return { lots: inStitching.length, received, out, lying: received - out };
-}
+// Washing gate passes that carried pieces out of stitching (see stitchingPieces): not cancelled by a "Reverse", and
+// not a hand reissue — a reissued washing pass reprints pieces that already went out on the first one.
+const STITCH_OUT_PASSES = Object.freeze({
+  type: "washing",
+  cancelled: { $in: [null, false] },
+  action: { $ne: "manual" },
+});
 
 export async function loadDashboard(db, now = new Date()) {
   const today = startOfDay(now);
@@ -83,7 +86,8 @@ export async function loadDashboard(db, now = new Date()) {
   const week = dateRangeFromFilter({ filter: "thisweek" }, now);
   const month = dateRangeFromFilter({ filter: "monthly" }, now);
   const byDay = (field) => ({ $dateToString: { format: "%Y-%m-%d", date: `$${field}`, timezone: utcOffsetOf(now) } });
-  const isToday = (field) => ({ $and: [{ $gte: [field, today] }, { $lte: [field, endOfDay(now)] }] });
+  const within = (field, range) => ({ $and: [{ $gte: [field, range.start] }, { $lte: [field, range.end] }] });
+  const isToday = (field) => within(field, { start: today, end: endOfDay(now) });
 
   const [
     activeLots,
@@ -101,6 +105,8 @@ export async function loadDashboard(db, now = new Date()) {
     monthWageRows,
     activeWorkers,
     advanceRows,
+    stitchReceivedRows,
+    stitchOutRows,
   ] = await Promise.all([
     db
       .collection("lots")
@@ -182,6 +188,7 @@ export async function loadDashboard(db, now = new Date()) {
             washType: 1,
             party: 1,
             issuedAt: 1,
+            cancelled: 1, // the feed marks cancelled passes
           },
         }
       )
@@ -229,6 +236,27 @@ export async function loadDashboard(db, now = new Date()) {
         },
       ])
       .toArray(),
+    // Stitching pieces: every cut piece that came to stitching, and the pieces that went out of it to washing.
+    db
+      .collection("lots")
+      .aggregate([
+        { $match: { stage: { $in: [...STITCH_RECEIVED_STAGES] } } },
+        { $group: { _id: null, pieces: { $sum: "$cutQty" } } },
+      ])
+      .toArray(),
+    db
+      .collection("gate_passes")
+      .aggregate([
+        { $match: STITCH_OUT_PASSES },
+        {
+          $group: {
+            _id: null,
+            all: { $sum: "$pieces" },
+            week: { $sum: { $cond: [within("$issuedAt", week), "$pieces", 0] } },
+          },
+        },
+      ])
+      .toArray(),
   ]);
 
   const trend = fillDailySeries(lastDayKeys(now, TREND_DAYS), { cut: cutDaily, produced: producedDaily });
@@ -260,6 +288,11 @@ export async function loadDashboard(db, now = new Date()) {
       stitching: stitchingBalance(activeLots),
       stages,
       waiting: waitingLongest(activeLots, now),
+    },
+    // The owner's stitching picture (top of the dashboard); `left` is the same as production.stitching.lying.
+    stitchingPieces: {
+      ...stitchingPieces({ received: stitchReceivedRows[0]?.pieces, out: stitchOutRows[0], lots: activeLots }),
+      week: { start: week.start, end: week.end },
     },
     trend,
     activity: events,

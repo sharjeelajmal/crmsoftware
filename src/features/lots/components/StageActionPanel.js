@@ -12,6 +12,7 @@ import {
   lotShortfall,
   stitchOutQtyOf,
 } from "@/constants/lots";
+import { passIssuedBy } from "@/constants/gatepass";
 import { useStageAction } from "../hooks/useStageAction";
 import { ReadyForSaleForm } from "./ReadyForSaleForm";
 import { ReadyDoneCard } from "./ReadyDoneCard";
@@ -56,7 +57,8 @@ function StageStepForm({ lot, actionKey, onUpdated }) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     const updated = await runAction(lot, actionKey, { qty, note, washType });
-    if (updated) onUpdated?.(updated);
+    // the gate pass this step issued (e.g. washing, when stitching is closed) goes along, to open for printing
+    if (updated) onUpdated?.(updated, { issued: passIssuedBy(actionKey, updated.gatePasses) });
   };
 
   return (

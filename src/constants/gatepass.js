@@ -34,6 +34,21 @@ export const GATE_PASS_FOR_ACTION = Object.freeze({
 
 export const formatGatePassNumber = (seq) => `${GATE_PASS_PREFIX}-${seq}`;
 
+/**
+ * The gate pass a stage action just issued (GATE_PASS_FOR_ACTION: sending to stitching, closing stitching → washing),
+ * found in the lot's passes the action answered with — the newest one of that type, not cancelled — or null. The
+ * invoice page opens it for printing straight away (client, 2026-11-23: "print kidhar se niklega").
+ */
+export const passIssuedBy = (actionKey, gatePasses = []) => {
+  const type = GATE_PASS_FOR_ACTION[actionKey];
+  if (!type) return null;
+  return (
+    gatePasses
+      .filter((pass) => pass.type === type && !pass.cancelled)
+      .sort((a, b) => new Date(b.issuedAt) - new Date(a.issuedAt))[0] ?? null
+  );
+};
+
 export const isGatePassType = (type) => GATE_PASS_TYPES.includes(type);
 
 /** "30 – 36" from the lot's size rows (sizes with pieces only); "" when there are none. */

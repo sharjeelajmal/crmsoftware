@@ -13,6 +13,7 @@ import { DashboardSkeleton } from "@/features/dashboard/components/DashboardSkel
 import { WelcomeBar } from "@/features/dashboard/components/WelcomeBar";
 import { ShopToday, SHOW_SHOP } from "@/features/dashboard/components/ShopToday";
 import { HeroProduction } from "@/features/dashboard/components/HeroProduction";
+import { StitchingPieces } from "@/features/dashboard/components/StitchingPieces";
 import { KpiTile } from "@/features/dashboard/components/KpiTile";
 import { DeltaBadge } from "@/features/dashboard/components/DeltaBadge";
 import { PipelineFlow } from "@/features/dashboard/components/PipelineFlow";
@@ -29,8 +30,8 @@ const GAP = "gap-4 sm:gap-5";
 
 /**
  * Factory dashboard (admin home). One request (GET /api/dashboard) feeds every card; the page refreshes itself
- * every minute while it is open. Layout: welcome + actions → hero & KPI tiles → pipeline → trend & waiting lots
- * → activity, stock, spending → workers & gate passes.
+ * every minute while it is open. Layout: welcome + actions → stitching pieces → hero & KPI tiles → pipeline → trend &
+ * waiting lots → activity, stock, spending → workers & gate passes.
  */
 export default function Home() {
   const { dashboard, categories, isLoading, isFetching, reload, addProduct } = useDashboard();
@@ -94,6 +95,9 @@ export default function Home() {
         />
 
         {SHOW_SHOP && <ShopToday />}
+
+        {/* The owner's stitching picture first (client, 2026-11-23); an older server's response has no such key. */}
+        {dashboard.stitchingPieces && <StitchingPieces pieces={dashboard.stitchingPieces} />}
 
         <div className={`grid grid-cols-1 xl:grid-cols-12 ${GAP}`}>
           <HeroProduction production={production} trend={trend} now={now} className="xl:col-span-5" />

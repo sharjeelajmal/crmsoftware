@@ -189,7 +189,10 @@ export function KhataLedger({
                       ? `work ${formatMoney(payment.workAmount)} − advance cut ${formatMoney(payment.advanceCut)} · `
                       : ""}
                     {payment.balanceChange > 0 ? `${formatMoney(payment.balanceChange)} still to give (baqaya) · ` : ""}
-                    {payment.balanceChange < 0 ? `${formatMoney(-payment.balanceChange)} given extra (baqaya) · ` : ""}
+                    {payment.balanceChange < 0 && !(payment.extraAdvance > 0)
+                      ? `${formatMoney(-payment.balanceChange)} of his baqaya paid · `
+                      : ""}
+                    {payment.extraAdvance > 0 ? `${formatMoney(payment.extraAdvance)} extra → advance · ` : ""}
                     {payment.by?.name ? `by ${payment.by.name} · ` : ""}
                     {section.entries.length} {section.entries.length === 1 ? "entry" : "entries"}
                     {payment.note ? ` · ${payment.note}` : ""}

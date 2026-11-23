@@ -25,6 +25,7 @@ export const GET = route(async (_request, context) => {
     payments,
     totals: paidSplit(entries),
     advanceLeft: advanceAccount(advances).balance,
+    advances,
     balances,
     baqaya: baqayaOf({ balances, payments }),
   });

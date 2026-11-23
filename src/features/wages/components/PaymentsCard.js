@@ -20,7 +20,7 @@ const detailOf = (payment) => {
     payment.lotNumbers?.length ? payment.lotNumbers.join(", ") : "",
     payment.advanceCut > 0 ? `advance cut ${formatMoney(payment.advanceCut)}` : "",
     payment.balanceChange > 0 ? `${formatMoney(payment.balanceChange)} still to give (baqaya)` : "",
-    payment.balanceChange < 0 ? `${formatMoney(-payment.balanceChange)} given extra (baqaya)` : "",
+    payment.extraAdvance > 0 ? `${formatMoney(payment.extraAdvance)} extra → advance` : "",
     payment.note || "",
   ];
   return parts.filter(Boolean).join(" · ");

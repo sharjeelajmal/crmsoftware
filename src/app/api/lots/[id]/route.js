@@ -16,6 +16,7 @@ import {
 import { returnReadyStock } from "@/lib/production";
 import { round2 } from "@/constants/wages";
 import { CUTTING_EVENT_TYPES } from "@/constants/lots";
+import { cutListOf } from "@/constants/cutLists";
 import { issueGatePass } from "@/lib/gatepass";
 import { cuttingPassChanged } from "@/constants/gatepass";
 import { ALL_ROLES } from "@/constants/roles";
@@ -40,7 +41,8 @@ export const GET = route(
 /**
  * PUT /api/lots/:id — edit cutting data while the lot is still at the cutting stage.
  * A change to anything printed on the cutting gate pass issues a fresh one (printed numbers never change).
- * A new cut number already used by another invoice or a khata cut is refused (requireFreeLotCutNumber).
+ * A new cut number already used by another invoice or a khata cut of the lot's own cut list is refused
+ * (requireFreeLotCutNumber); the lot's `cutList` itself never changes.
  */
 export const PUT = route(
   async (request, { session, ...context }) => {
@@ -56,7 +58,9 @@ export const PUT = route(
       // checked only when the cut number changes: other edits of an invoice that shares an old number still save
       const cutNumberChanged =
         input.bundleNumber !== undefined && input.bundleNumber.toLowerCase() !== (lot.bundleNumber || "").toLowerCase();
-      if (cutNumberChanged) await requireFreeLotCutNumber(db, input.bundleNumber, { exceptId: _id, session: tx });
+      if (cutNumberChanged) {
+        await requireFreeLotCutNumber(db, input.bundleNumber, { exceptId: _id, cutList: cutListOf(lot), session: tx });
+      }
 
       const $set = { updatedAt: new Date() };
       if (input.productId) {

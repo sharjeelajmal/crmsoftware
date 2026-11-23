@@ -16,10 +16,12 @@ const LABEL_CLASS = "block text-sm font-medium text-gray-700 mb-1";
 /**
  * Records fabric received from the store (or corrects a receipt when `receipt` is given). The fabric name suggests
  * the fabrics already in the khata; the footer shows what will be in hand after saving. Admin (`holders` given)
- * picks which cutting master got the fabric.
+ * picks which cutting master got the fabric. `initial` ({ name, unit }) prefills a new receipt (the cutting form's
+ * "New fabric" passes what was typed there).
  */
 export function ReceiveFabricModal({
   receipt = null,
+  initial = null,
   balances,
   admin = false,
   holders = [],
@@ -27,7 +29,15 @@ export function ReceiveFabricModal({
   onCancel,
   isSaving,
 }) {
-  const [form, setForm] = useState(() => receiptForm(receipt));
+  const [form, setForm] = useState(() =>
+    receipt
+      ? receiptForm(receipt)
+      : {
+          ...receiptForm(null),
+          ...(initial?.name ? { name: initial.name } : {}),
+          ...(initial?.unit ? { unit: initial.unit } : {}),
+        }
+  );
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
   const problem = receiptProblem(form);
   const row = balanceOf(balances, form.name, form.unit);

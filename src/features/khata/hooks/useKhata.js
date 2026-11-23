@@ -135,8 +135,8 @@ export function useWorkerKhata(workerId) {
           [
             `Locked · ${formatMoney(payment.amount)} given`,
             payment.advanceCut > 0 ? `${formatMoney(payment.advanceCut)} advance cut` : "",
-            payment.balanceChange > 0 ? `${formatMoney(payment.balanceChange)} still to give` : "",
-            payment.balanceChange < 0 ? `${formatMoney(-payment.balanceChange)} extra given` : "",
+            payment.balanceChange > 0 ? `${formatMoney(payment.balanceChange)} still to give (baqaya)` : "",
+            payment.extraAdvance > 0 ? `${formatMoney(payment.extraAdvance)} extra went to his advance` : "",
           ]
             .filter(Boolean)
             .join(", ")
@@ -153,7 +153,7 @@ export function useWorkerKhata(workerId) {
             date: form.date,
             note: String(form.note || "").trim(),
           }),
-        "Old balance added to his baqaya"
+        (saved) => (saved.kind === "advance" ? "Added to his advance" : "Added to his baqaya")
       ).then(after),
     [run, after, workerId]
   );

@@ -339,8 +339,20 @@ export async function payEntries(db, tx, { entries, note = "", session }) {
   return payments;
 }
 
-/** Removes a payment: its work entries are unpaid again, and an advance cut made with it (a lock's) goes too. */
+/**
+ * Removes a payment: its work entries are unpaid again, and what a lock made with it goes too — its advance cut, and
+ * the advance of extra cash given (refused when part of that advance was cut since: take that payment back first).
+ */
 export async function removePayment(db, tx, payment) {
+  if (payment.extraAdvanceId) {
+    const { balance } = advanceAccount(await advanceEntries(db, { workerId: payment.workerId, session: tx }));
+    if (round2(balance - (Number(payment.extraAdvance) || 0)) < 0) {
+      throw conflict(
+        "Part of the extra given with this payment was cut from his advance since — take that later payment back first"
+      );
+    }
+    await db.collection("wage_adjustments").deleteOne({ _id: payment.extraAdvanceId }, { session: tx });
+  }
   if (payment.adjustmentId) {
     await db.collection("wage_adjustments").deleteOne({ _id: payment.adjustmentId }, { session: tx });
   }
@@ -386,7 +398,12 @@ export async function unpayEntries(db, tx, { entries }) {
     }
     const left = payment.entryIds.filter((entryId) => !paidEntries.some((e) => String(e._id) === String(entryId)));
     // a lock with an advance cut is one hand-over (cash + cut): it goes back as a whole too
-    if (payment.kind === "settle" || Number(payment.advanceCut) > 0 || left.length === 0) {
+    if (
+      payment.kind === "settle" ||
+      Number(payment.advanceCut) > 0 ||
+      Boolean(payment.extraAdvanceId) ||
+      left.length === 0
+    ) {
       await removePayment(db, tx, payment);
       removed += 1;
       continue;
@@ -472,6 +489,7 @@ export async function lockWorker(
   const settlement = lockSettlement({ work: preview.amount, advanceCut: cut, baqaya: baqayaBefore, cash });
   const paymentId = new ObjectId();
   const adjustmentId = cut > 0 ? new ObjectId() : null;
+  const extraAdvanceId = settlement.extra > 0 ? new ObjectId() : null;
   const doc = {
     ...buildWagePayment({
       worker: { workerId: String(worker._id), workerName: worker.name },
@@ -487,6 +505,7 @@ export async function lockWorker(
     baqayaBefore,
     balanceChange: settlement.change,
     ...(adjustmentId ? { advanceCut: cut, adjustmentId } : {}),
+    ...(extraAdvanceId ? { extraAdvance: settlement.extra, extraAdvanceId } : {}),
   };
   await db.collection(WAGE_PAYMENTS).insertOne({ _id: paymentId, ...doc }, { session: tx });
   if (adjustmentId) {
@@ -502,6 +521,21 @@ export async function lockWorker(
       now,
     });
     await db.collection("wage_adjustments").insertOne({ _id: adjustmentId, ...adjustment, paymentId }, { session: tx });
+  }
+  if (extraAdvanceId) {
+    // more cash than due: the rest is an advance he gives back (cut from a later payment)
+    const advance = buildWageAdjustment({
+      worker,
+      input: {
+        type: "advance",
+        amount: settlement.extra,
+        date: upTo,
+        note: note ? `Extra given at the lock · ${note}` : "Extra given at the lock",
+      },
+      session,
+      now,
+    });
+    await db.collection("wage_adjustments").insertOne({ _id: extraAdvanceId, ...advance, paymentId }, { session: tx });
   }
   await markEntriesPaid(db, tx, doc, paymentId);
   return { _id: paymentId, ...doc };

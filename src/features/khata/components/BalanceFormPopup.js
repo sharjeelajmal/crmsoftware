@@ -12,13 +12,13 @@ import { useToast } from "@/components/ui/ToastProvider";
 const INPUT_CLASS = "w-full p-3 bg-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-primary";
 const LABEL_CLASS = "block text-sm font-medium text-gray-700 mb-1";
 const WHO = [
-  { value: "owner", label: "I owe him" },
-  { value: "worker", label: "He owes me" },
+  { value: "owner", label: "I give him (baqaya)" },
+  { value: "worker", label: "He gives me (advance)" },
 ];
 
 /**
- * An old balance from the notebook (client, 2026-11-22): what the owner still owes the worker, or what the worker owes
- * the owner. It joins his baqaya, which his next lock (or Pay all) brings in.
+ * An old balance from the notebook (client, 2026-11-22): money the owner still gives the worker joins his baqaya (his
+ * next payment brings it in); money the worker gives back is an advance (cut like any advance — client, 2026-11-23).
  */
 export function BalanceFormPopup({ workerName, onSave, onCancel, isSaving = false }) {
   const toast = useToast();
@@ -41,7 +41,9 @@ export function BalanceFormPopup({ workerName, onSave, onCancel, isSaving = fals
           <Scale size={22} className="text-primary" /> Old balance · {workerName}
         </h3>
         <p className="text-sm text-gray-600 text-center">
-          From the notebook: money still to give him, or money he has to give back. It is settled with his next payment.
+          {form.owedBy === "owner"
+            ? "From the copy: money you still have to give him. It joins his baqaya and is paid with his next payment."
+            : "From the copy: money he has to give you back. It goes to his advance and is cut like any advance."}
         </p>
         <SegmentedControl
           options={WHO}

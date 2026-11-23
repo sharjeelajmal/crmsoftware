@@ -439,18 +439,28 @@ export const baqayaOf = ({ balances = [], payments = [] } = {}) =>
 
 /**
  * A lock's settlement: what is due (the work − the advance cut there + the baqaya brought in), the cash given (by
- * default all that is due, never below 0), the baqaya left after it (signed) and the change the lock makes to it.
+ * default all that is due, never below 0), the baqaya left after it and the change the lock makes to it, and the
+ * `extra` given beyond what was due — that is not baqaya but an advance he has to give back (client, 2026-11-23:
+ * "jiski taraf mere izafi gaye hain" belongs in the advance). Baqaya after a lock is never below 0; a baqaya below 0
+ * from before (kept from earlier) is settled the same way: what he owes moves to his advance.
  */
 export const lockSettlement = ({ work = 0, advanceCut = 0, baqaya = 0, cash } = {}) => {
-  const due = round2((Number(work) || 0) - (Number(advanceCut) || 0) + (Number(baqaya) || 0));
+  const before = Number(baqaya) || 0;
+  const due = round2((Number(work) || 0) - (Number(advanceCut) || 0) + before);
   const given = cash === undefined || cash === null || cash === "" ? Math.max(0, due) : round2(cash);
-  return {
-    due,
-    cash: given,
-    after: round2(due - given),
-    change: round2((Number(work) || 0) - (Number(advanceCut) || 0) - given),
-  };
+  const after = round2(Math.max(0, due - given));
+  return { due, cash: given, after, change: round2(after - before), extra: round2(Math.max(0, given - due)) };
 };
+
+/**
+ * The two figures the owner keeps apart (client, 2026-11-23): the baqaya — money he still owes the worker — and the
+ * advance — money the worker has to give back (advances given, extra cash given, less advance cut). A baqaya below 0
+ * kept from before counts as advance.
+ */
+export const baqayaAndAdvance = ({ baqaya = 0, advanceLeft = 0 } = {}) => ({
+  baqaya: round2(Math.max(0, Number(baqaya) || 0)),
+  advance: round2((Number(advanceLeft) || 0) + Math.max(0, -(Number(baqaya) || 0))),
+});
 
 /** "You owe him Rs 270" / "He owes you Rs 300" / "Settled" — a signed baqaya in words. */
 export const baqayaLabel = (amount) => {

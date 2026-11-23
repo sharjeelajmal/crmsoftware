@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, PauseCircle } from "lucide-react";
 import { itemVariants } from "@/constants/animations";
 import { errorMessage } from "@/lib/api-client";
@@ -15,11 +16,13 @@ import { StageActionPanel } from "@/features/lots/components/StageActionPanel";
 import { ShortfallPanel } from "@/features/lots/components/ShortfallPanel";
 import { WorkPanel } from "@/features/wages/components/WorkPanel";
 import { DispatchOutPanel } from "@/features/lots/components/DispatchOutPanel";
+import { GatePassModal } from "@/features/cutting/components/GatePassModal";
 
 export default function AdminLotPage() {
   const { id } = useParams();
   const router = useRouter();
   const { lot, isLoading, error, reload } = useLotDetail(id);
+  const [printPass, setPrintPass] = useState(null); // the gate pass a stage step just issued, open to print
 
   if (isLoading) return <Loader />;
 
@@ -34,46 +37,53 @@ export default function AdminLotPage() {
     );
   }
 
-  // Stage moves, reverse, stop and resume answer with the updated lot; the cached copy is stale, so refetch.
-  const handleStageUpdated = () => {
+  // Stage moves, reverse, stop and resume answer with the updated lot; the cached copy is stale, so refetch. A step
+  // that issued a gate pass (to stitching, or to washing when stitching is closed) opens it for printing.
+  const handleStageUpdated = (_updated, { issued = null } = {}) => {
+    if (issued) setPrintPass(issued);
     clearAsyncDataCache(`lot:${lot._id}`);
     reload();
   };
 
   return (
-    <LotDetail
-      lot={lot}
-      backHref="/lots"
-      backLabel="Invoices"
-      editHref={`/cutting/${lot._id}/edit`}
-      canIssueGatePass
-      actions={<LotActions lot={lot} onChanged={handleStageUpdated} onDeleted={() => router.push("/lots")} />}
-      afterPipeline={
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
-            <div className="lg:col-span-3">
-              {/* At ready there is nothing to move on: the Completed card (with its Reverse) stays while stopped. */}
-              {lot.hold && lot.stage !== "ready" ? (
-                <motion.div
-                  variants={itemVariants}
-                  className="h-full flex items-center gap-3 bg-white p-4 sm:p-6 rounded-2xl shadow-sm text-sm text-gray-600"
-                  data-testid="lot-stage-stopped"
-                >
-                  <PauseCircle size={20} className="shrink-0 text-amber-600" />
-                  The invoice is stopped. Press “Resume” at the top to continue with the next step.
-                </motion.div>
-              ) : (
-                <StageActionPanel lot={lot} onUpdated={handleStageUpdated} />
-              )}
+    <>
+      <AnimatePresence>
+        {printPass && <GatePassModal pass={printPass} onClose={() => setPrintPass(null)} />}
+      </AnimatePresence>
+      <LotDetail
+        lot={lot}
+        backHref="/lots"
+        backLabel="Invoices"
+        editHref={`/cutting/${lot._id}/edit`}
+        canIssueGatePass
+        actions={<LotActions lot={lot} onChanged={handleStageUpdated} onDeleted={() => router.push("/lots")} />}
+        afterPipeline={
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+              <div className="lg:col-span-3">
+                {/* At ready there is nothing to move on: the Completed card (with its Reverse) stays while stopped. */}
+                {lot.hold && lot.stage !== "ready" ? (
+                  <motion.div
+                    variants={itemVariants}
+                    className="h-full flex items-center gap-3 bg-white p-4 sm:p-6 rounded-2xl shadow-sm text-sm text-gray-600"
+                    data-testid="lot-stage-stopped"
+                  >
+                    <PauseCircle size={20} className="shrink-0 text-amber-600" />
+                    The invoice is stopped. Press “Resume” at the top to continue with the next step.
+                  </motion.div>
+                ) : (
+                  <StageActionPanel lot={lot} onUpdated={handleStageUpdated} />
+                )}
+              </div>
+              <div className="lg:col-span-2">
+                <ShortfallPanel lot={lot} ledgerHref={`/ledger?lot=${lot._id}`} />
+              </div>
             </div>
-            <div className="lg:col-span-2">
-              <ShortfallPanel lot={lot} ledgerHref={`/ledger?lot=${lot._id}`} />
-            </div>
-          </div>
-          {lot.stage === "ready" && !lot.hold && <DispatchOutPanel lot={lot} onUpdated={handleStageUpdated} />}
-          <WorkPanel lot={lot} />
-        </>
-      }
-    />
+            {lot.stage === "ready" && !lot.hold && <DispatchOutPanel lot={lot} onUpdated={handleStageUpdated} />}
+            <WorkPanel lot={lot} />
+          </>
+        }
+      />
+    </>
   );
 }
