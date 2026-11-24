@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { productSchema } from "@/lib/validation";
 import {
+  articleStitchCosts,
   baqayaLabel,
   baqayaOf,
   lockCash,
@@ -303,5 +304,44 @@ describe("gate pass a stage step issued (client, 2026-11-23: where is the print)
     expect(passIssuedBy("stitched", passes)._id).toBe("w2");
     expect(passIssuedBy("send_stitching", passes)).toBeNull();
     expect(passIssuedBy("washed", passes)).toBeNull();
+  });
+});
+
+describe("stitching cost per piece of each article (client, 2026-11-24)", () => {
+  it("adds up each operation's paid rate per piece, per article", () => {
+    const rows = [
+      {
+        article: "Sada Denim",
+        operationId: "ov",
+        operationName: "Overlock",
+        amount: 700,
+        pieces: 200,
+        lastDate: "2026-11-20",
+      },
+      { article: "sada denim ", operationId: "bp", operationName: "Back pocket", amount: 1400, pieces: 200 },
+      // fixed pay counts as what it came to per piece
+      {
+        article: "Sada Denim",
+        operationId: "wb",
+        operationName: "Waist belt",
+        amount: 500,
+        pieces: 100,
+        lastDate: "2026-11-23",
+      },
+      { article: "Baggy", operationId: "ov", operationName: "Overlock", amount: 350, pieces: 100 },
+      { article: "", operationId: "x", operationName: "No article", amount: 10, pieces: 1 },
+      { article: "Empty", operationId: "y", operationName: "Nothing", amount: 0, pieces: 0 },
+    ];
+    const costs = articleStitchCosts(rows);
+    expect(costs.map((c) => [c.article, c.perPiece, c.operations.length])).toEqual([
+      ["Sada Denim", 15.5, 3],
+      ["Baggy", 3.5, 1],
+    ]);
+    expect(costs[0].operations.map((op) => `${op.name} ${op.rate}`)).toEqual([
+      "Back pocket 7",
+      "Overlock 3.5",
+      "Waist belt 5",
+    ]);
+    expect(costs[0].lastDate).toBe("2026-11-23");
   });
 });

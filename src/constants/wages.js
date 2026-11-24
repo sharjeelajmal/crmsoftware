@@ -337,6 +337,57 @@ export const workRefLabel = (entry) => {
 };
 
 /**
+ * What one piece of each article costs to stitch (client, 2026-11-24: "ek-ek article ka ke saare operation saare
+ * workers ke daal ke per piece mujhe kitne ka padta hai"). From the work entered, per article and operation:
+ * `rows` = `[{ article, operationId, operationName, amount, pieces, lastDate }]` (one per article × operation). Each
+ * operation's rate is what was paid per piece for it (amount ÷ pieces — so fixed pay counts too); the article's cost
+ * per piece is the sum of its operations' rates. Articles are matched ignoring case and spaces; most operations first.
+ */
+export const articleStitchCosts = (rows = []) => {
+  const byArticle = new Map();
+  for (const row of rows) {
+    const name = String(row.article || "").trim();
+    if (!name) continue;
+    const key = name.toLowerCase().replace(/\s+/g, " ");
+    if (!byArticle.has(key)) byArticle.set(key, { article: name, operations: new Map(), lastDate: null });
+    const group = byArticle.get(key);
+    const opKey = String(row.operationId);
+    const op = group.operations.get(opKey) ?? {
+      operationId: opKey,
+      name: row.operationName || "",
+      amount: 0,
+      pieces: 0,
+    };
+    op.amount += Number(row.amount) || 0;
+    op.pieces += Math.trunc(Number(row.pieces)) || 0;
+    group.operations.set(opKey, op);
+    if (row.lastDate && (!group.lastDate || new Date(row.lastDate) > new Date(group.lastDate))) {
+      group.lastDate = row.lastDate;
+    }
+  }
+  return [...byArticle.values()]
+    .map((group) => {
+      const operations = [...group.operations.values()]
+        .filter((op) => op.pieces > 0)
+        .map((op) => ({
+          operationId: op.operationId,
+          name: op.name,
+          pieces: op.pieces,
+          rate: round2(op.amount / op.pieces),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return {
+        article: group.article,
+        operations,
+        perPiece: round2(operations.reduce((sum, op) => sum + op.rate, 0)),
+        lastDate: group.lastDate,
+      };
+    })
+    .filter((group) => group.operations.length > 0)
+    .sort((a, b) => b.operations.length - a.operations.length || a.article.localeCompare(b.article));
+};
+
+/**
  * The pieces a cut or invoice has — each operation's limit (client: "cut 240 piece ki hai", so an invoice's pieces
  * cut, `cutQty`; a khata cut: its pieces, 0 when not given) — and how it is named in messages.
  */

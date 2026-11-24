@@ -1599,6 +1599,47 @@ test("Baqaya: cash given less or more than due, and old balances, stay on the wo
   expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cut.body._id}`)).status, "cleaned up").toBe(200);
 });
 
+test("Stitching cost per piece of each article, from the work entered in the khata", async () => {
+  const ops = (await api(S.admin, "GET", "/api/operations")).body.operations;
+  const belt = ops.find((o) => o.name === "E2E Belt");
+  const pocket = ops.find((o) => o.name === "E2E Pocket");
+  const made = await api(S.admin, "POST", "/api/workers", { name: "E2E Costing Worker" });
+  S.ids.workers.push(made.body._id);
+  const workerId = made.body._id;
+  const cut = await api(S.admin, "POST", "/api/khata/cuts", {
+    cutNumber: "E2E-COST",
+    article: "E2E Costing Pent",
+    pieces: 100,
+  });
+  const add = (operationId, pieces, extra) =>
+    api(S.admin, "POST", "/api/khata/entries", { workerId, operationId, cutId: cut.body._id, pieces, ...extra });
+  const entries = [
+    await add(belt._id, 100, { rate: 4 }), // 4 a piece
+    await add(pocket._id, 50, { rate: 7 }), // 350
+    await add(pocket._id, 50, { payType: "fixed", amount: 400 }), // 8 a piece: pocket 750 / 100 = 7.5
+  ];
+  expect(
+    entries.every((e) => e.status === 201),
+    "work entered"
+  ).toBe(true);
+
+  expect((await api(S.cutter, "GET", "/api/khata/articles")).status, "admin only").toBe(403);
+  const costs = (await api(S.admin, "GET", "/api/khata/articles")).body;
+  const pent = costs.find((row) => row.article === "E2E Costing Pent");
+  expect([pent.perPiece, pent.operations.length].join(), "4 + 7.5 a piece").toBe("11.5,2");
+  expect(pent.operations.map((op) => `${op.name}:${op.rate}:${op.pieces}`).join(), "each operation's rate").toBe(
+    "E2E Belt:4:100,E2E Pocket:7.5:100"
+  );
+
+  for (const e of entries) await api(S.admin, "DELETE", `/api/work-entries/${e.body._id}`);
+  expect((await api(S.admin, "DELETE", `/api/khata/cuts/${cut.body._id}`)).status, "cleaned up").toBe(200);
+  const after = (await api(S.admin, "GET", "/api/khata/articles")).body;
+  expect(
+    after.some((row) => row.article === "E2E Costing Pent"),
+    "gone with its work"
+  ).toBe(false);
+});
+
 test("Articles are added without a purchase or sale price", async () => {
   const product = await api(S.admin, "POST", "/api/products", {
     name: "E2E No Price",

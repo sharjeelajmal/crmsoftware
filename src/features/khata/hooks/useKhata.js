@@ -56,6 +56,16 @@ export function useKhataWorkers() {
   return { workers: Array.isArray(data) ? data : [], isLoading, reload };
 }
 
+/** Per-piece stitching cost of each article, from the work entered (GET /api/khata/articles). */
+export function useArticleCosts() {
+  const { data, isLoading, error } = useAsyncData(() => api.get("/api/khata/articles"), [], {
+    initialData: [],
+    cacheKey: "khata-articles",
+  });
+  useLoadError(error);
+  return { articles: Array.isArray(data) ? data : [], isLoading };
+}
+
 /** The khata's cuts (newest first, with their work so far) and adding, editing and deleting one. */
 export function useKhataCuts() {
   const { data, isLoading, error, reload } = useAsyncData(() => api.get("/api/khata/cuts"), [], {

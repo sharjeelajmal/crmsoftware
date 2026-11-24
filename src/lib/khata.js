@@ -93,6 +93,34 @@ export async function cutTotals(db, cutIds) {
   );
 }
 
+/** Work entered per article × operation (amount, pieces, last day) — what articleStitchCosts is made from. */
+export async function articleCostRows(db) {
+  const rows = await db
+    .collection("work_entries")
+    .aggregate([
+      { $match: { productName: { $nin: [null, ""] }, pieces: { $gt: 0 } } },
+      {
+        $group: {
+          _id: { article: { $toLower: { $trim: { input: "$productName" } } }, operationId: "$operationId" },
+          article: { $first: "$productName" },
+          operationName: { $last: "$operationName" },
+          amount: { $sum: "$amount" },
+          pieces: { $sum: "$pieces" },
+          lastDate: { $max: "$date" },
+        },
+      },
+    ])
+    .toArray();
+  return rows.map((row) => ({
+    article: row.article,
+    operationId: String(row._id.operationId),
+    operationName: row.operationName,
+    amount: row.amount,
+    pieces: row.pieces,
+    lastDate: row.lastDate,
+  }));
+}
+
 /** Every worker's baqaya (signed; see baqayaOf): his old balances plus what his locks left. Map workerId → amount. */
 export async function workerBaqayas(db) {
   const [balances, locks] = await Promise.all([

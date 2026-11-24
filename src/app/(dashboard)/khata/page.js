@@ -8,7 +8,8 @@ import { Loader } from "@/components/ui/Loader";
 import { Button } from "@/components/ui/Button";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { useOperations } from "@/features/wages/hooks/useOperations";
-import { useKhataCuts, useKhataWorkers } from "@/features/khata/hooks/useKhata";
+import { useArticleCosts, useKhataCuts, useKhataWorkers } from "@/features/khata/hooks/useKhata";
+import { ArticleCostsCard } from "@/features/khata/components/ArticleCostsCard";
 import { WorkerBox } from "@/features/khata/components/WorkerBox";
 import { CutsList } from "@/features/khata/components/CutsList";
 import { CutFormPopup } from "@/features/khata/components/CutFormPopup";
@@ -31,6 +32,7 @@ export default function KhataPage() {
   const [adding, setAdding] = useState(false);
   const workersApi = useKhataWorkers();
   const cutsApi = useKhataCuts();
+  const articleCosts = useArticleCosts();
   const { operations } = useOperations();
 
   if (workersApi.isLoading && workersApi.workers.length === 0) return <Loader />;
@@ -61,6 +63,8 @@ export default function KhataPage() {
             is paid; new work starts after it.
           </p>
         </motion.div>
+
+        <ArticleCostsCard articles={articleCosts.articles} isLoading={articleCosts.isLoading} />
 
         <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-lg">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
