@@ -604,8 +604,15 @@ input[type="number"] {
     position: static !important;
     max-width: none !important;
   }
+  html:has(#khata-print),
+  body:has(#khata-print) {
+    background: #fff !important; /* white paper, not the app's tinted page behind the statement */
+  }
   #khata-print thead {
     display: table-header-group; /* the column titles again on every page */
+  }
+  #khata-print tfoot {
+    display: table-row-group; /* the total once, at the end — not at the foot of every page */
   }
   #khata-print tr {
     break-inside: avoid; /* a line is never split over two pages */
