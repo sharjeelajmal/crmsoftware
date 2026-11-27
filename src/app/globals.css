@@ -576,6 +576,40 @@ input[type="number"] {
   .no-print {
     display: none !important;
   }
+
+  /* A print preview inside a modal (a worker's khata, client 2026-11-26: "print half sa aaya"): only that modal
+     prints, at its full length over as many pages as it takes. Otherwise the modal's fixed overlay and its 90vh scroll
+     box cut it to one screen. Only the statement's own ancestors are released; its inside keeps its layout. */
+  body:has(#khata-print) > *:not(:has(#khata-print)) {
+    display: none !important;
+  }
+  body:has(#khata-print) > :has(#khata-print),
+  body:has(#khata-print) > :has(#khata-print) *:has(#khata-print) {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  #khata-print {
+    position: static !important;
+    max-width: none !important;
+  }
+  #khata-print thead {
+    display: table-header-group; /* the column titles again on every page */
+  }
+  #khata-print tr {
+    break-inside: avoid; /* a line is never split over two pages */
+  }
 }
 
 @page {

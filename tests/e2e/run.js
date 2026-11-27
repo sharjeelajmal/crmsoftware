@@ -3334,6 +3334,24 @@ uiTest(
       "to pay"
     ).toBe("1,50");
     expect(await statement.innerText(), "cut on the print").toContain(`${lot.body.lotNumber} · Cut E2E-C9`);
+    // printed, the whole statement comes out — not cut to the popup's height (client, 2026-11-26)
+    await page.emulateMedia({ media: "print" });
+    const printed = await page.evaluate(() => {
+      const box = document.getElementById("khata-print").getBoundingClientRect();
+      return {
+        top: Math.round(box.top),
+        height: Math.round(box.height),
+        page: document.documentElement.scrollHeight,
+        screen: window.innerHeight,
+      };
+    });
+    await page.emulateMedia({ media: "screen" });
+    expect(printed.top, "printed from the top of the page").toBe(0);
+    // nothing else prints: the page is just the statement (at least a screen tall)
+    expect(
+      Math.abs(printed.page - Math.max(printed.height, printed.screen)) <= 2,
+      `full length printed (${JSON.stringify(printed)})`
+    ).toBe(true);
     await page.click('[data-testid="khata-print-view-all"]');
     await page.waitForSelector('[data-testid="khata-statement"][data-lines="2"][data-total="150"]', {
       timeout: 60_000,
