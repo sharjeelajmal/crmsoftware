@@ -553,44 +553,28 @@ input[type="number"] {
   #khata-print * {
     visibility: visible;
   }
-  #invoice-section,
-  #ledger-print,
-  #wages-print,
-  #gate-pass-print,
-  #purchase-ledger-print,
-  #fabric-print,
-  #cutting-report-print,
-  #attendance-print,
-  #khata-print {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: auto;
-    margin: 0;
-    padding: 0;
-    box-shadow: none;
-    border-radius: 0;
-    font-size: 9pt;
-  }
   .no-print {
     display: none !important;
   }
 
-  /* A print preview inside a modal (a worker's khata, client 2026-11-26: "print half sa aaya"): only that modal
-     prints, at its full length over as many pages as it takes. Otherwise the modal's fixed overlay and its 90vh scroll
-     box cut it to one screen. Only the statement's own ancestors are released; its inside keeps its layout. */
-  body:has(#khata-print) > *:not(:has(#khata-print)) {
+  /* Every print comes out whole on A4 (client, 2026-11-27: the khata and the gate pass printed only one screen, cut at
+     the bottom). The printable section can sit in a modal (fixed overlay, 90vh scroll box) or in the app layout (an
+     h-screen frame where only <main> scrolls): its ancestors are released to plain full-width blocks that grow with it,
+     and everything beside them is taken out (not just hidden), so the section starts at the top of page 1 and runs
+     over as many pages as it takes. The section's own inside keeps its layout. */
+  body:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)) > *:not(:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print))):not(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)),
+  body:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)) *:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)) > *:not(:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print))):not(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)) {
     display: none !important;
   }
-  body:has(#khata-print) > :has(#khata-print),
-  body:has(#khata-print) > :has(#khata-print) *:has(#khata-print) {
+  body:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)) *:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)) {
     position: static !important;
     inset: auto !important;
     display: block !important;
     width: 100% !important;
+    min-width: 0 !important;
     max-width: none !important;
     height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
     transform: none !important;
@@ -598,28 +582,67 @@ input[type="number"] {
     padding: 0 !important;
     background: none !important;
     box-shadow: none !important;
+    border: 0 !important;
     border-radius: 0 !important;
   }
-  #khata-print {
+  html:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)),
+  body:has(:is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print)) {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important; /* white paper, not the app's tinted page */
+  }
+  :is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print) {
     position: static !important;
-    max-width: none !important;
+    width: 100% !important;
+    max-width: none !important; /* the full A4 width */
+    height: auto !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    font-size: 9pt; /* report tables fit the page (sections with their own sizes keep them) */
   }
-  html:has(#khata-print),
-  body:has(#khata-print) {
-    background: #fff !important; /* white paper, not the app's tinted page behind the statement */
-  }
-  #khata-print thead {
+  :is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print) thead {
     display: table-header-group; /* the column titles again on every page */
   }
-  #khata-print tfoot {
-    display: table-row-group; /* the total once, at the end — not at the foot of every page */
+  :is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print) tfoot {
+    display: table-row-group; /* a total once, at the end — not at the foot of every page */
   }
-  #khata-print tr {
+  :is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print) tr {
     break-inside: avoid; /* a line is never split over two pages */
+  }
+  :is(#invoice-section, #ledger-print, #wages-print, #gate-pass-print, #purchase-ledger-print, #fabric-print, #cutting-report-print, #attendance-print, #khata-print) :is(.overflow-x-auto, .overflow-auto, .overflow-y-auto) {
+    overflow: visible !important; /* nothing scrolls sideways on paper: it is laid out to fit */
+  }
+
+  /* The attendance month: 31 day columns fit on A4 turned sideways, in small type. */
+  #attendance-print {
+    page: attendance;
+  }
+  #attendance-print table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
+    font-size: 7pt;
+  }
+  #attendance-print :is(th, td) {
+    position: static !important;
+    min-width: 0 !important;
+    padding-left: 1px !important;
+    padding-right: 1px !important;
+  }
+  #attendance-print :is(th, td):first-child {
+    width: 30mm;
+    padding-left: 4px !important;
+    white-space: normal !important;
   }
 }
 
 @page {
   size: A4;
   margin: 10mm;
+}
+
+@page attendance {
+  size: A4 landscape;
+  margin: 8mm;
 }
